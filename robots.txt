@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://www.orbithost.com/sitemap.xml
+
+# Disallow client portal and admin areas
+Disallow: /portal/
+Disallow: /admin/
+Disallow: /client/

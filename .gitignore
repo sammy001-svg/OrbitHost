@@ -1,0 +1,6 @@
+# Temporary and local IDE configurations
+.claude/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
