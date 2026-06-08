@@ -11,8 +11,8 @@
   <meta name="description" content="OrbitHost provides enterprise-grade web hosting, VPS, dedicated servers, cloud hosting, domain registration, and SSL certificates with 99.9% uptime guarantee." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" /><noscript><link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" /><noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" /></noscript></noscript>
-  <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'" /><noscript><link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'" /><noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" /></noscript></noscript>
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" /><noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" /></noscript>
+  <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'" /><noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" /></noscript>
   <link rel="stylesheet" href="css/style.min.css" />
   <!-- Performance hints -->
   <link rel="dns-prefetch" href="//cdnjs.cloudflare.com" />
@@ -291,7 +291,7 @@
   <div class="carousel-slides">
 
     <!-- Slide 1 — Brand / General -->
-    <div class="carousel-slide slide-navy">
+    <div class="carousel-slide slide-photo slide-bg-1">
       <div class="container">
         <div class="slide-content">
           <span class="slide-eyebrow"><i class="fas fa-circle-check"></i> &nbsp;Trusted by 85,000+ Businesses</span>
@@ -344,7 +344,7 @@
     </div>
 
     <!-- Slide 2 — Shared Hosting -->
-    <div class="carousel-slide slide-mid">
+    <div class="carousel-slide slide-photo slide-bg-2">
       <div class="container">
         <div class="slide-content">
           <span class="slide-eyebrow"><i class="fas fa-bolt"></i> &nbsp;Starting from $2.99/month</span>
@@ -383,7 +383,7 @@
     </div>
 
     <!-- Slide 3 — VPS -->
-    <div class="carousel-slide slide-navy">
+    <div class="carousel-slide slide-photo slide-bg-3">
       <div class="container">
         <div class="slide-content">
           <span class="slide-eyebrow"><i class="fas fa-microchip"></i> &nbsp;Full Root Access</span>
@@ -436,7 +436,7 @@
     </div>
 
     <!-- Slide 4 — Security -->
-    <div class="carousel-slide slide-green">
+    <div class="carousel-slide slide-photo slide-bg-4">
       <div class="container">
         <div class="slide-content">
           <span class="slide-eyebrow"><i class="fas fa-shield-alt"></i> &nbsp;Enterprise Security</span>
@@ -475,7 +475,7 @@
     </div>
 
     <!-- Slide 5 — Domains -->
-    <div class="carousel-slide slide-mid">
+    <div class="carousel-slide slide-photo slide-bg-5">
       <div class="container">
         <div class="slide-content">
           <span class="slide-eyebrow"><i class="fas fa-globe"></i> &nbsp;500+ Domain Extensions</span>
@@ -978,6 +978,30 @@
       <div class="trust-badge"><i class="fas fa-users"></i> 85,000+ Active Customers</div>
       <div class="trust-badge"><i class="fas fa-trophy"></i> Best Hosting Provider 2024</div>
       <div class="trust-badge"><i class="fas fa-certificate"></i> ISO 27001 Certified</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== NEWSLETTER ===== -->
+<section class="newsletter-section">
+  <div class="container">
+    <div class="newsletter-inner animate-in">
+      <div class="newsletter-copy">
+        <h3>Stay in the Loop</h3>
+        <p>Get the latest hosting tips, product updates, and exclusive offers delivered straight to your inbox. Unsubscribe any time.</p>
+      </div>
+      <form class="newsletter-form" id="newsletterForm" novalidate>
+        <div class="newsletter-field">
+          <label for="nl-email" class="sr-only">Email address</label>
+          <input id="nl-email" type="email" class="newsletter-input" placeholder="Enter your email address" autocomplete="email" />
+          <button type="submit" class="btn btn-green">Subscribe <i class="fas fa-arrow-right"></i></button>
+        </div>
+        <span class="form-error newsletter-error" id="nl-email-err"></span>
+        <div class="newsletter-success" id="nl-success" hidden>
+          <i class="fas fa-check-circle"></i> You're subscribed! Check your inbox for a confirmation email.
+        </div>
+        <p class="newsletter-note">No spam, ever. Read our <a href="#">Privacy Policy</a>.</p>
+      </form>
     </div>
   </div>
 </section>

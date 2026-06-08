@@ -91,11 +91,15 @@ htmlFiles.forEach(file => {
   html = html.replace(/src="js\/main\.js"/g,        'src="js/main.min.js"');
   html = html.replace(/src="\.\.\/js\/main\.js"/g,  'src="../js/main.min.js"');
 
-  // Make Font Awesome non-blocking
-  html = html.replace(FA_BLOCKING, FA_ASYNC);
+  // Make Font Awesome non-blocking (guard: skip if already a preload)
+  if (!html.includes(`rel="preload" href="${FA_URL}"`)) {
+    html = html.replace(FA_BLOCKING, FA_ASYNC);
+  }
 
-  // Make Google Fonts non-blocking
-  html = html.replace(GF_BLOCKING, GF_ASYNC);
+  // Make Google Fonts non-blocking (guard: skip if already a preload)
+  if (!html.includes(`rel="preload" href="${GF_URL}"`)) {
+    html = html.replace(GF_BLOCKING, GF_ASYNC);
+  }
 
   if (html !== before) {
     fs.writeFileSync(file, html);
