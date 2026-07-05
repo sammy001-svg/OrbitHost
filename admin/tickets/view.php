@@ -1,0 +1,218 @@
+<?php
+require_once '../includes/config.php';
+require_once '../includes/db.php';
+require_once '../includes/auth.php';
+require_once '../includes/functions.php';
+
+auth_check();
+
+$id = (int)($_GET['id'] ?? 0);
+$stmt = db()->prepare('
+    SELECT t.*,
+           CONCAT(COALESCE(c.first_name,"")," ",COALESCE(c.last_name,"")) AS client_name,
+           c.email AS client_email, c.phone AS client_phone
+    FROM tickets t
+    LEFT JOIN clients c ON c.id = t.client_id
+    WHERE t.id = ?
+');
+$stmt->execute([$id]);
+$ticket = $stmt->fetch();
+
+if (!$ticket) {
+    flash_set('error', 'Ticket not found.');
+    header('Location: ' . APP_URL . '/tickets/');
+    exit;
+}
+
+$page_title = $ticket['ticket_number'] . ' — ' . mb_strimwidth($ticket['subject'], 0, 40, '…');
+
+// Handle reply
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reply'])) {
+    csrf_verify();
+    $message    = trim($_POST['message'] ?? '');
+    $new_status = $_POST['new_status'] ?? $ticket['status'];
+
+    if ($message) {
+        db()->prepare('INSERT INTO ticket_replies (ticket_id,sender_type,sender_name,message) VALUES (?,?,?,?)')
+            ->execute([$id, 'admin', current_admin()['name'], $message]);
+
+        $update_status = in_array($new_status, ['open','pending','answered','closed']) ? $new_status : 'answered';
+        db()->prepare('UPDATE tickets SET status=?, updated_at=NOW() WHERE id=?')
+            ->execute([$update_status, $id]);
+
+        log_activity('reply_ticket', 'ticket', $id, "Replied to ticket {$ticket['ticket_number']}");
+        flash_set('success', 'Reply sent.');
+        header('Location: ' . APP_URL . '/tickets/view.php?id=' . $id);
+        exit;
+    }
+}
+
+// Handle quick status update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
+    csrf_verify();
+    $ns = $_POST['quick_status'] ?? '';
+    if (in_array($ns, ['open','pending','answered','closed'])) {
+        db()->prepare('UPDATE tickets SET status=?, updated_at=NOW() WHERE id=?')->execute([$ns, $id]);
+        flash_set('success', 'Status updated to ' . ucfirst($ns) . '.');
+        header('Location: ' . APP_URL . '/tickets/view.php?id=' . $id);
+        exit;
+    }
+}
+
+// Load replies
+$replies = db()->prepare('SELECT * FROM ticket_replies WHERE ticket_id=? ORDER BY created_at ASC');
+$replies->execute([$id]);
+$replies = $replies->fetchAll();
+
+// Admins for assignment
+$admins = db()->query('SELECT id, name FROM admin_users ORDER BY name')->fetchAll();
+
+require_once '../includes/header.php';
+?>
+
+<div class="page-header">
+  <div>
+    <div class="breadcrumb">
+      <a href="<?php echo APP_URL; ?>/tickets/">Tickets</a><span class="breadcrumb-sep">›</span>
+      <?php echo h($ticket['ticket_number']); ?>
+    </div>
+    <h1 style="font-size:17px"><?php echo h($ticket['subject']); ?></h1>
+  </div>
+  <div class="page-header-actions">
+    <?php echo badge($ticket['priority']); ?>
+    <?php echo badge($ticket['status']); ?>
+
+    <!-- Quick status -->
+    <form method="POST" style="display:inline">
+      <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+      <input type="hidden" name="update_status" value="1" />
+      <select name="quick_status" class="form-select" style="width:130px;display:inline-block" onchange="this.form.submit()">
+        <?php foreach (['open','pending','answered','closed'] as $s): ?>
+          <option value="<?php echo $s; ?>" <?php echo $ticket['status']===$s?'selected':''; ?>><?php echo ucfirst($s); ?></option>
+        <?php endforeach; ?>
+      </select>
+    </form>
+
+    <a href="<?php echo APP_URL; ?>/tickets/" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start">
+
+  <!-- Thread + reply form -->
+  <div>
+    <!-- Thread -->
+    <div class="ticket-thread" style="margin-bottom:20px">
+      <?php if ($replies): foreach ($replies as $r):
+        $is_admin = $r['sender_type'] === 'admin';
+      ?>
+        <div class="ticket-msg <?php echo $is_admin ? 'from-admin' : 'from-client'; ?>">
+          <div class="msg-meta">
+            <div class="msg-avatar <?php echo $is_admin ? 'admin' : 'client'; ?>">
+              <?php echo strtoupper(substr($r['sender_name'] ?? 'C', 0, 1)); ?>
+            </div>
+            <span class="msg-sender"><?php echo h($r['sender_name'] ?: 'Client'); ?></span>
+            <?php if ($is_admin): ?><span style="font-size:11px;background:var(--green);color:#fff;padding:1px 7px;border-radius:4px">Admin</span><?php endif; ?>
+            <span class="msg-time"><?php echo format_datetime($r['created_at']); ?></span>
+          </div>
+          <div class="msg-body"><?php echo nl2br(h($r['message'])); ?></div>
+        </div>
+      <?php endforeach; else: ?>
+        <div class="empty-state"><i class="fas fa-comment-slash"></i><p>No messages yet.</p></div>
+      <?php endif; ?>
+    </div>
+
+    <!-- Reply form -->
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="fas fa-reply" style="color:var(--green);margin-right:6px"></i>Send Reply</div></div>
+      <div class="card-body">
+        <form method="POST">
+          <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+          <input type="hidden" name="reply"      value="1" />
+          <div class="form-group">
+            <textarea name="message" class="form-textarea" rows="5"
+                      placeholder="Type your reply here…" required></textarea>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Send Reply</button>
+            <label class="form-label mb-0" style="margin:0">After reply, set status to:</label>
+            <select name="new_status" class="form-select" style="width:140px">
+              <option value="answered">Answered</option>
+              <option value="pending">Pending</option>
+              <option value="closed">Closed</option>
+              <option value="open">Open</option>
+            </select>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ticket info sidebar -->
+  <div>
+    <!-- Details -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header"><div class="card-title">Ticket Details</div></div>
+      <div class="card-body" style="padding:0">
+        <table style="width:100%">
+          <?php
+          $rows = [
+            'Ticket #'   => h($ticket['ticket_number']),
+            'Department' => ucfirst($ticket['department']),
+            'Priority'   => badge($ticket['priority']),
+            'Status'     => badge($ticket['status']),
+            'Created'    => format_datetime($ticket['created_at']),
+            'Updated'    => format_datetime($ticket['updated_at']),
+          ];
+          foreach ($rows as $k => $v):
+          ?>
+          <tr>
+            <td style="padding:10px 16px;color:var(--text-muted);font-size:12px;white-space:nowrap;border-bottom:1px solid #f1f5f9;font-weight:500"><?php echo $k; ?></td>
+            <td style="padding:10px 16px;font-size:13px;border-bottom:1px solid #f1f5f9"><?php echo $v; ?></td>
+          </tr>
+          <?php endforeach; ?>
+        </table>
+      </div>
+    </div>
+
+    <!-- Client -->
+    <?php if ($ticket['client_id']): ?>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header">
+        <div class="card-title">Client</div>
+        <a href="<?php echo APP_URL; ?>/clients/view.php?id=<?php echo $ticket['client_id']; ?>" class="btn btn-ghost btn-xs">View</a>
+      </div>
+      <div class="card-body">
+        <div style="font-weight:600"><?php echo h(trim($ticket['client_name'])); ?></div>
+        <div style="font-size:12.5px;color:var(--text-muted);margin-top:3px"><?php echo h($ticket['client_email']); ?></div>
+        <?php if ($ticket['client_phone']): ?>
+          <div style="font-size:12.5px;color:var(--text-muted)"><?php echo h($ticket['client_phone']); ?></div>
+        <?php endif; ?>
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Assignment -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">Assign Ticket</div></div>
+      <div class="card-body">
+        <form method="POST" action="<?php echo APP_URL; ?>/tickets/assign.php">
+          <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+          <input type="hidden" name="id"         value="<?php echo $id; ?>" />
+          <select name="assigned_to" class="form-select" style="margin-bottom:10px">
+            <option value="">— Unassigned —</option>
+            <?php foreach ($admins as $a): ?>
+              <option value="<?php echo $a['id']; ?>" <?php echo (int)$ticket['assigned_to']===$a['id']?'selected':''; ?>>
+                <?php echo h($a['name']); ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+          <button type="submit" class="btn btn-ghost btn-sm" style="width:100%">Update Assignment</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<?php require_once '../includes/footer.php'; ?>
