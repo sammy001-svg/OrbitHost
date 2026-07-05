@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
@@ -52,6 +52,19 @@
       {"@type": "Offer", "name": "OrbitMail", "price": "1.99", "priceCurrency": "USD"},
       {"@type": "Offer", "name": "Microsoft 365", "price": "6.00", "priceCurrency": "USD"},
       {"@type": "Offer", "name": "Google Workspace", "price": "6.00", "priceCurrency": "USD"}
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {"@type": "Question", "name": "Can I use my own domain name for my email address?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. All OrbitHost email plans use your custom domain. You can create addresses like name@yourdomain.com. We handle MX, SPF, DKIM, and DMARC DNS configuration to ensure your emails are delivered and not marked as spam."}},
+      {"@type": "Question", "name": "What is the difference between OrbitMail and Microsoft 365 or Google Workspace?", "acceptedAnswer": {"@type": "Answer", "text": "OrbitMail is our own email platform — the most affordable option, ideal for basic business email. Microsoft 365 and Google Workspace add full productivity suites including desktop apps, cloud storage, video meetings, and collaboration tools. For teams needing more than email, Microsoft 365 or Google Workspace is the better choice."}},
+      {"@type": "Question", "name": "Can I access my email on my phone or tablet?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. All plans support IMAP, which syncs emails, sent items, folders, and read/unread status across all devices in real time. You can use any mail client (Apple Mail, Gmail app, Outlook, Thunderbird) or the browser-based webmail interface."}},
+      {"@type": "Question", "name": "How many email addresses can I create?", "acceptedAnswer": {"@type": "Answer", "text": "OrbitMail allows unlimited email accounts under your domain. Microsoft 365 and Google Workspace are priced per user. All plans support email aliases and distribution groups at no extra cost."}},
+      {"@type": "Question", "name": "How do I migrate my existing emails to OrbitHost?", "acceptedAnswer": {"@type": "Answer", "text": "We provide free email migration for all new customers from any provider including Gmail, cPanel mail, Outlook, and Zoho. Open a support ticket after subscribing and our migration team will transfer your emails and contacts with zero downtime."}}
     ]
   }
   </script>
@@ -112,7 +125,7 @@
 
 <section class="section" id="plans"><div class="container">
   <div class="section-header animate-in"><span class="section-tag">Email Plans</span><h2>Choose Your Business Email Solution</h2><p>From affordable hosted email to Microsoft 365 and Google Workspace — all with your own domain.</p></div>
-  <div class="email-plans" style="max-width:960px;margin:0 auto;">
+  <div class="email-plans plans-grid--centered">
     <div class="pricing-card animate-in">
       <div class="plan-name">OrbitMail Basic</div>
       <div class="plan-price"><span class="currency">$</span><span class="amount">1</span><span class="period">.99/user/mo</span></div>
@@ -125,8 +138,8 @@
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">IMAP / POP3 / SMTP</span></div>
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">SpamAssassin Filter</span></div>
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">SSL / TLS Encryption</span></div>
-        <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Calendar &amp; Contacts Sync</span></div>
-        <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Mobile Apps</span></div>
+        <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label feat-unavailable">Calendar &amp; Contacts Sync</span></div>
+        <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label feat-unavailable">Mobile Apps</span></div>
       </div>
       <a href="#" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="email-orbitmail">Get OrbitMail</a>
     </div>
@@ -165,7 +178,7 @@
       <a href="#" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="email-gworkspace">Get Google Workspace</a>
     </div>
   </div>
-  <p class="pricing-note" style="margin-top:24px;">All plans can be managed from your OrbitHost dashboard. <a href="contact.html">Contact us</a> for volume pricing on 10+ users.</p>
+  <p class="pricing-note mt-24">All plans can be managed from your OrbitHost dashboard. <a href="contact.html">Contact us</a> for volume pricing on 10+ users.</p>
 </div></section>
 
 <section class="section section-alt"><div class="container">
@@ -179,6 +192,20 @@
     <div class="feature-card animate-in"><div class="feature-icon"><i class="fas fa-headset"></i></div><h3>Setup Assistance</h3><p>Our team will help you configure your email, set up DNS records (MX, SPF, DKIM, DMARC), and migrate existing emails from your old provider.</p></div>
   </div>
 </div></section>
+
+<!-- FAQ -->
+<section class="section">
+  <div class="container">
+    <div class="section-header animate-in"><span class="section-tag">FAQ</span><h2>Email Hosting — Common Questions</h2></div>
+    <div class="faq-wrap">
+      <div class="faq-item animate-in"><div class="faq-q"><span>Can I use my own domain name for my email address?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Yes. All OrbitHost email plans use your custom domain. You can create addresses like name@yourdomain.com. We handle MX, SPF, DKIM, and DMARC DNS configuration to ensure your emails are delivered and not marked as spam.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>What is the difference between OrbitMail and Microsoft 365 or Google Workspace?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">OrbitMail is our own email platform — the most affordable option, ideal for basic business email. Microsoft 365 and Google Workspace add full productivity suites including desktop apps, cloud storage, video meetings, and collaboration tools. For teams needing more than email, Microsoft 365 or Google Workspace is the better choice.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>Can I access my email on my phone or tablet?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Yes. All plans support IMAP, which syncs emails, sent items, folders, and read/unread status across all devices in real time. You can use any mail client (Apple Mail, Gmail app, Outlook, Thunderbird) or the browser-based webmail interface.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>How many email addresses can I create?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">OrbitMail allows unlimited email accounts under your domain. Microsoft 365 and Google Workspace are priced per user. All plans support email aliases and distribution groups at no extra cost.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>How do I migrate my existing emails to OrbitHost?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">We provide free email migration for all new customers from any provider including Gmail, cPanel mail, Outlook, and Zoho. Open a support ticket after subscribing and our migration team will transfer your emails and contacts with zero downtime.</div></div></div>
+    </div>
+  </div>
+</section>
 
 <section class="cta-banner"><div class="container"><div class="cta-inner animate-in">
   <h2>Start Sending Professional Emails Today</h2>

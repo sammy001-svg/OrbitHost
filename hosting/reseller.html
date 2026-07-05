@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
@@ -51,6 +51,19 @@
       {"@type": "Offer", "name": "Reseller Starter", "price": "19.99", "priceCurrency": "USD", "priceValidUntil": "2026-12-31", "availability": "https://schema.org/InStock", "url": "https://sammy001-svg.github.io/OrbitHost/hosting/reseller.html"},
       {"@type": "Offer", "name": "Reseller Business", "price": "39.99", "priceCurrency": "USD", "priceValidUntil": "2026-12-31", "availability": "https://schema.org/InStock", "url": "https://sammy001-svg.github.io/OrbitHost/hosting/reseller.html"},
       {"@type": "Offer", "name": "Reseller Pro", "price": "69.99", "priceCurrency": "USD", "priceValidUntil": "2026-12-31", "availability": "https://schema.org/InStock", "url": "https://sammy001-svg.github.io/OrbitHost/hosting/reseller.html"}
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {"@type": "Question", "name": "Do I need technical knowledge to start a hosting business?", "acceptedAnswer": {"@type": "Answer", "text": "No. Our reseller packages are designed for non-technical entrepreneurs. WHMCS automates billing and provisioning. WHM provides a straightforward interface for managing client accounts. Our reseller support team is available 24/7 to assist with any technical questions."}},
+      {"@type": "Question", "name": "Will my clients know they are hosted on OrbitHost infrastructure?", "acceptedAnswer": {"@type": "Answer", "text": "No — full white-label branding means your clients only see your brand. You can customise cPanel themes, nameservers, error pages, and support contact details. OrbitHost is invisible to your end customers."}},
+      {"@type": "Question", "name": "How many client accounts can I create?", "acceptedAnswer": {"@type": "Answer", "text": "All OrbitHost reseller plans support unlimited client hosting accounts with no per-account charge. You can subdivide your disk space and bandwidth across as many accounts as you choose using WHM's resource allocation tools."}},
+      {"@type": "Question", "name": "Is WHMCS included with reseller hosting?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. All reseller plans include a full WHMCS license. WHMCS handles client account creation, billing, invoicing, payment collection, and support tickets automatically — letting your hosting business operate largely on autopilot."}},
+      {"@type": "Question", "name": "Can I set my own pricing for client plans?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. You have complete freedom to set your own pricing. OrbitHost charges you a fixed wholesale price and you decide what to charge your clients. Many resellers charge 3–10x the wholesale rate while remaining competitively priced in their local markets."}}
     ]
   }
   </script>
@@ -119,7 +132,7 @@
     <div class="pricing-card animate-in">
       <div class="plan-name">Reseller Starter</div>
       <div class="plan-price price-annual"><span class="currency">$</span><span class="amount">19</span><span class="period">.99/mo</span></div>
-      <div class="plan-price price-monthly" style="display:none"><span class="currency">$</span><span class="amount">24</span><span class="period">.99/mo</span></div>
+      <div class="plan-price price-monthly hidden"><span class="currency">$</span><span class="amount">24</span><span class="period">.99/mo</span></div>
       <div class="plan-renew">Billed annually</div><div class="plan-divider"></div>
       <div class="plan-features">
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label"><strong>50 GB</strong> NVMe SSD Storage</span></div>
@@ -129,14 +142,14 @@
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">White-Label Branding</span></div>
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Unlimited Client Accounts</span></div>
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Free SSL per Account</span></div>
-        <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Private Nameservers</span></div>
+        <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label feat-unavailable">Private Nameservers</span></div>
       </div>
       <a href="#" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="reseller-starter">Start Reselling</a>
     </div>
     <div class="pricing-card featured animate-in">
       <div class="plan-name">Reseller Business</div>
       <div class="plan-price price-annual"><span class="currency">$</span><span class="amount">39</span><span class="period">.99/mo</span></div>
-      <div class="plan-price price-monthly" style="display:none"><span class="currency">$</span><span class="amount">49</span><span class="period">.99/mo</span></div>
+      <div class="plan-price price-monthly hidden"><span class="currency">$</span><span class="amount">49</span><span class="period">.99/mo</span></div>
       <div class="plan-renew">Billed annually</div><div class="plan-divider"></div>
       <div class="plan-features">
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label"><strong>150 GB</strong> NVMe SSD Storage</span></div>
@@ -153,7 +166,7 @@
     <div class="pricing-card animate-in">
       <div class="plan-name">Reseller Pro</div>
       <div class="plan-price price-annual"><span class="currency">$</span><span class="amount">69</span><span class="period">.99/mo</span></div>
-      <div class="plan-price price-monthly" style="display:none"><span class="currency">$</span><span class="amount">84</span><span class="period">.99/mo</span></div>
+      <div class="plan-price price-monthly hidden"><span class="currency">$</span><span class="amount">84</span><span class="period">.99/mo</span></div>
       <div class="plan-renew">Billed annually</div><div class="plan-divider"></div>
       <div class="plan-features">
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label"><strong>300 GB</strong> NVMe SSD Storage</span></div>
@@ -182,6 +195,20 @@
     <div class="feature-card animate-in"><div class="feature-icon"><i class="fas fa-network-wired"></i></div><h3>Private Nameservers</h3><p>Set up private nameservers under your own domain (e.g., ns1.yourbrand.com) for a fully professional appearance to your clients.</p></div>
   </div>
 </div></section>
+
+<!-- FAQ -->
+<section class="section">
+  <div class="container">
+    <div class="section-header animate-in"><span class="section-tag">FAQ</span><h2>Reseller Hosting — Common Questions</h2></div>
+    <div class="faq-wrap">
+      <div class="faq-item animate-in"><div class="faq-q"><span>Do I need technical knowledge to start a hosting business?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">No. Our reseller packages are designed for non-technical entrepreneurs. WHMCS automates billing and provisioning. WHM provides a straightforward interface for managing client accounts. Our reseller support team is available 24/7 to assist with any technical questions.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>Will my clients know they are hosted on OrbitHost infrastructure?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">No — full white-label branding means your clients only see your brand. You can customise cPanel themes, nameservers, error pages, and support contact details. OrbitHost is invisible to your end customers.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>How many client accounts can I create?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">All OrbitHost reseller plans support unlimited client hosting accounts with no per-account charge. You can subdivide your disk space and bandwidth across as many accounts as you choose using WHM's resource allocation tools.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>Is WHMCS included with reseller hosting?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Yes. All reseller plans include a full WHMCS license. WHMCS handles client account creation, billing, invoicing, payment collection, and support tickets automatically — letting your hosting business operate largely on autopilot.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>Can I set my own pricing for client plans?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Yes. You have complete freedom to set your own pricing. OrbitHost charges you a fixed wholesale price and you decide what to charge your clients. Many resellers charge 3–10× the wholesale rate while remaining competitively priced in their local markets.</div></div></div>
+    </div>
+  </div>
+</section>
 
 <section class="cta-banner"><div class="container"><div class="cta-inner animate-in">
   <h2>Ready to Launch Your Hosting Business?</h2>

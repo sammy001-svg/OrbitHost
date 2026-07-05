@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
@@ -51,6 +51,19 @@
       {"@type": "Offer", "name": "Cloud Starter", "price": "25.00", "priceCurrency": "USD", "priceValidUntil": "2026-12-31", "availability": "https://schema.org/InStock", "url": "https://sammy001-svg.github.io/OrbitHost/hosting/cloud.html"},
       {"@type": "Offer", "name": "Cloud Business", "price": "75.00", "priceCurrency": "USD", "priceValidUntil": "2026-12-31", "availability": "https://schema.org/InStock", "url": "https://sammy001-svg.github.io/OrbitHost/hosting/cloud.html"},
       {"@type": "Offer", "name": "Cloud Enterprise", "price": "149.00", "priceCurrency": "USD", "priceValidUntil": "2026-12-31", "availability": "https://schema.org/InStock", "url": "https://sammy001-svg.github.io/OrbitHost/hosting/cloud.html"}
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {"@type": "Question", "name": "What is cloud hosting and how is it different from VPS?", "acceptedAnswer": {"@type": "Answer", "text": "Cloud hosting distributes your workload across multiple virtual instances on shared physical infrastructure, providing high availability and instant scaling. VPS is a single virtual server with fixed resources. Cloud hosting suits variable or spiky traffic, while VPS is better for consistent, predictable workloads."}},
+      {"@type": "Question", "name": "How does billing work for cloud hosting?", "acceptedAnswer": {"@type": "Answer", "text": "Cloud hosting plans are billed monthly with no long-term contract. You can cancel at any time without penalties. We charge a flat monthly rate per tier, making costs predictable regardless of actual usage within your plan."}},
+      {"@type": "Question", "name": "Can I scale my cloud resources without downtime?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. You can scale CPU and RAM up or down instantly through our control panel with zero downtime. Storage scaling typically completes in under 5 minutes with a brief maintenance window."}},
+      {"@type": "Question", "name": "What is the SLA uptime guarantee for cloud hosting?", "acceptedAnswer": {"@type": "Answer", "text": "All OrbitHost Cloud Hosting plans carry a 99.99% uptime SLA. The distributed architecture means your application stays online even if one physical node fails, thanks to automatic live migration to healthy nodes."}},
+      {"@type": "Question", "name": "Is managed cloud hosting available?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. All cloud plans include basic infrastructure management. For a fully managed experience including OS updates, security hardening, and application-level support, contact our sales team about adding a managed services package."}}
     ]
   }
   </script>
@@ -129,8 +142,8 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">1 Dedicated IP</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Daily Snapshots</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">DDoS Protection</span></div>
-          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Load Balancer</span></div>
-          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Object Storage</span></div>
+          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label feat-unavailable">Load Balancer</span></div>
+          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label feat-unavailable">Object Storage</span></div>
         </div>
         <a href="#" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="cloud-starter">Deploy Cloud</a>
       </div>
@@ -186,6 +199,20 @@
     <div class="feature-card animate-in"><div class="feature-icon"><i class="fas fa-globe"></i></div><h3>Multi-Region Deployment</h3><p>Deploy your cloud infrastructure across multiple geographic regions for true global high availability and low-latency performance worldwide.</p></div>
   </div>
 </div></section>
+
+<!-- FAQ -->
+<section class="section">
+  <div class="container">
+    <div class="section-header animate-in"><span class="section-tag">FAQ</span><h2>Cloud Hosting — Common Questions</h2></div>
+    <div class="faq-wrap">
+      <div class="faq-item animate-in"><div class="faq-q"><span>What is cloud hosting and how is it different from VPS?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Cloud hosting distributes your workload across multiple virtual instances on shared physical infrastructure, providing high availability and instant scaling. VPS is a single virtual server with fixed resources. Cloud hosting suits variable or spiky traffic, while VPS is better for consistent, predictable workloads.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>How does billing work for cloud hosting?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Cloud hosting plans are billed monthly with no long-term contract. You can cancel at any time without penalties. We charge a flat monthly rate per tier, making costs predictable regardless of actual usage within your plan.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>Can I scale my cloud resources without downtime?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Yes. You can scale CPU and RAM up or down instantly through our control panel with zero downtime. Storage scaling typically completes in under 5 minutes with a brief maintenance window.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>What is the SLA uptime guarantee for cloud hosting?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">All OrbitHost Cloud Hosting plans carry a 99.99% uptime SLA. The distributed architecture means your application stays online even if one physical node fails, thanks to automatic live migration to healthy nodes.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>Is managed cloud hosting available?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Yes. All cloud plans include basic infrastructure management. For a fully managed experience including OS updates, security hardening, and application-level support, contact our sales team about adding a managed services package.</div></div></div>
+    </div>
+  </div>
+</section>
 
 <section class="cta-banner"><div class="container"><div class="cta-inner animate-in">
   <h2>Launch Your Cloud Infrastructure Today</h2>

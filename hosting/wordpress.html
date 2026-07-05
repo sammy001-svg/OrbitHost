@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
@@ -51,6 +51,19 @@
       {"@type": "Offer", "name": "WP Starter", "price": "3.99", "priceCurrency": "USD", "priceValidUntil": "2026-12-31", "availability": "https://schema.org/InStock", "url": "https://sammy001-svg.github.io/OrbitHost/hosting/wordpress.html"},
       {"@type": "Offer", "name": "WP Business", "price": "7.99", "priceCurrency": "USD", "priceValidUntil": "2026-12-31", "availability": "https://schema.org/InStock", "url": "https://sammy001-svg.github.io/OrbitHost/hosting/wordpress.html"},
       {"@type": "Offer", "name": "WP Pro", "price": "12.99", "priceCurrency": "USD", "priceValidUntil": "2026-12-31", "availability": "https://schema.org/InStock", "url": "https://sammy001-svg.github.io/OrbitHost/hosting/wordpress.html"}
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {"@type": "Question", "name": "Do I need technical knowledge to set up WordPress on OrbitHost?", "acceptedAnswer": {"@type": "Answer", "text": "No technical skills are required. WordPress comes pre-installed on all our WordPress hosting plans. If you prefer a fresh install, our 1-click installer in cPanel deploys WordPress in under 60 seconds."}},
+      {"@type": "Question", "name": "Will my WordPress site be automatically backed up?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Business and Pro plans include automated daily backups stored offsite for 30 days. Starter plans include weekly backups. You can restore your site to any backup point in a single click from your control panel."}},
+      {"@type": "Question", "name": "How does WordPress performance compare to regular shared hosting?", "acceptedAnswer": {"@type": "Answer", "text": "Our WordPress hosting uses LiteSpeed web server with full-page caching, up to 5x faster than standard Apache-based shared hosting. Combined with NVMe SSD storage and built-in object caching, most WordPress sites load in under 500ms."}},
+      {"@type": "Question", "name": "Can I install WordPress plugins and themes freely?", "acceptedAnswer": {"@type": "Answer", "text": "Yes — you have full control over your WordPress installation. You can install any plugin or theme from the WordPress repository or upload custom ones. We do not restrict installations except those that create security vulnerabilities or abuse server resources."}},
+      {"@type": "Question", "name": "What happens if my WordPress site gets hacked?", "acceptedAnswer": {"@type": "Answer", "text": "Business and Pro plans include automated malware scanning and removal. If malware is detected, our security team is notified and will clean your site. Pre-configured security hardening — brute force protection, file integrity monitoring — is active on all plans."}}
     ]
   }
   </script>
@@ -119,7 +132,7 @@
     <div class="pricing-card animate-in">
       <div class="plan-name">WP Starter</div>
       <div class="plan-price price-annual"><span class="currency">$</span><span class="amount">3</span><span class="period">.99/mo</span></div>
-      <div class="plan-price price-monthly" style="display:none"><span class="currency">$</span><span class="amount">5</span><span class="period">.99/mo</span></div>
+      <div class="plan-price price-monthly hidden"><span class="currency">$</span><span class="amount">5</span><span class="period">.99/mo</span></div>
       <div class="plan-renew">Billed annually</div><div class="plan-divider"></div>
       <div class="plan-features">
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label"><strong>1</strong> WordPress Site</span></div>
@@ -129,15 +142,15 @@
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Free SSL + Free Domain</span></div>
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">LiteSpeed Cache Plugin</span></div>
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Automatic WP Updates</span></div>
-        <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Staging Site</span></div>
-        <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Malware Scan &amp; Removal</span></div>
+        <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label feat-unavailable">Staging Site</span></div>
+        <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label feat-unavailable">Malware Scan &amp; Removal</span></div>
       </div>
       <a href="#" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="wp-starter">Get Started</a>
     </div>
     <div class="pricing-card featured animate-in">
       <div class="plan-name">WP Business</div>
       <div class="plan-price price-annual"><span class="currency">$</span><span class="amount">7</span><span class="period">.99/mo</span></div>
-      <div class="plan-price price-monthly" style="display:none"><span class="currency">$</span><span class="amount">10</span><span class="period">.99/mo</span></div>
+      <div class="plan-price price-monthly hidden"><span class="currency">$</span><span class="amount">10</span><span class="period">.99/mo</span></div>
       <div class="plan-renew">Billed annually</div><div class="plan-divider"></div>
       <div class="plan-features">
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label"><strong>5</strong> WordPress Sites</span></div>
@@ -155,7 +168,7 @@
     <div class="pricing-card animate-in">
       <div class="plan-name">WP Pro</div>
       <div class="plan-price price-annual"><span class="currency">$</span><span class="amount">12</span><span class="period">.99/mo</span></div>
-      <div class="plan-price price-monthly" style="display:none"><span class="currency">$</span><span class="amount">16</span><span class="period">.99/mo</span></div>
+      <div class="plan-price price-monthly hidden"><span class="currency">$</span><span class="amount">16</span><span class="period">.99/mo</span></div>
       <div class="plan-renew">Billed annually</div><div class="plan-divider"></div>
       <div class="plan-features">
         <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label"><strong>Unlimited</strong> WordPress Sites</span></div>
@@ -185,6 +198,20 @@
     <div class="feature-card animate-in"><div class="feature-icon"><i class="fas fa-headset"></i></div><h3>WordPress Expert Support</h3><p>Our support team specialises in WordPress. Get help with plugin conflicts, theme issues, WooCommerce, and performance optimisation.</p></div>
   </div>
 </div></section>
+
+<!-- FAQ -->
+<section class="section">
+  <div class="container">
+    <div class="section-header animate-in"><span class="section-tag">FAQ</span><h2>WordPress Hosting — Common Questions</h2></div>
+    <div class="faq-wrap">
+      <div class="faq-item animate-in"><div class="faq-q"><span>Do I need technical knowledge to set up WordPress on OrbitHost?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">No technical skills are required. WordPress comes pre-installed on all our WordPress hosting plans. If you prefer a fresh install, our 1-click installer in cPanel deploys WordPress in under 60 seconds.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>Will my WordPress site be automatically backed up?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Yes. Business and Pro plans include automated daily backups stored offsite for 30 days. Starter plans include weekly backups. You can restore your site to any backup point in a single click from your control panel.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>How does WordPress performance compare to regular shared hosting?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Our WordPress hosting uses LiteSpeed web server with full-page caching, up to 5× faster than standard Apache-based shared hosting. Combined with NVMe SSD storage and built-in object caching, most WordPress sites load in under 500ms.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>Can I install WordPress plugins and themes freely?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Yes — you have full control over your WordPress installation. You can install any plugin or theme from the WordPress repository or upload custom ones. We do not restrict installations except those that create security vulnerabilities or abuse server resources.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>What happens if my WordPress site gets hacked?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Business and Pro plans include automated malware scanning and removal. If malware is detected, our security team will clean your site. Pre-configured security hardening — brute force protection, file integrity monitoring — is active on all plans.</div></div></div>
+    </div>
+  </div>
+</section>
 
 <section class="cta-banner"><div class="container"><div class="cta-inner animate-in">
   <h2>Start Your WordPress Site Today</h2>

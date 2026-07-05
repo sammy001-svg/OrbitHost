@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
@@ -53,6 +53,19 @@
       {"@type": "Offer", "name": "VPS Starter", "price": "15.99", "priceCurrency": "USD", "priceValidUntil": "2026-12-31", "availability": "https://schema.org/InStock", "url": "https://sammy001-svg.github.io/OrbitHost/hosting/vps.html"},
       {"@type": "Offer", "name": "VPS Business", "price": "29.99", "priceCurrency": "USD", "priceValidUntil": "2026-12-31", "availability": "https://schema.org/InStock", "url": "https://sammy001-svg.github.io/OrbitHost/hosting/vps.html"},
       {"@type": "Offer", "name": "VPS Pro", "price": "59.99", "priceCurrency": "USD", "priceValidUntil": "2026-12-31", "availability": "https://schema.org/InStock", "url": "https://sammy001-svg.github.io/OrbitHost/hosting/vps.html"}
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {"@type": "Question", "name": "What is VPS hosting and do I need it?", "acceptedAnswer": {"@type": "Answer", "text": "VPS (Virtual Private Server) hosting gives you a dedicated portion of a physical server with guaranteed CPU, RAM, and storage. You need VPS hosting if your website has outgrown shared hosting, you need root access, you run custom applications, or you need consistent performance without resource contention from other users."}},
+      {"@type": "Question", "name": "Is VPS hosting managed or unmanaged?", "acceptedAnswer": {"@type": "Answer", "text": "We offer both unmanaged and fully managed VPS options. Unmanaged VPS gives you full control and root access. Managed VPS includes OS updates, security patching, performance optimisation, and 24/7 monitoring by our team."}},
+      {"@type": "Question", "name": "Can I install a control panel like cPanel on my VPS?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. You can install cPanel/WHM, Plesk, DirectAdmin, or any other control panel on your VPS. Our Business and Pro plans include a cPanel license at no extra charge. Free panels like CyberPanel or HestiaCP are also available."}},
+      {"@type": "Question", "name": "How quickly is my VPS provisioned?", "acceptedAnswer": {"@type": "Answer", "text": "VPS servers are provisioned automatically within 60–90 seconds of payment confirmation. You will receive your server credentials via email immediately after provisioning. Our automated setup system operates 24/7."}},
+      {"@type": "Question", "name": "What operating systems are supported?", "acceptedAnswer": {"@type": "Answer", "text": "We support Ubuntu (20.04, 22.04, 24.04), Debian (11, 12), CentOS 7, AlmaLinux 8/9, Rocky Linux 8/9, Fedora, and Windows Server 2019/2022. Custom ISO uploads are available on request."}}
     ]
   }
   </script>
@@ -184,7 +197,7 @@
       <div class="pricing-card animate-in">
         <div class="plan-name">VPS Starter</div>
         <div class="plan-price price-annual"><span class="currency">$</span><span class="amount">15</span><span class="period">.99/mo</span></div>
-        <div class="plan-price price-monthly" style="display:none"><span class="currency">$</span><span class="amount">19</span><span class="period">.99/mo</span></div>
+        <div class="plan-price price-monthly hidden"><span class="currency">$</span><span class="amount">19</span><span class="period">.99/mo</span></div>
         <div class="plan-renew">Billed annually</div>
         <div class="plan-divider"></div>
         <div class="plan-features">
@@ -196,7 +209,7 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">1 Dedicated IP Address</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">DDoS Protection</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Weekly Backups</span></div>
-          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">cPanel License</span></div>
+          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label feat-unavailable">cPanel License</span></div>
         </div>
         <a href="#" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="vps-starter">Order VPS</a>
       </div>
@@ -204,7 +217,7 @@
       <div class="pricing-card featured animate-in">
         <div class="plan-name">VPS Business</div>
         <div class="plan-price price-annual"><span class="currency">$</span><span class="amount">29</span><span class="period">.99/mo</span></div>
-        <div class="plan-price price-monthly" style="display:none"><span class="currency">$</span><span class="amount">37</span><span class="period">.99/mo</span></div>
+        <div class="plan-price price-monthly hidden"><span class="currency">$</span><span class="amount">37</span><span class="period">.99/mo</span></div>
         <div class="plan-renew">Billed annually</div>
         <div class="plan-divider"></div>
         <div class="plan-features">
@@ -224,7 +237,7 @@
       <div class="pricing-card animate-in">
         <div class="plan-name">VPS Pro</div>
         <div class="plan-price price-annual"><span class="currency">$</span><span class="amount">59</span><span class="period">.99/mo</span></div>
-        <div class="plan-price price-monthly" style="display:none"><span class="currency">$</span><span class="amount">74</span><span class="period">.99/mo</span></div>
+        <div class="plan-price price-monthly hidden"><span class="currency">$</span><span class="amount">74</span><span class="period">.99/mo</span></div>
         <div class="plan-renew">Billed annually</div>
         <div class="plan-divider"></div>
         <div class="plan-features">

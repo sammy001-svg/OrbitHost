@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
@@ -52,6 +52,19 @@
       {"@type": "Offer", "name": "DV SSL (Let's Encrypt)", "price": "0", "priceCurrency": "USD"},
       {"@type": "Offer", "name": "OV SSL", "price": "49.99", "priceCurrency": "USD"},
       {"@type": "Offer", "name": "EV SSL", "price": "149.99", "priceCurrency": "USD"}
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {"@type": "Question", "name": "What is the difference between DV, OV, and EV SSL certificates?", "acceptedAnswer": {"@type": "Answer", "text": "Domain Validated (DV) SSL verifies only domain ownership and is issued in minutes — ideal for blogs and small sites. Organisation Validated (OV) SSL verifies your business identity. Extended Validation (EV) SSL undergoes the most rigorous legal verification and is recommended for e-commerce and financial services."}},
+      {"@type": "Question", "name": "How long does SSL validation take?", "acceptedAnswer": {"@type": "Answer", "text": "DV SSL certificates are issued automatically in minutes. OV certificates from DigiCert typically take 1–3 business days. EV certificates require 3–7 business days for full legal verification. You will receive email updates throughout the validation process."}},
+      {"@type": "Question", "name": "Does OrbitHost install the SSL certificate for me?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. For hosting customers, SSL certificates are installed automatically. If you purchased a standalone certificate for an external server, our SSL specialists will provide installation instructions or install it on your behalf on request."}},
+      {"@type": "Question", "name": "Will my SSL certificate renew automatically?", "acceptedAnswer": {"@type": "Answer", "text": "Let's Encrypt (DV) certificates renew automatically every 90 days. DigiCert OV and EV certificates are set up for automatic annual renewal. You will receive email reminders 30 and 7 days before expiry as a backup."}},
+      {"@type": "Question", "name": "What happens if my SSL certificate expires?", "acceptedAnswer": {"@type": "Answer", "text": "If your SSL expires, visitors will see a browser security warning and typically leave your site. Search engines may also downrank the site. Our automated renewal systems and manual expiry checks ensure this never happens for OrbitHost customers."}}
     ]
   }
   </script>
@@ -115,11 +128,11 @@
 <section class="section" id="ssl-plans">
   <div class="container">
     <div class="section-header animate-in"><span class="section-tag">SSL Plans</span><h2>Choose the Right SSL Certificate</h2><p>From free domain validation to premium extended validation — we have the right SSL certificate for every website and business type.</p></div>
-    <div class="ssl-types-grid" style="max-width:960px;margin:0 auto;">
+    <div class="ssl-types-grid plans-grid--centered">
       <div class="ssl-type-card animate-in">
         <div class="ssl-badge"><i class="fas fa-lock"></i></div>
         <div class="plan-name">Domain Validated (DV)</div>
-        <div class="plan-price"><span class="currency"></span><span class="amount" style="font-size:1.75rem;color:var(--green)">Free</span></div>
+        <div class="plan-price"><span class="currency"></span><span class="amount amount--free">Free</span></div>
         <div class="plan-renew">Included with all hosting plans</div>
         <div class="plan-divider"></div>
         <div class="plan-features">
@@ -128,8 +141,8 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">HTTPS Padlock</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Auto-Renewal (90-day)</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Ideal for: Blogs, Personal Sites</span></div>
-          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Business Verification</span></div>
-          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Organisation Name in Cert</span></div>
+          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label feat-unavailable">Business Verification</span></div>
+          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label feat-unavailable">Organisation Name in Cert</span></div>
         </div>
         <a href="hosting/shared.html" class="btn btn-outline-navy btn-block plan-cta">Get with Hosting</a>
       </div>
@@ -181,6 +194,20 @@
       <div class="feature-card animate-in"><div class="feature-icon"><i class="fas fa-key"></i></div><h3>256-Bit Encryption</h3><p>All OrbitHost SSL certificates use 256-bit AES encryption — the same standard used by banks and government institutions worldwide.</p></div>
       <div class="feature-card animate-in"><div class="feature-icon"><i class="fas fa-sync-alt"></i></div><h3>Auto-Renewal</h3><p>Never let your SSL expire accidentally. Our automated renewal system keeps your certificate current without any manual intervention required.</p></div>
       <div class="feature-card animate-in"><div class="feature-icon"><i class="fas fa-headset"></i></div><h3>Expert SSL Support</h3><p>Our SSL specialists will help you choose the right certificate, complete validation, and install it on your server — guiding you through every step.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section">
+  <div class="container">
+    <div class="section-header animate-in"><span class="section-tag">FAQ</span><h2>SSL Certificates — Common Questions</h2></div>
+    <div class="faq-wrap">
+      <div class="faq-item animate-in"><div class="faq-q"><span>What is the difference between DV, OV, and EV SSL certificates?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Domain Validated (DV) SSL verifies only domain ownership and is issued in minutes — ideal for blogs and small sites. Organisation Validated (OV) SSL verifies your business identity. Extended Validation (EV) SSL undergoes the most rigorous legal verification and is recommended for e-commerce and financial services.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>How long does SSL validation take?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">DV SSL certificates are issued automatically in minutes. OV certificates from DigiCert typically take 1–3 business days. EV certificates require 3–7 business days for full legal verification. You will receive email updates throughout the process.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>Does OrbitHost install the SSL certificate for me?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Yes. For hosting customers, SSL certificates are installed automatically. If you purchased a standalone certificate for an external server, our SSL specialists will provide installation instructions or install it on your behalf on request.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>Will my SSL certificate renew automatically?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">Let's Encrypt (DV) certificates renew automatically every 90 days. DigiCert OV and EV certificates are set up for automatic annual renewal. You will receive email reminders 30 and 7 days before expiry as a backup.</div></div></div>
+      <div class="faq-item animate-in"><div class="faq-q"><span>What happens if my SSL certificate expires?</span><span class="faq-toggle"><i class="fas fa-plus"></i></span></div><div class="faq-a"><div class="faq-a-inner">If your SSL expires, visitors will see a browser security warning and typically leave your site. Search engines may also downrank the site. Our automated renewal systems and manual expiry checks ensure this never happens for OrbitHost customers.</div></div></div>
     </div>
   </div>
 </section>
