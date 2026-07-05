@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
@@ -88,7 +88,7 @@
       <li class="nav-item"><a href="../about.html" class="nav-link">About</a></li>
       <li class="nav-item"><a href="../contact.html" class="nav-link">Support</a></li>
     </ul></nav>
-    <div class="header-right"><a href="#" class="btn btn-outline-white btn-sm">Log In</a><a href="#" class="btn btn-green btn-sm">Get Started</a></div>
+    <div class="header-right"><a href="#" class="btn btn-outline-white btn-sm" data-whmcs-action="login">Log In</a><a href="#" class="btn btn-green btn-sm">Get Started</a></div>
     <button type="button" class="nav-toggle" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
   </div></div>
 </header>
@@ -156,7 +156,7 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">5 Dedicated IP Addresses</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">DDoS Protection</span></div>
         </div>
-        <a href="../contact.html" class="btn btn-outline-navy btn-block plan-cta">Order Server</a>
+        <a href="../contact.html" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="dedicated-essential">Order Server</a>
       </div>
       <div class="pricing-card featured animate-in">
         <div class="plan-name">Business</div>
@@ -173,7 +173,7 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">10 Dedicated IP Addresses</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Enterprise DDoS Protection</span></div>
         </div>
-        <a href="../contact.html" class="btn btn-green btn-block plan-cta">Order Server</a>
+        <a href="../contact.html" class="btn btn-green btn-block plan-cta" data-whmcs-product="dedicated-business">Order Server</a>
       </div>
       <div class="pricing-card animate-in">
         <div class="plan-name">Enterprise</div>
@@ -190,7 +190,7 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">16 Dedicated IP Addresses</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Enterprise DDoS Protection</span></div>
         </div>
-        <a href="../contact.html" class="btn btn-outline-navy btn-block plan-cta">Order Server</a>
+        <a href="../contact.html" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="dedicated-enterprise">Order Server</a>
       </div>
     </div>
     <p class="pricing-note">Need a custom configuration? <a href="../contact.html">Request a custom quote</a> from our enterprise sales team.</p>
@@ -246,6 +246,6 @@
   <div class="sticky-offer-right"><a href="#plans" class="btn btn-green btn-sm">Order Now</a><button type="button" class="sticky-close" aria-label="Close offer bar"><i class="fas fa-times"></i></button></div>
 </div></div></div>
 
-<script src="../js/main.min.js" defer></script>
+<script src="../js/whmcs.js" defer></script><script src="../js/main.min.js" defer></script>
 </body>
 </html>

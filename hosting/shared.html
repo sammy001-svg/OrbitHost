@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
@@ -169,7 +169,7 @@
         </ul>
       </nav>
       <div class="header-right">
-        <a href="#" class="btn btn-outline-white btn-sm">Log In</a>
+        <a href="#" class="btn btn-outline-white btn-sm" data-whmcs-action="login">Log In</a>
         <a href="#" class="btn btn-green btn-sm">Get Started</a>
       </div>
       <button type="button" class="nav-toggle" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
@@ -286,7 +286,7 @@
           <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Priority Support</span></div>
           <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Dedicated IP Address</span></div>
         </div>
-        <a href="#" class="btn btn-outline-navy btn-block plan-cta">Get Started</a>
+        <a href="#" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="shared-starter">Get Started</a>
       </div>
 
       <div class="pricing-card featured animate-in">
@@ -308,7 +308,7 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Priority 24/7 Support</span></div>
           <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Dedicated IP Address</span></div>
         </div>
-        <a href="#" class="btn btn-green btn-block plan-cta">Get Started</a>
+        <a href="#" class="btn btn-green btn-block plan-cta" data-whmcs-product="shared-business">Get Started</a>
       </div>
 
       <div class="pricing-card animate-in">
@@ -330,7 +330,7 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Priority 24/7 Support</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Dedicated IP Address</span></div>
         </div>
-        <a href="#" class="btn btn-outline-navy btn-block plan-cta">Get Started</a>
+        <a href="#" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="shared-pro">Get Started</a>
       </div>
     </div>
     <p class="pricing-note">All plans include a <a href="#">30-day money-back guarantee</a>. Annual billing offers the best savings.</p>
@@ -551,6 +551,6 @@
   </div>
 </div>
 
-<script src="../js/main.min.js" defer></script>
+<script src="../js/whmcs.js" defer></script><script src="../js/main.min.js" defer></script>
 </body>
 </html>

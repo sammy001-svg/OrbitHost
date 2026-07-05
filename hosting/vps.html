@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png" />
@@ -95,7 +95,7 @@
         </ul>
       </nav>
       <div class="header-right">
-        <a href="#" class="btn btn-outline-white btn-sm">Log In</a>
+        <a href="#" class="btn btn-outline-white btn-sm" data-whmcs-action="login">Log In</a>
         <a href="#" class="btn btn-green btn-sm">Get Started</a>
       </div>
       <button type="button" class="nav-toggle" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
@@ -198,7 +198,7 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Weekly Backups</span></div>
           <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">cPanel License</span></div>
         </div>
-        <a href="#" class="btn btn-outline-navy btn-block plan-cta">Order VPS</a>
+        <a href="#" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="vps-starter">Order VPS</a>
       </div>
 
       <div class="pricing-card featured animate-in">
@@ -218,7 +218,7 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Daily Automated Backups</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">cPanel License Included</span></div>
         </div>
-        <a href="#" class="btn btn-green btn-block plan-cta">Order VPS</a>
+        <a href="#" class="btn btn-green btn-block plan-cta" data-whmcs-product="vps-business">Order VPS</a>
       </div>
 
       <div class="pricing-card animate-in">
@@ -238,7 +238,7 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Daily Automated Backups</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">cPanel License Included</span></div>
         </div>
-        <a href="#" class="btn btn-outline-navy btn-block plan-cta">Order VPS</a>
+        <a href="#" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="vps-pro">Order VPS</a>
       </div>
     </div>
     <p class="pricing-note">Need a custom configuration? <a href="../contact.html">Contact our sales team</a> for a tailored VPS solution.</p>
@@ -332,6 +332,6 @@
   <div class="sticky-offer-right"><a href="#plans" class="btn btn-green btn-sm">Order Now</a><button type="button" class="sticky-close" aria-label="Close offer bar"><i class="fas fa-times"></i></button></div>
 </div></div></div>
 
-<script src="../js/main.min.js" defer></script>
+<script src="../js/whmcs.js" defer></script><script src="../js/main.min.js" defer></script>
 </body>
 </html>

@@ -215,7 +215,7 @@
               <a href="#"><i class="fas fa-newspaper"></i> News &amp; Blog</a>
               <a href="#"><i class="fas fa-handshake"></i> Partner Program</a>
               <div class="dropdown-divider"></div>
-              <a href="#"><i class="fas fa-heartbeat"></i> System Status</a>
+              <a href="#" data-whmcs-action="status"><i class="fas fa-heartbeat"></i> System Status</a>
             </div>
           </li>
           <!-- Support -->
@@ -223,11 +223,11 @@
             <a href="contact.html" class="nav-link">Support <i class="fas fa-chevron-down chevron"></i></a>
             <div class="dropdown">
               <a href="contact.html"><i class="fas fa-headset"></i> Contact Support</a>
-              <a href="#"><i class="fas fa-book"></i> Knowledge Base</a>
+              <a href="#" data-whmcs-action="kb"><i class="fas fa-book"></i> Knowledge Base</a>
               <a href="#"><i class="fas fa-comments"></i> Live Chat</a>
-              <a href="#"><i class="fas fa-ticket-alt"></i> Submit Ticket</a>
+              <a href="#" data-whmcs-action="ticket"><i class="fas fa-ticket-alt"></i> Submit Ticket</a>
               <div class="dropdown-divider"></div>
-              <a href="#"><i class="fas fa-server"></i> Server Status</a>
+              <a href="#" data-whmcs-action="status"><i class="fas fa-server"></i> Server Status</a>
             </div>
           </li>
         </ul>
@@ -235,7 +235,7 @@
 
       <!-- Header CTA -->
       <div class="header-right">
-        <a href="#" class="btn btn-outline-white btn-sm">Log In</a>
+        <a href="#" class="btn btn-outline-white btn-sm" data-whmcs-action="login">Log In</a>
         <a href="hosting/shared.html" class="btn btn-green btn-sm">Get Started</a>
       </div>
 
@@ -318,7 +318,7 @@
             </div>
             <div class="panel-stats">
               <div class="p-stat">
-                <div class="p-stat-val">99.9<span style="font-size:1rem">%</span></div>
+                <div class="p-stat-val">99.9<span class="fs-1rem">%</span></div>
                 <div class="p-stat-lbl">Uptime SLA</div>
                 <div class="p-stat-note">&#10003; Guaranteed</div>
               </div>
@@ -757,7 +757,7 @@
         <div class="plan-price price-annual">
           <span class="currency">$</span><span class="amount">2</span><span class="period">.99/mo</span>
         </div>
-        <div class="plan-price price-monthly" style="display:none">
+        <div class="plan-price price-monthly hidden">
           <span class="currency">$</span><span class="amount">4</span><span class="period">.99/mo</span>
         </div>
         <div class="plan-renew">Billed annually — $35.88/yr</div>
@@ -769,10 +769,10 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Free SSL Certificate</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Free Domain (1 yr)</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">cPanel + Softaculous</span></div>
-          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Daily Backups</span></div>
-          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Dedicated IP Address</span></div>
+          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label feat-unavailable">Daily Backups</span></div>
+          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label feat-unavailable">Dedicated IP Address</span></div>
         </div>
-        <a href="hosting/shared.html" class="btn btn-outline-navy btn-block plan-cta">Get Started</a>
+        <a href="hosting/shared.html" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="shared-starter">Get Started</a>
       </div>
 
       <div class="pricing-card featured animate-in">
@@ -780,7 +780,7 @@
         <div class="plan-price price-annual">
           <span class="currency">$</span><span class="amount">5</span><span class="period">.99/mo</span>
         </div>
-        <div class="plan-price price-monthly" style="display:none">
+        <div class="plan-price price-monthly hidden">
           <span class="currency">$</span><span class="amount">8</span><span class="period">.99/mo</span>
         </div>
         <div class="plan-renew">Billed annually — $71.88/yr</div>
@@ -793,9 +793,9 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Free Domain (1 yr)</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">cPanel + Softaculous</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Daily Automated Backups</span></div>
-          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label" style="opacity:.5">Dedicated IP Address</span></div>
+          <div class="plan-feat"><i class="fas fa-xmark"></i><span class="feat-label feat-unavailable">Dedicated IP Address</span></div>
         </div>
-        <a href="hosting/shared.html" class="btn btn-green btn-block plan-cta">Get Started</a>
+        <a href="hosting/shared.html" class="btn btn-green btn-block plan-cta" data-whmcs-product="shared-business">Get Started</a>
       </div>
 
       <div class="pricing-card animate-in">
@@ -803,7 +803,7 @@
         <div class="plan-price price-annual">
           <span class="currency">$</span><span class="amount">9</span><span class="period">.99/mo</span>
         </div>
-        <div class="plan-price price-monthly" style="display:none">
+        <div class="plan-price price-monthly hidden">
           <span class="currency">$</span><span class="amount">13</span><span class="period">.99/mo</span>
         </div>
         <div class="plan-renew">Billed annually — $119.88/yr</div>
@@ -818,7 +818,7 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Daily Automated Backups</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Dedicated IP Address</span></div>
         </div>
-        <a href="hosting/shared.html" class="btn btn-outline-navy btn-block plan-cta">Get Started</a>
+        <a href="hosting/shared.html" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="shared-pro">Get Started</a>
       </div>
     </div>
     <p class="pricing-note">All plans include a <a href="#">30-day money-back guarantee</a>. Prices shown with annual billing discount applied.</p>
@@ -831,7 +831,7 @@
     <div class="why-grid">
       <div>
         <span class="section-tag">Infrastructure &amp; Reliability</span>
-        <h2 style="margin-bottom:28px">Why 85,000+ Businesses Trust OrbitHost</h2>
+        <h2 class="mb-28">Why 85,000+ Businesses Trust OrbitHost</h2>
         <div class="why-list">
           <div class="why-item animate-in">
             <div class="why-num">01</div>
@@ -866,7 +866,7 @@
       <div class="animate-in">
         <div class="why-visual">
           <div class="uptime-display">
-            <div class="uptime-big">99.9<span style="font-size:2rem">%</span></div>
+            <div class="uptime-big">99.9<span class="fs-2rem">%</span></div>
             <div class="uptime-lbl">Network <strong>Uptime SLA</strong></div>
           </div>
           <div class="server-stats">
@@ -906,25 +906,25 @@
         <div class="ic-icon"><i class="fas fa-lock"></i></div>
         <h4>SSL Certificates</h4>
         <p>Domain, business, and extended validation SSL from DigiCert, RapidSSL and Let's Encrypt. Free DV SSL with every plan.</p>
-        <a href="ssl.html" class="card-cta" style="justify-content:center;margin-top:12px">Learn More <i class="fas fa-arrow-right"></i></a>
+        <a href="ssl.html" class="card-cta card-cta--centered">Learn More <i class="fas fa-arrow-right"></i></a>
       </div>
       <div class="info-card animate-in">
         <div class="ic-icon"><i class="fas fa-envelope"></i></div>
         <h4>Email Hosting</h4>
         <p>Professional business email on your own domain. Microsoft 365, Google Workspace, or our own hosted mail solutions.</p>
-        <a href="email-hosting.html" class="card-cta" style="justify-content:center;margin-top:12px">Learn More <i class="fas fa-arrow-right"></i></a>
+        <a href="email-hosting.html" class="card-cta card-cta--centered">Learn More <i class="fas fa-arrow-right"></i></a>
       </div>
       <div class="info-card animate-in">
         <div class="ic-icon"><i class="fas fa-shield-alt"></i></div>
         <h4>Website Security</h4>
         <p>SiteLock malware scanning, removal, and firewall protection. DDOS mitigation and real-time threat monitoring.</p>
-        <a href="#" class="card-cta" style="justify-content:center;margin-top:12px">Learn More <i class="fas fa-arrow-right"></i></a>
+        <a href="#" class="card-cta card-cta--centered">Learn More <i class="fas fa-arrow-right"></i></a>
       </div>
       <div class="info-card animate-in">
         <div class="ic-icon"><i class="fas fa-tachometer-alt"></i></div>
         <h4>CDN &amp; Performance</h4>
         <p>Cloudflare CDN integration with our hosting plans. Accelerate global content delivery and reduce load times by up to 70%.</p>
-        <a href="#" class="card-cta" style="justify-content:center;margin-top:12px">Learn More <i class="fas fa-arrow-right"></i></a>
+        <a href="#" class="card-cta card-cta--centered">Learn More <i class="fas fa-arrow-right"></i></a>
       </div>
     </div>
   </div>
@@ -1090,7 +1090,7 @@
           <a href="#"><i class="fas fa-chevron-right"></i> System Status</a>
           <a href="#"><i class="fas fa-chevron-right"></i> Careers</a>
         </div>
-        <h4 style="margin-top:24px">Support</h4>
+        <h4 class="mt-24">Support</h4>
         <div class="footer-links">
           <a href="#"><i class="fas fa-chevron-right"></i> Knowledge Base</a>
           <a href="#"><i class="fas fa-chevron-right"></i> Submit a Ticket</a>
@@ -1123,6 +1123,6 @@
   </div>
 </div>
 
-<script src="js/main.min.js" defer></script>
+<script src="js/whmcs.js" defer></script><script src="js/main.min.js" defer></script>
 </body>
 </html>
