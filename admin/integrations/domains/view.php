@@ -19,7 +19,7 @@ $dom = $stmt->fetch();
 
 if (!$dom) {
     flash_set('error', 'Domain record not found.');
-    header('Location: ' . APP_URL . '/admin/integrations/domains/');
+    header('Location: ' . APP_URL . '/integrations/domains/');
     exit;
 }
 
@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (\Throwable $e) {
             $errors[] = $e->getMessage();
         }
-        header('Location: ' . APP_URL . '/admin/integrations/domains/view.php?id=' . $id);
+        header('Location: ' . APP_URL . '/integrations/domains/view.php?id=' . $id);
         exit;
     } elseif ($action === 'renew') {
         $years = (int)($_POST['years'] ?? 1);
@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (\Throwable $e) {
             $errors[] = $e->getMessage();
         }
-        header('Location: ' . APP_URL . '/admin/integrations/domains/view.php?id=' . $id);
+        header('Location: ' . APP_URL . '/integrations/domains/view.php?id=' . $id);
         exit;
     }
 }
@@ -167,7 +167,7 @@ require_once '../../includes/header.php';
         ['EPP Code',   $dom['epp_code'] ? '<code style="font-size:12px">' . htmlspecialchars($dom['epp_code']) . '</code>' : '<span style="color:var(--text-muted)">Not set</span>'],
       ];
       if ($dom['first_name']):
-        $rows[] = ['Client', '<a href="' . APP_URL . '/admin/clients/view.php?id=' . $dom['client_id'] . '">' . htmlspecialchars($dom['first_name'] . ' ' . $dom['last_name']) . '</a>'];
+        $rows[] = ['Client', '<a href="' . APP_URL . '/clients/view.php?id=' . $dom['client_id'] . '">' . htmlspecialchars($dom['first_name'] . ' ' . $dom['last_name']) . '</a>'];
       endif;
       foreach ($rows as [$k, $v]):
       ?>

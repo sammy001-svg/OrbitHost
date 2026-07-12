@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm'])) {
     if (!$errors) {
         try {
             $dc     = DomainClient::fromDB($provider);
-            $result = $dc->register($domain, $years, $contact);
+            $result = $dc->register($domain, $contact, $years);
 
             if ($result['success'] ?? false) {
                 $expiry = date('Y-m-d', strtotime("+{$years} years"));
@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm'])) {
 
                 log_activity('domain_register', "Registered {$domain} via {$provider}");
                 flash_set('success', "{$domain} registered successfully!");
-                header('Location: ' . APP_URL . '/admin/integrations/domains/');
+                header('Location: ' . APP_URL . '/integrations/domains/');
                 exit;
             } else {
                 $errors[] = 'Registration failed: ' . htmlspecialchars($result['error'] ?? 'Unknown error');

@@ -31,7 +31,7 @@ if (!empty($whm_cfg['host']) && !empty($whm_cfg['token'])) {
         $error = $e->getMessage();
     }
 } else {
-    $error = 'WHM is not configured. <a href="' . APP_URL . '/admin/integrations/settings.php#whm">Configure now</a>';
+    $error = 'WHM is not configured. <a href="' . APP_URL . '/integrations/settings.php#whm">Configure now</a>';
 }
 
 // Handle sync action — update disk/bw usage in our DB
@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'sync'
         $synced++;
     }
     flash_set('success', "Synced {$synced} accounts.");
-    header('Location: ' . APP_URL . '/admin/integrations/whm/');
+    header('Location: ' . APP_URL . '/integrations/whm/');
     exit;
 }
 

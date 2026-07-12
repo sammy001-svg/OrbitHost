@@ -78,10 +78,10 @@ function status_badge(string $s): string {
 <div class="stat-grid" style="margin-bottom:28px">
   <?php
   $cards = [
-    ['WHM / cPanel', 'fa-server',   $statuses['whm'],       APP_URL . '/admin/integrations/whm/'],
-    ['Namecheap',   'fa-globe',    $statuses['namecheap'], APP_URL . '/admin/integrations/domains/'],
-    ['GoDaddy',     'fa-globe',    $statuses['godaddy'],   APP_URL . '/admin/integrations/domains/'],
-    ['SMTP Email',  'fa-envelope', $statuses['smtp'],      APP_URL . '/admin/integrations/settings.php#smtp'],
+    ['WHM / cPanel', 'fa-server',   $statuses['whm'],       APP_URL . '/integrations/whm/'],
+    ['Namecheap',   'fa-globe',    $statuses['namecheap'], APP_URL . '/integrations/domains/'],
+    ['GoDaddy',     'fa-globe',    $statuses['godaddy'],   APP_URL . '/integrations/domains/'],
+    ['SMTP Email',  'fa-envelope', $statuses['smtp'],      APP_URL . '/integrations/settings.php#smtp'],
   ];
   foreach ($cards as [$title, $icon, $status, $link]):
   ?>
@@ -101,7 +101,7 @@ function status_badge(string $s): string {
   <div class="card">
     <div class="card-header">
       <span class="card-title"><i class="fas fa-server"></i> WHM / cPanel</span>
-      <a href="<?php echo APP_URL; ?>/admin/integrations/whm/" class="btn btn-ghost btn-sm">Manage</a>
+      <a href="<?php echo APP_URL; ?>/integrations/whm/" class="btn btn-ghost btn-sm">Manage</a>
     </div>
     <div class="card-body" style="padding:0">
       <?php if (!empty($settings['whm']['data']['host'])): $w = $settings['whm']['data']; ?>
@@ -118,7 +118,7 @@ function status_badge(string $s): string {
       <?php else: ?>
         <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:14px">
           <i class="fas fa-plug" style="font-size:24px;margin-bottom:8px;display:block"></i>
-          Not configured. <a href="<?php echo APP_URL; ?>/admin/integrations/settings.php#whm">Configure WHM</a>
+          Not configured. <a href="<?php echo APP_URL; ?>/integrations/settings.php#whm">Configure WHM</a>
         </div>
       <?php endif; ?>
     </div>
@@ -128,7 +128,7 @@ function status_badge(string $s): string {
   <div class="card">
     <div class="card-header">
       <span class="card-title"><i class="fas fa-globe"></i> Domain Registrars</span>
-      <a href="<?php echo APP_URL; ?>/admin/integrations/domains/" class="btn btn-ghost btn-sm">Manage</a>
+      <a href="<?php echo APP_URL; ?>/integrations/domains/" class="btn btn-ghost btn-sm">Manage</a>
     </div>
     <div class="card-body" style="padding:0">
       <?php foreach (['namecheap' => 'Namecheap', 'godaddy' => 'GoDaddy'] as $prov => $label): ?>
@@ -138,7 +138,7 @@ function status_badge(string $s): string {
         </div>
       <?php endforeach; ?>
       <div style="padding:12px 16px">
-        <a href="<?php echo APP_URL; ?>/admin/integrations/domains/check.php" class="btn btn-ghost btn-sm"><i class="fas fa-magnifying-glass"></i> Check Domain</a>
+        <a href="<?php echo APP_URL; ?>/integrations/domains/check.php" class="btn btn-ghost btn-sm"><i class="fas fa-magnifying-glass"></i> Check Domain</a>
       </div>
     </div>
   </div>

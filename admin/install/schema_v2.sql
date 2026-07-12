@@ -1,9 +1,12 @@
 -- ============================================================
 --  OrbitHost — Schema v2 Migration
---  Run AFTER schema.sql:  mysql -u root -p orbithost_admin < install/schema_v2.sql
+--  Run AFTER schema.sql
+--
+--  phpMyAdmin: select your database in the left panel first,
+--  then use Import — do NOT run the USE statement manually.
+--
+--  CLI (local/root): mysql -u root -p your_db_name < schema_v2.sql
 -- ============================================================
-
-USE orbithost_admin;
 
 -- ── Client portal authentication ─────────────────────────────
 ALTER TABLE clients
@@ -53,7 +56,7 @@ CREATE TABLE IF NOT EXISTS domain_registrations (
     id                INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     client_id         INT UNSIGNED NOT NULL,
     order_id          INT UNSIGNED DEFAULT NULL,
-    domain            VARCHAR(255) NOT NULL UNIQUE,
+    domain_name       VARCHAR(255) NOT NULL UNIQUE,
     registrar         ENUM('namecheap','godaddy','manual') NOT NULL DEFAULT 'manual',
     registrar_txid    VARCHAR(150) DEFAULT NULL,
     registration_date DATE,
@@ -70,10 +73,10 @@ CREATE TABLE IF NOT EXISTS domain_registrations (
 
 -- ── Portal invite tokens ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS portal_invites (
-    id         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    client_id  INT UNSIGNED NOT NULL UNIQUE,
-    token      VARCHAR(64)  NOT NULL UNIQUE,
-    expires_at DATETIME     NOT NULL,
-    used       TINYINT(1)  NOT NULL DEFAULT 0,
+    id          INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    client_id   INT UNSIGNED NOT NULL UNIQUE,
+    token       VARCHAR(64)  NOT NULL UNIQUE,
+    expires_at  DATETIME     NOT NULL,
+    accepted_at DATETIME     DEFAULT NULL,
     FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

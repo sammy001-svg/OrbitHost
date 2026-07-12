@@ -1,14 +1,14 @@
 -- ============================================================
 --  OrbitHost Admin Panel — Database Schema
---  Run: mysql -u root -p < install/schema.sql
+--
+--  phpMyAdmin: select your database in the left panel first,
+--  then Import this file — do NOT include a USE statement.
+--
+--  CLI (local/root): mysql -u root -p your_db_name < schema.sql
+--
 --  Default login: admin@orbithost.com / Admin@1234
---  ⚠  Change password immediately after first login.
+--  ⚠  Run install/setup.php to set a real password immediately.
 -- ============================================================
-
-CREATE DATABASE IF NOT EXISTS orbithost_admin
-  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-USE orbithost_admin;
 
 -- ── Admin users ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS admin_users (
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS orders (
     client_id     INT UNSIGNED  NOT NULL,
     service_id    INT UNSIGNED,
     service_name  VARCHAR(150),
-    domain        VARCHAR(255),
+    domain_name   VARCHAR(255),
     amount        DECIMAL(10,2) NOT NULL,
     billing_cycle ENUM('monthly','annual','one_time') NOT NULL DEFAULT 'monthly',
     status        ENUM('active','pending','suspended','cancelled','expired') NOT NULL DEFAULT 'pending',

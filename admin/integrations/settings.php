@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash_set('success', 'SMTP settings saved.');
     }
 
-    header('Location: ' . APP_URL . '/admin/integrations/settings.php');
+    header('Location: ' . APP_URL . '/integrations/settings.php');
     exit;
 }
 
