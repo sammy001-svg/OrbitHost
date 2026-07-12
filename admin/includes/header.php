@@ -10,7 +10,7 @@ $_admin = current_admin();
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title><?php echo isset($page_title) ? h($page_title) . ' — ' : ''; ?><?php echo APP_NAME; ?></title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
-  <link rel="stylesheet" href="<?php echo APP_URL; ?>/css/admin.css" />
+  <link rel="stylesheet" href="<?php echo APP_URL; ?>/css/admin.css?v=<?php echo @filemtime(__DIR__ . '/../css/admin.css') ?: time(); ?>" />
 </head>
 <body>
 

@@ -136,39 +136,44 @@ document.addEventListener('DOMContentLoaded', function () {
   var taxRateEl = document.getElementById('taxRate');
   if (taxRateEl) { taxRateEl.addEventListener('input', calcTotals); calcTotals(); }
 
-  // ── Slide-over drawers ───────────────────────────────────
+  // ── Slide-over drawers (event delegation — robust to any markup) ──
   //  Trigger:  [data-drawer-open="drawerId"]
-  //  Elements: <div class="drawer" id="drawerId"> + matching scrim
+  //  Elements: <div class="drawer" id="drawerId"> + <div id="drawerId-scrim">
   function closeDrawers() {
     document.querySelectorAll('.drawer.open, .drawer-scrim.open')
       .forEach(function (el) { el.classList.remove('open'); });
     document.body.style.overflow = '';
   }
-  document.querySelectorAll('[data-drawer-open]').forEach(function (el) {
-    el.addEventListener('click', function (e) {
+
+  document.addEventListener('click', function (e) {
+    var opener = e.target.closest ? e.target.closest('[data-drawer-open]') : null;
+    if (opener) {
       e.preventDefault();
-      var id = el.getAttribute('data-drawer-open');
+      var id = opener.getAttribute('data-drawer-open');
       var drawer = document.getElementById(id);
       var scrim  = document.getElementById(id + '-scrim');
       if (drawer) drawer.classList.add('open');
       if (scrim)  scrim.classList.add('open');
       document.body.style.overflow = 'hidden';
-    });
-  });
-  document.querySelectorAll('[data-drawer-close], .drawer-scrim').forEach(function (el) {
-    el.addEventListener('click', closeDrawers);
+      return;
+    }
+    if ((e.target.closest && e.target.closest('[data-drawer-close]')) ||
+        (e.target.classList && e.target.classList.contains('drawer-scrim'))) {
+      closeDrawers();
+    }
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDrawers(); });
 
-  // ── Secret field show/hide (token/API key inputs) ────────
-  document.querySelectorAll('.affix-btn[data-toggle-secret]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var input = btn.parentNode.querySelector('input');
-      if (!input) return;
-      var show = input.type === 'password';
-      input.type = show ? 'text' : 'password';
-      btn.textContent = show ? 'Hide' : 'Show';
-    });
+  // ── Secret field show/hide (token / API key inputs) ──────
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.affix-btn[data-toggle-secret]') : null;
+    if (!btn) return;
+    var wrap = btn.closest('.input-affix');
+    var input = wrap ? wrap.querySelector('input') : null;
+    if (!input) return;
+    var show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.textContent = show ? 'Hide' : 'Show';
   });
 
   // ── Quick status filter links ────────────────────────────
