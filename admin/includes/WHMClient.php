@@ -12,14 +12,14 @@ class WHMClient
 
     public function __construct(string $host, string $user, string $token, bool $sslVerify = false)
     {
-        // Normalise host: strip trailing slash and any accidental :2087 suffix,
-        // then ensure https:// scheme — without it cURL uses HTTP on port 80
-        // which just gets the "refresh to :2087" redirect HTML.
+        // Normalise host: strip any scheme the user typed (http:// OR https://),
+        // remove trailing slash and any accidental :port suffix, then always
+        // prefix https:// — WHM port 2087 requires SSL; plain HTTP returns a
+        // meta-refresh redirect that cURL cannot follow.
+        $host = preg_replace('#^https?://#i', '', $host);     // strip whatever scheme was entered
         $host = rtrim($host, '/');
-        $host = preg_replace('/:2087$/', '', $host);          // remove port if already present
-        if (!preg_match('#^https?://#i', $host)) {
-            $host = 'https://' . $host;                       // always use HTTPS for WHM
-        }
+        $host = preg_replace('#:\d+$#', '', $host);           // strip any port the user appended
+        $host = 'https://' . $host;                           // always HTTPS
         $this->host      = $host;
         $this->user      = $user;
         $this->token     = $token;
