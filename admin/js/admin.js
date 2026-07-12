@@ -136,6 +136,41 @@ document.addEventListener('DOMContentLoaded', function () {
   var taxRateEl = document.getElementById('taxRate');
   if (taxRateEl) { taxRateEl.addEventListener('input', calcTotals); calcTotals(); }
 
+  // ── Slide-over drawers ───────────────────────────────────
+  //  Trigger:  [data-drawer-open="drawerId"]
+  //  Elements: <div class="drawer" id="drawerId"> + matching scrim
+  function closeDrawers() {
+    document.querySelectorAll('.drawer.open, .drawer-scrim.open')
+      .forEach(function (el) { el.classList.remove('open'); });
+    document.body.style.overflow = '';
+  }
+  document.querySelectorAll('[data-drawer-open]').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+      e.preventDefault();
+      var id = el.getAttribute('data-drawer-open');
+      var drawer = document.getElementById(id);
+      var scrim  = document.getElementById(id + '-scrim');
+      if (drawer) drawer.classList.add('open');
+      if (scrim)  scrim.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    });
+  });
+  document.querySelectorAll('[data-drawer-close], .drawer-scrim').forEach(function (el) {
+    el.addEventListener('click', closeDrawers);
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDrawers(); });
+
+  // ── Secret field show/hide (token/API key inputs) ────────
+  document.querySelectorAll('.affix-btn[data-toggle-secret]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var input = btn.parentNode.querySelector('input');
+      if (!input) return;
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.textContent = show ? 'Hide' : 'Show';
+    });
+  });
+
   // ── Quick status filter links ────────────────────────────
   document.querySelectorAll('[data-filter-status]').forEach(function (el) {
     el.addEventListener('click', function (e) {
