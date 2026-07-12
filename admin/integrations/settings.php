@@ -7,16 +7,12 @@ require_once '../includes/functions.php';
 auth_check();
 $page_title = 'Integration Settings';
 
-// ── Reliable upsert — works on MySQL 5.6, 5.7, 8.x, MariaDB ──
+// REPLACE INTO: deletes old row (if UNIQUE match) then inserts fresh — zero rowCount() ambiguity
 function save_provider(string $provider, array $data): void
 {
     $json = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    $upd  = db()->prepare('UPDATE integration_settings SET settings=? WHERE provider=?');
-    $upd->execute([$json, $provider]);
-    if ($upd->rowCount() === 0) {
-        db()->prepare('INSERT INTO integration_settings (provider, settings) VALUES (?,?)')
-            ->execute([$provider, $json]);
-    }
+    db()->prepare('REPLACE INTO integration_settings (provider, settings) VALUES (?, ?)')
+        ->execute([$provider, $json]);
 }
 
 // Load current settings
@@ -39,7 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $section = $_POST['section'] ?? '';
 
     try {
-        if ($section === 'whm') {
+        if ($section === '_noop') {
+            // Refresh button — reload only, no write
+        } elseif ($section === 'whm') {
             save_provider('whm', [
                 'host'       => trim($_POST['whm_host']  ?? ''),
                 'user'       => trim($_POST['whm_user']  ?? 'root'),
@@ -108,6 +106,36 @@ require_once '../includes/header.php';
 <?php if ($error): ?>
   <div class="alert alert-danger"><i class="fas fa-triangle-exclamation"></i> <?php echo htmlspecialchars($error); ?></div>
 <?php endif; ?>
+
+<!-- DB status strip — lets you confirm what's actually persisted without guessing -->
+<div class="card" style="margin-bottom:20px;max-width:740px">
+  <div class="card-header">
+    <span class="card-title" style="font-size:13px"><i class="fas fa-database" style="color:var(--primary)"></i> Currently saved in database</span>
+    <form method="POST" style="display:inline">
+      <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+      <input type="hidden" name="section" value="_noop" />
+      <button type="submit" class="btn btn-ghost btn-sm" style="font-size:11px"><i class="fas fa-refresh"></i> Refresh</button>
+    </form>
+  </div>
+  <div style="padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px">
+    <?php
+    $checks = [
+      'whm'       => ['WHM Host', 'host'],
+      'namecheap' => ['Namecheap API User', 'api_user'],
+      'godaddy'   => ['GoDaddy Key', 'api_key'],
+      'smtp'      => ['SMTP Host', 'host'],
+    ];
+    foreach ($checks as $prov => [$label, $key]):
+        $val = $cfg[$prov][$key] ?? '';
+        $ok  = !empty($val);
+    ?>
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 10px;border-radius:99px;background:<?php echo $ok ? '#dcfce7' : '#fef2f2'; ?>;color:<?php echo $ok ? '#166534' : '#991b1b'; ?>">
+        <i class="fas <?php echo $ok ? 'fa-check' : 'fa-xmark'; ?>"></i>
+        <?php echo $label; ?>: <?php echo $ok ? '<strong>' . htmlspecialchars(substr($val, 0, 20) . (strlen($val) > 20 ? '…' : '')) . '</strong>' : 'not set'; ?>
+      </span>
+    <?php endforeach; ?>
+  </div>
+</div>
 
 <div style="display:flex;flex-direction:column;gap:20px;max-width:740px">
 
