@@ -1,19 +1,30 @@
 <?php
-// ── Database ──────────────────────────────────────────────────
-define('DB_HOST',    'localhost');
-define('DB_NAME',    'orbithost_admin');
-define('DB_USER',    'root');
-define('DB_PASS',    '');
-define('DB_CHARSET', 'utf8mb4');
+// ── Load .env from project root ───────────────────────────────
+(function () {
+    $env_file = dirname(__DIR__, 2) . '/.env';
+    if (!is_readable($env_file)) {
+        die('<b>Configuration error:</b> .env file not found at ' . htmlspecialchars($env_file) .
+            '. Copy .env from the project root and fill in your database credentials.');
+    }
+    $values = parse_ini_file($env_file);
+    if ($values === false) {
+        die('<b>Configuration error:</b> .env file could not be parsed. Check its syntax.');
+    }
+    foreach ($values as $k => $v) {
+        if (!defined($k)) {
+            define($k, $v);
+        }
+    }
+})();
 
-// ── Application ───────────────────────────────────────────────
-define('APP_NAME', 'OrbitHost Admin');
-define('TAX_RATE',  16);    // Default VAT %
-define('CURRENCY', 'USD');
-define('PER_PAGE',  20);
-
-// ── Session timeout (seconds) ─────────────────────────────────
-define('SESSION_TIMEOUT', 7200);
+// ── Defaults (used if .env omits them) ────────────────────────
+defined('DB_HOST')          || define('DB_HOST',    'localhost');
+defined('DB_CHARSET')       || define('DB_CHARSET', 'utf8mb4');
+defined('APP_NAME')         || define('APP_NAME',   'OrbitHost Admin');
+defined('TAX_RATE')         || define('TAX_RATE',   16);
+defined('CURRENCY')         || define('CURRENCY',   'USD');
+defined('PER_PAGE')         || define('PER_PAGE',   20);
+defined('SESSION_TIMEOUT')  || define('SESSION_TIMEOUT', 7200);
 
 // ── Auto-detect APP_URL (works from /admin/ or any subdirectory)
 if (!defined('APP_URL') && !defined('SETUP_MODE')) {

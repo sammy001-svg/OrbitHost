@@ -1,0 +1,16 @@
+# OrbitHost — Project root Apache config
+
+Options -Indexes
+ServerSignature Off
+
+# Block direct web access to sensitive files
+<FilesMatch "^\.env|^\.env\.|composer\.(json|lock)|package(-lock)?\.json|\.md$|\.sql$|\.log$|\.sh$">
+  Order Deny,Allow
+  Deny from all
+</FilesMatch>
+
+# Deny access to the .env file specifically (belt-and-suspenders)
+<Files ".env">
+  Order Deny,Allow
+  Deny from all
+</Files>

@@ -1,0 +1,24 @@
+# OrbitHost Admin Panel — Apache security config
+
+Options -Indexes
+ServerSignature Off
+
+# Block direct access to includes directory
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^includes/ - [F,L]
+  RewriteRule ^install/schema\.sql - [F,L]
+</IfModule>
+
+# Deny access to sensitive files
+<FilesMatch "\.(sql|md|log|sh|env)$">
+  Order Deny,Allow
+  Deny from all
+</FilesMatch>
+
+# PHP security headers
+<IfModule mod_headers.c>
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

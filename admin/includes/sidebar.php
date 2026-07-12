@@ -1,11 +1,15 @@
 <?php
 $_cur_page = basename($_SERVER['PHP_SELF']);
 $_cur_dir  = basename(dirname($_SERVER['PHP_SELF']));
+$_cur_dir2 = basename(dirname(dirname($_SERVER['PHP_SELF'])));
 
-function _nav(string $href, string $icon, string $label, string $dir = '', string $file = ''): void
+function _nav(string $href, string $icon, string $label, string $dir = '', string $file = '', string $dir2 = ''): void
 {
-    global $_cur_page, $_cur_dir;
-    $active = ($dir && $_cur_dir === $dir) || ($file && $_cur_page === $file) ? ' active' : '';
+    global $_cur_page, $_cur_dir, $_cur_dir2;
+    $active = ($dir && $_cur_dir === $dir)
+           || ($file && $_cur_page === $file)
+           || ($dir2 && $_cur_dir2 === $dir2)
+        ? ' active' : '';
     printf(
         '<a href="%s" class="nav-link%s"><i class="fas %s nav-icon"></i><span>%s</span></a>',
         $href, $active, $icon, $label
@@ -27,6 +31,11 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <?php _nav(APP_URL . '/orders/',   'fa-box',            'Orders',   'orders'); ?>
     <?php _nav(APP_URL . '/invoices/', 'fa-file-invoice',   'Invoices', 'invoices'); ?>
     <?php _nav(APP_URL . '/tickets/',  'fa-comments',       'Support Tickets', 'tickets'); ?>
+
+    <div class="nav-label">Integrations</div>
+    <?php _nav(APP_URL . '/integrations/whm/',     'fa-server',         'WHM / cPanel',   'whm', '', 'integrations'); ?>
+    <?php _nav(APP_URL . '/integrations/domains/', 'fa-globe',          'Domain Manager', 'domains', '', 'integrations'); ?>
+    <?php _nav(APP_URL . '/integrations/settings.php', 'fa-gear',       'Int. Settings',  'integrations', 'settings.php'); ?>
   </nav>
 
   <div class="sidebar-footer">

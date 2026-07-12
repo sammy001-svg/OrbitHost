@@ -1,0 +1,71 @@
+<?php
+portal_start();
+$_c     = current_client();
+$_flash = portal_flash_get();
+$_cur   = basename($_SERVER['PHP_SELF']);
+$_cdir  = basename(dirname($_SERVER['PHP_SELF']));
+
+function pnav(string $href, string $label, string $file = '', string $dir = ''): void {
+    global $_cur, $_cdir;
+    $active = ($file && $_cur === $file) || ($dir && $_cdir === $dir) ? ' active' : '';
+    echo "<a href=\"$href\" class=\"nav-link$active\">$label</a>";
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><?php echo isset($page_title) ? htmlspecialchars($page_title, ENT_QUOTES) . ' — ' : ''; ?>OrbitHost Client Portal</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css" />
+</head>
+<body>
+
+<header class="portal-header">
+  <div class="ph-inner">
+    <a href="<?php echo PORTAL_URL; ?>/dashboard.php" class="portal-logo">
+      <span class="logo-orb">O</span>
+      <span>Orbit<strong>Host</strong></span>
+    </a>
+
+    <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <nav class="portal-nav" id="portalNav">
+      <?php pnav(PORTAL_URL . '/dashboard.php', 'Dashboard',  'dashboard.php'); ?>
+      <?php pnav(PORTAL_URL . '/services.php',  'Services',   'services.php'); ?>
+      <?php pnav(PORTAL_URL . '/invoices/',      'Invoices',   'index.php', 'invoices'); ?>
+      <?php pnav(PORTAL_URL . '/tickets/',       'Support',    'index.php', 'tickets'); ?>
+    </nav>
+
+    <div class="ph-right">
+      <div class="client-menu">
+        <button class="client-trigger" id="clientTrigger">
+          <span class="client-avatar"><?php echo strtoupper(substr($_c['name'], 0, 1)); ?></span>
+          <span class="client-name"><?php echo htmlspecialchars($_c['name']); ?></span>
+          <i class="fas fa-chevron-down" style="font-size:10px"></i>
+        </button>
+        <div class="client-dropdown" id="clientDropdown">
+          <div class="dropdown-header">
+            <div class="dropdown-name"><?php echo htmlspecialchars($_c['name']); ?></div>
+            <div class="dropdown-email"><?php echo htmlspecialchars($_c['email']); ?></div>
+          </div>
+          <a href="<?php echo PORTAL_URL; ?>/profile.php"><i class="fas fa-user"></i> My Profile</a>
+          <a href="<?php echo PORTAL_URL; ?>/logout.php" style="color:var(--danger)"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="portal-main">
+  <?php if ($_flash): ?>
+    <div class="container">
+      <div class="p-alert p-alert-<?php echo $_flash['type']; ?>">
+        <i class="fas <?php echo $_flash['type'] === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'; ?>"></i>
+        <?php echo htmlspecialchars($_flash['msg']); ?>
+      </div>
+    </div>
+  <?php endif; ?>

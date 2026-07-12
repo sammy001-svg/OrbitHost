@@ -54,6 +54,9 @@ require_once '../includes/header.php';
     <a href="<?php echo APP_URL; ?>/invoices/add.php?client_id=<?php echo $id; ?>" class="btn btn-ghost btn-sm">
       <i class="fas fa-file-invoice"></i> New Invoice
     </a>
+    <a href="<?php echo APP_URL; ?>/clients/invite.php?id=<?php echo $id; ?>" class="btn btn-ghost btn-sm" title="Send portal invite">
+      <i class="fas fa-envelope"></i> Portal Invite
+    </a>
     <a href="<?php echo APP_URL; ?>/clients/edit.php?id=<?php echo $id; ?>" class="btn btn-primary btn-sm">
       <i class="fas fa-edit"></i> Edit
     </a>
