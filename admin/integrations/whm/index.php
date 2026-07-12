@@ -88,23 +88,23 @@ require_once '../../includes/header.php';
 <?php else: ?>
 
   <?php if (!empty($server_info)): ?>
-  <div class="stat-grid" style="margin-bottom:20px">
+  <div class="stat-grid" style="margin-bottom:20px;grid-template-columns:repeat(3,1fr)">
     <div class="stat-card">
-      <div class="stat-icon"><i class="fas fa-microchip"></i></div>
+      <div class="stat-icon navy"><i class="fas fa-microchip"></i></div>
       <div>
-        <div class="stat-label">Server Load</div>
-        <div class="stat-value"><?php echo number_format($server_info['load1'] ?? 0, 2); ?></div>
+        <div class="stat-label">Load (1 min)</div>
+        <div class="stat-value"><?php echo number_format((float)($server_info['one'] ?? 0), 2); ?></div>
       </div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon"><i class="fas fa-memory"></i></div>
+      <div class="stat-icon orange"><i class="fas fa-gauge"></i></div>
       <div>
-        <div class="stat-label">Memory Used</div>
-        <div class="stat-value"><?php echo number_format(($server_info['mem_used'] ?? 0) / 1024, 0); ?> MB</div>
+        <div class="stat-label">Load (15 min)</div>
+        <div class="stat-value"><?php echo number_format((float)($server_info['fifteen'] ?? 0), 2); ?></div>
       </div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon"><i class="fas fa-users"></i></div>
+      <div class="stat-icon green"><i class="fas fa-users"></i></div>
       <div>
         <div class="stat-label">cPanel Accounts</div>
         <div class="stat-value"><?php echo count($accounts); ?></div>
@@ -139,11 +139,13 @@ require_once '../../includes/header.php';
               <td><?php echo htmlspecialchars($acc['plan'] ?? '-'); ?></td>
               <td>
                 <?php
-                $used  = $acc['diskused']  ?? 0;
-                $limit = $acc['disklimit'] ?? 0;
-                $pct   = $limit > 0 ? min(100, round($used / $limit * 100)) : 0;
+                // WHM sends values like "1234", "1234M" or "unlimited" — keep digits only
+                $toMb  = fn($v) => ($n = preg_replace('/[^0-9.]/', '', (string)($v ?? ''))) === '' ? 0.0 : (float)$n;
+                $used  = $toMb($acc['diskused']  ?? 0);
+                $limit = $toMb($acc['disklimit'] ?? 0);
+                $pct   = $limit > 0 ? min(100, (int)round($used / $limit * 100)) : 0;
                 ?>
-                <div style="font-size:12px;margin-bottom:3px"><?php echo $used; ?> / <?php echo $limit ?: '∞'; ?> MB</div>
+                <div style="font-size:12px;margin-bottom:3px"><?php echo number_format($used); ?> / <?php echo $limit > 0 ? number_format($limit) . ' MB' : '∞'; ?></div>
                 <?php if ($limit > 0): ?>
                 <div style="background:#e5e7eb;border-radius:99px;height:5px;width:80px">
                   <div style="background:<?php echo $pct > 90 ? 'var(--danger)' : ($pct > 70 ? 'var(--warning)' : 'var(--success)'); ?>;height:5px;border-radius:99px;width:<?php echo $pct; ?>%"></div>

@@ -131,7 +131,9 @@ class WHMClient
         $params = [];
         if ($search)     $params['search']     = $search;
         if ($searchType) $params['searchtype']  = $searchType; // domain|owner|user|ip|package
-        return $this->call('listaccts', $params);
+        $resp = $this->call('listaccts', $params);
+        // WHM v1 wraps the list as { data: { acct: [ … ] } }
+        return $resp['data']['acct'] ?? [];
     }
 
     public function getAccountSummary(string $username): array
@@ -167,18 +169,23 @@ class WHMClient
     // ── Disk & bandwidth ──────────────────────────────────────
     public function getDiskInfo(string $username): array
     {
-        return $this->call('getdiskinfo', ['user' => $username]);
+        $resp = $this->call('getdiskinfo', ['user' => $username]);
+        return $resp['data'] ?? $resp;
     }
 
     public function getBandwidth(string $username): array
     {
-        return $this->call('showbw', ['search' => $username, 'searchtype' => 'user']);
+        $resp = $this->call('showbw', ['search' => $username, 'searchtype' => 'user']);
+        // showbw returns data.acct[0].totalbytes (bytes)
+        $acct = $resp['data']['acct'][0] ?? [];
+        return ['bw_used' => isset($acct['totalbytes']) ? (int) round($acct['totalbytes'] / 1048576) : 0];
     }
 
     // ── Packages ─────────────────────────────────────────────
     public function listPackages(): array
     {
-        return $this->call('listpkgs');
+        $resp = $this->call('listpkgs');
+        return $resp['data']['pkg'] ?? [];
     }
 
     // ── DNS & domains ─────────────────────────────────────────
@@ -195,7 +202,8 @@ class WHMClient
 
     public function getServerLoad(): array
     {
-        return $this->call('loadavg');
+        $resp = $this->call('loadavg');
+        return $resp['data'] ?? $resp; // { one, five, fifteen }
     }
 
     /**
