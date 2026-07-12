@@ -1,7 +1,7 @@
 <?php
 /**
  * Multi-provider Domain Registrar Client
- * Supports: Namecheap, GoDaddy, Manual
+ * Supports: Namecheap, GoDaddy, Enom, ResellerClub, Cloudflare, Manual
  */
 class DomainClient
 {
@@ -31,10 +31,30 @@ class DomainClient
     public function check(string $domain): array
     {
         return match($this->provider) {
-            'namecheap' => $this->ncCheck($domain),
-            'godaddy'   => $this->gdCheck($domain),
-            default     => throw new RuntimeException("Unsupported provider: {$this->provider}"),
+            'namecheap'    => $this->ncCheck($domain),
+            'godaddy'      => $this->gdCheck($domain),
+            'enom'         => $this->enomCheck($domain),
+            'resellerclub' => $this->rcCheck($domain),
+            'cloudflare'   => ['domain' => $domain, 'available' => null, 'provider' => 'cloudflare', 'note' => 'Cloudflare Registrar has no public availability API — check in the Cloudflare dashboard.'],
+            default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
         };
+    }
+
+    /** Verify the configured credentials work. */
+    public function testConnection(): array
+    {
+        try {
+            return match($this->provider) {
+                'namecheap'    => ['success' => (bool)$this->ncCall('namecheap.domains.getTldList'), 'message' => 'Namecheap credentials valid'],
+                'godaddy'      => ['success' => true, 'message' => 'GoDaddy reachable', 'data' => $this->gdCall('/domains/available?domain=example-check-orbit.com')],
+                'enom'         => ['success' => str_contains($this->enomRaw('GetBalance'), 'AvailableBalance'), 'message' => 'Enom credentials valid'],
+                'resellerclub' => ['success' => true, 'message' => 'ResellerClub reachable', 'data' => $this->rcCall('domains/available.json', ['domain-name' => 'orbit', 'tlds' => 'com'])],
+                'cloudflare'   => $this->cfTest(),
+                default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
+            };
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
     }
 
     // Check multiple TLDs at once
@@ -55,9 +75,12 @@ class DomainClient
     public function register(string $domain, array $contact, int $years = 1, array $nameservers = []): array
     {
         return match($this->provider) {
-            'namecheap' => $this->ncRegister($domain, $contact, $years, $nameservers),
-            'godaddy'   => $this->gdRegister($domain, $contact, $years),
-            default     => throw new RuntimeException("Unsupported provider: {$this->provider}"),
+            'namecheap'    => $this->ncRegister($domain, $contact, $years, $nameservers),
+            'godaddy'      => $this->gdRegister($domain, $contact, $years),
+            'enom'         => $this->enomRegister($domain, $contact, $years, $nameservers),
+            'resellerclub' => $this->rcRegister($domain, $contact, $years, $nameservers),
+            'cloudflare'   => ['success' => false, 'message' => 'Cloudflare only registers domains already in your account via the dashboard.'],
+            default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
         };
     }
 
@@ -65,9 +88,12 @@ class DomainClient
     public function renew(string $domain, int $years = 1): array
     {
         return match($this->provider) {
-            'namecheap' => $this->ncRenew($domain, $years),
-            'godaddy'   => ['success' => false, 'message' => 'Use GoDaddy panel to renew.'],
-            default     => throw new RuntimeException("Unsupported provider: {$this->provider}"),
+            'namecheap'    => $this->ncRenew($domain, $years),
+            'godaddy'      => ['success' => false, 'message' => 'Use GoDaddy panel to renew.'],
+            'enom'         => $this->enomRenew($domain, $years),
+            'resellerclub' => ['success' => false, 'message' => 'Renew ResellerClub domains from the reseller panel.'],
+            'cloudflare'   => ['success' => false, 'message' => 'Cloudflare auto-renews at cost; manage in the dashboard.'],
+            default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
         };
     }
 
@@ -75,9 +101,12 @@ class DomainClient
     public function setNameservers(string $domain, array $nameservers): array
     {
         return match($this->provider) {
-            'namecheap' => $this->ncSetNameservers($domain, $nameservers),
-            'godaddy'   => $this->gdSetNameservers($domain, $nameservers),
-            default     => throw new RuntimeException("Unsupported provider: {$this->provider}"),
+            'namecheap'    => $this->ncSetNameservers($domain, $nameservers),
+            'godaddy'      => $this->gdSetNameservers($domain, $nameservers),
+            'enom'         => $this->enomSetNameservers($domain, $nameservers),
+            'resellerclub' => ['success' => false, 'message' => 'Set ResellerClub nameservers from the reseller panel.'],
+            'cloudflare'   => ['success' => false, 'message' => 'Cloudflare domains use Cloudflare nameservers by design.'],
+            default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
         };
     }
 
@@ -85,9 +114,12 @@ class DomainClient
     public function getInfo(string $domain): array
     {
         return match($this->provider) {
-            'namecheap' => $this->ncGetInfo($domain),
-            'godaddy'   => $this->gdGetInfo($domain),
-            default     => throw new RuntimeException("Unsupported provider: {$this->provider}"),
+            'namecheap'    => $this->ncGetInfo($domain),
+            'godaddy'      => $this->gdGetInfo($domain),
+            'enom'         => $this->enomGetInfo($domain),
+            'resellerclub' => $this->rcGetInfo($domain),
+            'cloudflare'   => $this->cfGetInfo($domain),
+            default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
         };
     }
 
@@ -369,6 +401,175 @@ class DomainClient
             'expires'    => $data['expires']   ?? '',
             'auto_renew' => $data['renewAuto'] ?? false,
             'locked'     => $data['locked']    ?? false,
+        ];
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // ENOM — reseller XML API (interface.asp)
+    // ══════════════════════════════════════════════════════════
+    private function enomBase(): string
+    {
+        return ($this->config['sandbox'] ?? true)
+            ? 'https://resellertest.enom.com/interface.asp'
+            : 'https://reseller.enom.com/interface.asp';
+    }
+    private function enomRaw(string $command, array $params = []): string
+    {
+        $q = http_build_query(array_merge([
+            'command'      => $command,
+            'uid'          => $this->config['uid'] ?? '',
+            'pw'           => $this->config['password'] ?? '',
+            'responsetype' => 'xml',
+        ], $params));
+        $ch = curl_init($this->enomBase() . '?' . $q);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_SSL_VERIFYPEER => true]);
+        $res = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+        if ($err) throw new RuntimeException("Enom connection error: $err");
+        return $res ?: '';
+    }
+    private function enomCall(string $command, array $params = []): \SimpleXMLElement
+    {
+        $xml = @simplexml_load_string($this->enomRaw($command, $params));
+        if (!$xml) throw new RuntimeException('Enom returned invalid XML.');
+        if ((int)($xml->ErrCount ?? 0) > 0) {
+            throw new RuntimeException('Enom error: ' . (string)($xml->errors->Err1 ?? 'unknown'));
+        }
+        return $xml;
+    }
+    private function enomCheck(string $domain): array
+    {
+        [$sld, $tld] = array_pad(explode('.', $domain, 2), 2, 'com');
+        $xml = $this->enomCall('check', ['sld' => $sld, 'tld' => $tld]);
+        return ['domain' => $domain, 'available' => (int)$xml->RRPCode === 210, 'provider' => 'enom'];
+    }
+    private function enomRegister(string $domain, array $c, int $years, array $ns = []): array
+    {
+        [$sld, $tld] = array_pad(explode('.', $domain, 2), 2, 'com');
+        $xml = $this->enomCall('purchase', [
+            'sld' => $sld, 'tld' => $tld, 'numyears' => $years,
+            'registrantfirstname' => $c['first_name'] ?? 'Admin',
+            'registrantlastname'  => $c['last_name']  ?? 'User',
+            'registrantemailaddress' => $c['email'] ?? '',
+            'registrantphone'     => $c['phone'] ?? '+254.700000000',
+        ]);
+        return ['success' => (string)$xml->RRPCode === '200', 'domain' => $domain, 'transaction' => (string)($xml->OrderID ?? '')];
+    }
+    private function enomRenew(string $domain, int $years): array
+    {
+        [$sld, $tld] = array_pad(explode('.', $domain, 2), 2, 'com');
+        $xml = $this->enomCall('extend', ['sld' => $sld, 'tld' => $tld, 'numyears' => $years]);
+        return ['success' => (string)$xml->RRPCode === '200', 'domain' => $domain];
+    }
+    private function enomSetNameservers(string $domain, array $ns): array
+    {
+        [$sld, $tld] = array_pad(explode('.', $domain, 2), 2, 'com');
+        $params = ['sld' => $sld, 'tld' => $tld];
+        foreach (array_slice(array_values($ns), 0, 12) as $i => $n) { $params['ns' . ($i + 1)] = $n; }
+        $this->enomCall('modifyns', $params);
+        return ['success' => true];
+    }
+    private function enomGetInfo(string $domain): array
+    {
+        [$sld, $tld] = array_pad(explode('.', $domain, 2), 2, 'com');
+        $xml = $this->enomCall('GetDomainInfo', ['sld' => $sld, 'tld' => $tld]);
+        return [
+            'domain'  => $domain,
+            'status'  => (string)($xml->GetDomainInfo->status->registrationstatus ?? 'unknown'),
+            'expires' => (string)($xml->GetDomainInfo->status->expiration ?? ''),
+        ];
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // RESELLERCLUB — LogicBoxes JSON API
+    // ══════════════════════════════════════════════════════════
+    private function rcBase(): string
+    {
+        return ($this->config['sandbox'] ?? true)
+            ? 'https://test.httpapi.com/api'
+            : 'https://httpapi.com/api';
+    }
+    private function rcCall(string $path, array $params = []): array
+    {
+        $q = http_build_query(array_merge([
+            'auth-userid' => $this->config['auth_userid'] ?? '',
+            'api-key'     => $this->config['api_key'] ?? '',
+        ], $params));
+        $ch = curl_init($this->rcBase() . '/' . ltrim($path, '/') . '?' . $q);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_SSL_VERIFYPEER => true]);
+        $res = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+        if ($err) throw new RuntimeException("ResellerClub connection error: $err");
+        $data = json_decode($res, true) ?? [];
+        if (($data['status'] ?? '') === 'ERROR') {
+            throw new RuntimeException('ResellerClub error: ' . ($data['message'] ?? 'unknown'));
+        }
+        return $data;
+    }
+    private function rcCheck(string $domain): array
+    {
+        [$sld, $tld] = array_pad(explode('.', $domain, 2), 2, 'com');
+        $data = $this->rcCall('domains/available.json', ['domain-name' => $sld, 'tlds' => $tld]);
+        $entry = $data[$domain] ?? reset($data) ?: [];
+        return ['domain' => $domain, 'available' => ($entry['status'] ?? '') === 'available', 'provider' => 'resellerclub'];
+    }
+    private function rcRegister(string $domain, array $c, int $years, array $ns = []): array
+    {
+        // ResellerClub registration requires a pre-created contact ID; surface a clear message
+        return ['success' => false, 'message' => 'ResellerClub registration needs a contact ID created in the reseller panel first.'];
+    }
+    private function rcGetInfo(string $domain): array
+    {
+        $data = $this->rcCall('domains/details-by-name.json', ['domain-name' => $domain, 'options' => 'All']);
+        return [
+            'domain'  => $domain,
+            'status'  => $data['currentstatus'] ?? 'unknown',
+            'expires' => isset($data['endtime']) ? date('Y-m-d', (int)$data['endtime']) : '',
+        ];
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // CLOUDFLARE — Registrar + DNS (api.cloudflare.com/client/v4)
+    // ══════════════════════════════════════════════════════════
+    private function cfCall(string $path, string $method = 'GET', array $body = []): array
+    {
+        $ch = curl_init('https://api.cloudflare.com/client/v4' . $path);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST  => $method,
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . ($this->config['api_token'] ?? ''),
+                'Content-Type: application/json',
+            ],
+        ]);
+        if ($body) curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
+        $res = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+        if ($err) throw new RuntimeException("Cloudflare connection error: $err");
+        $data = json_decode($res, true) ?? [];
+        if (!($data['success'] ?? false)) {
+            throw new RuntimeException('Cloudflare error: ' . ($data['errors'][0]['message'] ?? 'unknown'));
+        }
+        return $data;
+    }
+    private function cfTest(): array
+    {
+        $this->cfCall('/accounts/' . urlencode($this->config['account_id'] ?? ''));
+        return ['success' => true, 'message' => 'Cloudflare token valid'];
+    }
+    private function cfGetInfo(string $domain): array
+    {
+        $data = $this->cfCall('/zones?name=' . urlencode($domain));
+        $zone = $data['result'][0] ?? [];
+        return [
+            'domain'      => $domain,
+            'status'      => $zone['status'] ?? 'unknown',
+            'nameservers' => $zone['name_servers'] ?? [],
         ];
     }
 }
