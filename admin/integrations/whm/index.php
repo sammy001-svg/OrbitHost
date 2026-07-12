@@ -9,17 +9,24 @@ auth_check();
 $page_title = 'WHM Accounts';
 
 // Load WHM config
-$whm_cfg = db()->query("SELECT settings FROM integration_settings WHERE provider='whm'")->fetchColumn();
-$whm_cfg = $whm_cfg ? json_decode($whm_cfg, true) : [];
-
+$whm_cfg = [];
 $whm     = null;
 $error   = null;
 $accounts = [];
 $server_info = [];
 
-if (empty($whm_cfg['host'])) {
-    $error = 'WHM host is not set. <a href="' . APP_URL . '/integrations/settings.php#whm">Add your WHM host</a>';
-} elseif (empty($whm_cfg['token'])) {
+try {
+    $raw = db()->query("SELECT settings FROM integration_settings WHERE provider='whm'")->fetchColumn();
+    $whm_cfg = $raw ? (json_decode($raw, true) ?? []) : [];
+} catch (\Throwable $e) {
+    $error = 'Cannot read integration settings: ' . htmlspecialchars($e->getMessage())
+           . ' — Make sure <code>schema_v2.sql</code> has been imported into your database.';
+}
+
+if (!$error && empty($whm_cfg['host'])) {
+    $error = 'WHM host is not set. <a href="' . APP_URL . '/integrations/settings.php#whm">Add your WHM host</a>'
+           . ' <small style="opacity:.6">(DB row ' . (empty($whm_cfg) ? 'missing — run schema_v2.sql' : 'exists but host is empty') . ')</small>';
+} elseif (!$error && empty($whm_cfg['token'])) {
     $error = 'WHM API token is not set. <a href="' . APP_URL . '/integrations/settings.php#whm">Add your API token</a> — generate one in WHM › Development › Manage API Tokens.';
 } else {
     try {
