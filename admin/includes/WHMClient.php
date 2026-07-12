@@ -12,7 +12,15 @@ class WHMClient
 
     public function __construct(string $host, string $user, string $token, bool $sslVerify = false)
     {
-        $this->host      = rtrim($host, '/');
+        // Normalise host: strip trailing slash and any accidental :2087 suffix,
+        // then ensure https:// scheme — without it cURL uses HTTP on port 80
+        // which just gets the "refresh to :2087" redirect HTML.
+        $host = rtrim($host, '/');
+        $host = preg_replace('/:2087$/', '', $host);          // remove port if already present
+        if (!preg_match('#^https?://#i', $host)) {
+            $host = 'https://' . $host;                       // always use HTTPS for WHM
+        }
+        $this->host      = $host;
         $this->user      = $user;
         $this->token     = $token;
         $this->sslVerify = $sslVerify;
@@ -26,6 +34,8 @@ class WHMClient
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,           // follow HTTP→HTTPS redirects
+            CURLOPT_MAXREDIRS      => 3,
             CURLOPT_SSL_VERIFYPEER => $this->sslVerify,
             CURLOPT_SSL_VERIFYHOST => $this->sslVerify ? 2 : 0,
             CURLOPT_TIMEOUT        => 30,
@@ -55,14 +65,21 @@ class WHMClient
         if ($httpCode === 401) {
             throw new RuntimeException('WHM authentication failed. Check username and API token.');
         }
+        if ($httpCode === 0) {
+            throw new RuntimeException('WHM did not respond. Check the host address and port 2087 is reachable.');
+        }
 
         $data = json_decode($response, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new RuntimeException('WHM returned invalid JSON. Response: ' . substr($response, 0, 200));
+            throw new RuntimeException(
+                "WHM returned invalid JSON (HTTP {$httpCode}). " .
+                "Response: " . substr($response, 0, 300)
+            );
         }
 
         return $data;
     }
+
 
     // ── Connectivity test ──────────────────────────────────────
     public function ping(): bool

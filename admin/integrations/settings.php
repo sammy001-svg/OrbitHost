@@ -154,9 +154,9 @@ require_once '../includes/header.php';
           <div class="form-group" style="grid-column:1/-1">
             <label class="form-label">WHM Host / IP <span class="req">*</span></label>
             <input type="text" name="whm_host" class="form-control"
-                   placeholder="e.g. server.orbithost.co.ke or 192.168.1.1"
+                   placeholder="e.g. corporate.vip8.noc401.com  or  192.168.1.1"
                    value="<?php echo v($cfg, 'whm', 'host'); ?>" />
-            <small class="form-hint">Without trailing slash. Port is set separately below.</small>
+            <small class="form-hint">Hostname or IP only — no <code>https://</code> and no <code>:2087</code> port (both are added automatically). No trailing slash.</small>
           </div>
           <div class="form-group">
             <label class="form-label">WHM Username</label>
