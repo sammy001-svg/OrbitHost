@@ -14,7 +14,7 @@ $whm_cfg = $whm_cfg ? json_decode($whm_cfg, true) : [];
 
 if (empty($whm_cfg['host']) || empty($whm_cfg['token'])) {
     flash_set('error', 'WHM is not configured.');
-    header('Location: ' . APP_URL . '/integrations/settings.php#whm');
+    header('Location: ' . APP_URL . '/integrations/#prov-whm');
     exit;
 }
 

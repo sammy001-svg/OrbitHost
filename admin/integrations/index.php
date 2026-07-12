@@ -3,146 +3,242 @@ require_once '../includes/config.php';
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
+require_once '../includes/providers/Provider.php';
 
 auth_check();
-$page_title = 'Integrations';
+$page_title = 'Providers';
 
-// Load all settings rows
-$settings_rows = db()->query('SELECT provider, settings, updated_at FROM integration_settings ORDER BY provider')->fetchAll();
-$settings = [];
-foreach ($settings_rows as $row) {
-    $settings[$row['provider']] = [
-        'data'       => json_decode($row['settings'], true) ?? [],
-        'updated_at' => $row['updated_at'],
-    ];
+// ── Persist provider config (REPLACE INTO — version-safe, preserves is_active) ──
+function save_provider_config(string $provider, array $data): void
+{
+    $json = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    $active = (int) (db()->query("SELECT is_active FROM integration_settings WHERE provider = " . db()->quote($provider))->fetchColumn() ?: 0);
+    db()->prepare('REPLACE INTO integration_settings (provider, settings, is_active) VALUES (?, ?, ?)')
+        ->execute([$provider, $json, $active]);
 }
 
-// Quick connectivity tests
-$statuses = [];
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify();
+    $action   = $_POST['action']   ?? '';
+    $provider = $_POST['provider'] ?? '';
+    $def      = ProviderRegistry::get($provider);
 
-// WHM ping
-if (!empty($settings['whm']['data']['host']) && !empty($settings['whm']['data']['token'])) {
+    if (!$def) {
+        flash_set('error', 'Unknown provider.');
+        header('Location: ' . APP_URL . '/integrations/');
+        exit;
+    }
+
     try {
-        require_once '../includes/WHMClient.php';
-        $whm = new WHMClient(
-            $settings['whm']['data']['host'],
-            $settings['whm']['data']['user'] ?? 'root',
-            $settings['whm']['data']['token'],
-            (bool)($settings['whm']['data']['ssl_verify'] ?? false)
-        );
-        $ping = $whm->ping();
-        $statuses['whm'] = $ping ? 'connected' : 'error';
+        if ($action === 'save') {
+            $data = [];
+            foreach ($def['fields'] as $f) {
+                if (($f['type'] ?? '') === 'toggle') {
+                    $data[$f['key']] = !empty($_POST['f'][$f['key']]);
+                } elseif (($f['type'] ?? '') === 'number') {
+                    $data[$f['key']] = (int)($_POST['f'][$f['key']] ?? ($f['default'] ?? 0));
+                } else {
+                    $data[$f['key']] = trim($_POST['f'][$f['key']] ?? '');
+                }
+            }
+            save_provider_config($provider, $data);
+            log_activity('provider_config', 'integration', 0, "Saved config for {$provider}");
+            flash_set('success', $def['name'] . ' configuration saved.');
+
+        } elseif ($action === 'toggle') {
+            $enable = (int)!empty($_POST['enable']);
+            if ($enable && !Provider::isConfigured($provider)) {
+                flash_set('error', 'Fill in the required fields before enabling ' . $def['name'] . '.');
+            } else {
+                db()->prepare('UPDATE integration_settings SET is_active = ? WHERE provider = ?')->execute([$enable, $provider]);
+                flash_set('success', $def['name'] . ($enable ? ' enabled.' : ' disabled.'));
+            }
+
+        } elseif ($action === 'test') {
+            $result = match ($def['category']) {
+                'panel'     => Provider::panel($provider)->testConnection(),
+                'registrar' => Provider::registrar($provider)->testConnection(),
+                'payment'   => Provider::payment($provider)->testConnection(),
+                default     => ['success' => false, 'message' => 'No connection test for this provider type.'],
+            };
+            flash_set($result['success'] ? 'success' : 'error',
+                ($result['success'] ? '✓ ' : '✗ ') . $def['name'] . ': ' . ($result['message'] ?? ($result['success'] ? 'Connected.' : 'Failed.')));
+        }
     } catch (\Throwable $e) {
-        $statuses['whm'] = 'error';
+        flash_set('error', $def['name'] . ' error: ' . $e->getMessage());
     }
-} else {
-    $statuses['whm'] = 'not_configured';
+
+    header('Location: ' . APP_URL . '/integrations/#prov-' . $provider);
+    exit;
 }
 
-// Domain providers — just check if credentials exist
-foreach (['namecheap', 'godaddy'] as $prov) {
-    if (!empty($settings[$prov]['data'])) {
-        $d = $settings[$prov]['data'];
-        $has_creds = $prov === 'namecheap'
-            ? !empty($d['api_user']) && !empty($d['api_key'])
-            : !empty($d['api_key']) && !empty($d['api_secret']);
-        $statuses[$prov] = $has_creds ? 'configured' : 'not_configured';
-    } else {
-        $statuses[$prov] = 'not_configured';
+// ── Render one config field from the registry schema ──
+function render_field(array $f, array $cfg): string
+{
+    $key   = $f['key'];
+    $name  = 'f[' . $key . ']';
+    $val   = $cfg[$key] ?? ($f['default'] ?? '');
+    $label = h($f['label']);
+    $req   = !empty($f['required']) ? ' <span class="req">*</span>' : '';
+    $hint  = !empty($f['hint']) ? '<small class="form-hint">' . h($f['hint']) . '</small>' : '';
+    $ph    = h($f['placeholder'] ?? '');
+
+    switch ($f['type']) {
+        case 'toggle':
+            return '<div class="form-group"><label class="switch"><input type="checkbox" name="' . $name . '" value="1" ' . (!empty($val) ? 'checked' : '') . ' />'
+                 . '<span class="track"></span><span>' . $label . '</span></label>' . $hint . '</div>';
+
+        case 'secret':
+            return '<div class="form-group"><label class="form-label">' . $label . $req . '</label>'
+                 . '<div class="input-affix">'
+                 . '<input type="password" class="form-control form-mono" name="' . $name . '" value="' . h((string)$val) . '" placeholder="' . $ph . '" autocomplete="new-password" style="padding-right:64px" />'
+                 . '<button type="button" class="affix-btn" data-toggle-secret>Show</button></div>' . $hint . '</div>';
+
+        case 'select':
+            $opts = '';
+            foreach (($f['options'] ?? []) as $ov => $ol) {
+                $opts .= '<option value="' . h($ov) . '" ' . ((string)$val === (string)$ov ? 'selected' : '') . '>' . h($ol) . '</option>';
+            }
+            return '<div class="form-group"><label class="form-label">' . $label . $req . '</label><select class="form-select" name="' . $name . '">' . $opts . '</select>' . $hint . '</div>';
+
+        case 'number':
+            return '<div class="form-group"><label class="form-label">' . $label . $req . '</label>'
+                 . '<input type="number" class="form-control" name="' . $name . '" value="' . h((string)$val) . '" placeholder="' . $ph . '" />' . $hint . '</div>';
+
+        default:
+            return '<div class="form-group"><label class="form-label">' . $label . $req . '</label>'
+                 . '<input type="text" class="form-control" name="' . $name . '" value="' . h((string)$val) . '" placeholder="' . $ph . '" />' . $hint . '</div>';
     }
 }
 
-// SMTP
-$statuses['smtp'] = !empty($settings['smtp']['data']['host']) ? 'configured' : 'not_configured';
+// Precompute status for every provider
+$registry = ProviderRegistry::all();
+$status   = [];
+foreach ($registry as $key => $def) {
+    $status[$key] = ['configured' => Provider::isConfigured($key), 'active' => Provider::isActive($key)];
+}
+$counts = [
+    'active'     => count(array_filter($status, fn($s) => $s['active'])),
+    'configured' => count(array_filter($status, fn($s) => $s['configured'])),
+    'total'      => count($registry),
+];
 
 require_once '../includes/header.php';
-
-function status_badge(string $s): string {
-    $map = [
-        'connected'      => ['green',  'fa-circle-check',     'Connected'],
-        'configured'     => ['blue',   'fa-circle-check',     'Configured'],
-        'not_configured' => ['gray',   'fa-circle',           'Not Configured'],
-        'error'          => ['red',    'fa-triangle-exclamation', 'Connection Error'],
-    ];
-    [$color, $icon, $label] = $map[$s] ?? ['gray', 'fa-circle', ucfirst($s)];
-    $hex = ['green' => '16a34a', 'blue' => '2563eb', 'red' => 'dc2626', 'gray' => '6b7280'][$color] ?? '6b7280';
-    return "<span class=\"badge\" style=\"background:#{$hex}20;color:#{$hex};border:1px solid currentColor\"><i class=\"fas {$icon}\" style=\"font-size:10px\"></i> {$label}</span>";
-}
 ?>
 
 <div class="content-header">
-  <h1 class="content-title">Integrations</h1>
-  <a href="<?php echo APP_URL; ?>/integrations/settings.php" class="btn btn-primary"><i class="fas fa-gear"></i> Settings</a>
+  <div>
+    <h1 class="content-title">Provider Integrations</h1>
+    <p class="page-subtitle">Connect hosting panels, domain registrars and payment gateways. These power service provisioning across the platform.</p>
+  </div>
 </div>
 
-<div class="stat-grid" style="margin-bottom:28px">
-  <?php
-  $cards = [
-    ['WHM / cPanel', 'fa-server',   $statuses['whm'],       APP_URL . '/integrations/whm/'],
-    ['Namecheap',   'fa-globe',    $statuses['namecheap'], APP_URL . '/integrations/domains/'],
-    ['GoDaddy',     'fa-globe',    $statuses['godaddy'],   APP_URL . '/integrations/domains/'],
-    ['SMTP Email',  'fa-envelope', $statuses['smtp'],      APP_URL . '/integrations/settings.php#smtp'],
-  ];
-  foreach ($cards as [$title, $icon, $status, $link]):
-  ?>
-    <a href="<?php echo $link; ?>" class="stat-card" style="text-decoration:none">
-      <div class="stat-icon"><i class="fas <?php echo $icon; ?>"></i></div>
-      <div>
-        <div class="stat-label"><?php echo $title; ?></div>
-        <div class="stat-value" style="font-size:14px;margin-top:4px"><?php echo status_badge($status); ?></div>
-      </div>
-    </a>
-  <?php endforeach; ?>
+<div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
+  <div class="stat-card">
+    <div class="stat-icon green"><i class="fas fa-circle-check"></i></div>
+    <div><div class="stat-label">Active</div><div class="stat-value"><?php echo $counts['active']; ?></div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon navy"><i class="fas fa-sliders"></i></div>
+    <div><div class="stat-label">Configured</div><div class="stat-value"><?php echo $counts['configured']; ?></div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon purple"><i class="fas fa-plug"></i></div>
+    <div><div class="stat-label">Available</div><div class="stat-value"><?php echo $counts['total']; ?></div></div>
+  </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+<?php foreach (ProviderRegistry::categories() as $cat => $meta):
+    $providers = ProviderRegistry::byCategory($cat);
+    if (!$providers) continue;
+?>
+  <div class="flex-gap" style="margin:26px 0 14px">
+    <i class="fas <?php echo $meta['icon']; ?>" style="color:var(--navy)"></i>
+    <span style="font-weight:700;font-size:15px;color:var(--navy)"><?php echo h($meta['label']); ?></span>
+    <span class="text-muted" style="font-size:12.5px"><?php echo h($meta['hint']); ?></span>
+  </div>
 
-  <!-- WHM -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title"><i class="fas fa-server"></i> WHM / cPanel</span>
-      <a href="<?php echo APP_URL; ?>/integrations/whm/" class="btn btn-ghost btn-sm">Manage</a>
-    </div>
-    <div class="card-body" style="padding:0">
-      <?php if (!empty($settings['whm']['data']['host'])): $w = $settings['whm']['data']; ?>
-        <?php $rows = [['Host', $w['host']], ['User', $w['user'] ?? 'root'], ['SSL Verify', empty($w['ssl_verify']) ? 'Off' : 'On']]; ?>
-        <?php foreach ($rows as [$k, $v]): ?>
-          <div style="display:flex;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px">
-            <span style="color:var(--text-muted)"><?php echo $k; ?></span>
-            <span style="font-weight:500"><?php echo htmlspecialchars($v); ?></span>
+  <div class="provider-grid">
+    <?php foreach ($providers as $key => $def): $st = $status[$key]; ?>
+      <div class="provider-card <?php echo $st['active'] ? 'is-active' : ''; ?>" id="prov-<?php echo $key; ?>">
+        <div class="provider-top">
+          <div class="provider-logo" style="background:<?php echo h($def['color']); ?>"><i class="fas <?php echo h($def['icon']); ?>"></i></div>
+          <div style="flex:1;min-width:0">
+            <div class="provider-name"><?php echo h($def['name']); ?></div>
+            <div class="provider-cat"><?php echo h($cat); ?></div>
           </div>
-        <?php endforeach; ?>
-        <div style="padding:12px 16px">
-          <span class="badge badge-info" style="font-size:11px">Last updated <?php echo time_ago($settings['whm']['updated_at']); ?></span>
+          <?php if ($st['active']): ?>
+            <span class="status-pill on"><span class="dot dot-green dot-live"></span> Active</span>
+          <?php elseif ($st['configured']): ?>
+            <span class="status-pill off"><span class="dot dot-amber"></span> Ready</span>
+          <?php else: ?>
+            <span class="status-pill off"><span class="dot dot-grey"></span> Not set</span>
+          <?php endif; ?>
         </div>
-      <?php else: ?>
-        <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:14px">
-          <i class="fas fa-plug" style="font-size:24px;margin-bottom:8px;display:block"></i>
-          Not configured. <a href="<?php echo APP_URL; ?>/integrations/settings.php#whm">Configure WHM</a>
-        </div>
-      <?php endif; ?>
-    </div>
-  </div>
 
-  <!-- Domain providers -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title"><i class="fas fa-globe"></i> Domain Registrars</span>
-      <a href="<?php echo APP_URL; ?>/integrations/domains/" class="btn btn-ghost btn-sm">Manage</a>
-    </div>
-    <div class="card-body" style="padding:0">
-      <?php foreach (['namecheap' => 'Namecheap', 'godaddy' => 'GoDaddy'] as $prov => $label): ?>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px">
-          <span style="font-weight:500"><?php echo $label; ?></span>
-          <?php echo status_badge($statuses[$prov]); ?>
+        <p class="provider-tagline"><?php echo h($def['tagline']); ?></p>
+
+        <div class="provider-foot">
+          <button type="button" class="btn btn-ghost btn-sm" data-drawer-open="drawer-<?php echo $key; ?>"><i class="fas fa-sliders"></i> Configure</button>
+          <?php if ($def['client']): ?>
+            <form method="POST" style="margin:0">
+              <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+              <input type="hidden" name="action" value="test" />
+              <input type="hidden" name="provider" value="<?php echo $key; ?>" />
+              <button type="submit" class="btn btn-outline btn-sm" <?php echo $st['configured'] ? '' : 'disabled title="Configure required fields first"'; ?>><i class="fas fa-bolt"></i> Test</button>
+            </form>
+          <?php endif; ?>
         </div>
-      <?php endforeach; ?>
-      <div style="padding:12px 16px">
-        <a href="<?php echo APP_URL; ?>/integrations/domains/check.php" class="btn btn-ghost btn-sm"><i class="fas fa-magnifying-glass"></i> Check Domain</a>
       </div>
+    <?php endforeach; ?>
+  </div>
+<?php endforeach; ?>
+
+<!-- ── Config drawers (one per provider) ── -->
+<?php foreach ($registry as $key => $def):
+    $cfg = Provider::config($key);
+    $st  = $status[$key];
+?>
+  <div class="drawer-scrim" id="drawer-<?php echo $key; ?>-scrim"></div>
+  <div class="drawer" id="drawer-<?php echo $key; ?>">
+    <div class="drawer-head">
+      <div class="provider-logo" style="width:38px;height:38px;font-size:17px;background:<?php echo h($def['color']); ?>"><i class="fas <?php echo h($def['icon']); ?>"></i></div>
+      <div>
+        <div style="font-weight:700"><?php echo h($def['name']); ?></div>
+        <div class="text-muted" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.5px"><?php echo h($def['category']); ?></div>
+      </div>
+      <button type="button" class="drawer-close" data-drawer-close aria-label="Close">&times;</button>
+    </div>
+
+    <form method="POST" style="display:contents">
+      <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+      <input type="hidden" name="action" value="save" />
+      <input type="hidden" name="provider" value="<?php echo $key; ?>" />
+      <div class="drawer-body">
+        <?php if (!empty($def['docs'])): ?>
+          <a href="<?php echo h($def['docs']); ?>" target="_blank" rel="noopener" class="code-chip" style="text-decoration:none;display:inline-flex;gap:6px;align-items:center;margin-bottom:16px"><i class="fas fa-book"></i> API documentation</a>
+        <?php endif; ?>
+        <?php foreach ($def['fields'] as $f) { echo render_field($f, $cfg); } ?>
+      </div>
+      <div class="drawer-foot">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Configuration</button>
+        <button type="button" class="btn btn-ghost" data-drawer-close>Cancel</button>
+      </div>
+    </form>
+
+    <div class="drawer-foot" style="border-top:none;padding-top:0">
+      <form method="POST" style="margin:0;width:100%">
+        <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+        <input type="hidden" name="action" value="toggle" />
+        <input type="hidden" name="provider" value="<?php echo $key; ?>" />
+        <input type="hidden" name="enable" value="<?php echo $st['active'] ? '0' : '1'; ?>" />
+        <button type="submit" class="btn <?php echo $st['active'] ? 'btn-danger' : 'btn-navy'; ?> btn-block">
+          <i class="fas <?php echo $st['active'] ? 'fa-power-off' : 'fa-toggle-on'; ?>"></i>
+          <?php echo $st['active'] ? 'Disable this provider' : 'Enable this provider'; ?>
+        </button>
+      </form>
     </div>
   </div>
-
-</div>
+<?php endforeach; ?>
 
 <?php require_once '../includes/footer.php'; ?>

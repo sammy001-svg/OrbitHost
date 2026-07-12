@@ -24,10 +24,10 @@ try {
 }
 
 if (!$error && empty($whm_cfg['host'])) {
-    $error = 'WHM host is not set. <a href="' . APP_URL . '/integrations/settings.php#whm">Add your WHM host</a>'
+    $error = 'WHM host is not set. <a href="' . APP_URL . '/integrations/#prov-whm">Add your WHM host</a>'
            . ' <small style="opacity:.6">(DB row ' . (empty($whm_cfg) ? 'missing — run schema_v2.sql' : 'exists but host is empty') . ')</small>';
 } elseif (!$error && empty($whm_cfg['token'])) {
-    $error = 'WHM API token is not set. <a href="' . APP_URL . '/integrations/settings.php#whm">Add your API token</a> — generate one in WHM › Development › Manage API Tokens.';
+    $error = 'WHM API token is not set. <a href="' . APP_URL . '/integrations/#prov-whm">Add your API token</a> — generate one in WHM › Development › Manage API Tokens.';
 } else {
     try {
         $whm = new WHMClient(
