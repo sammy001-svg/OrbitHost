@@ -60,6 +60,20 @@ class WHMClient
         curl_close($ch);
 
         if ($curlErr) {
+            // Give actionable messages for the two most common SSL failures
+            if (str_contains($curlErr, 'no alternative certificate subject name')) {
+                throw new RuntimeException(
+                    'SSL hostname mismatch: the certificate is not valid for the IP address you entered. ' .
+                    'Use the server\'s hostname (e.g. corporate.vip8.noc401.com) instead of its IP address, ' .
+                    'or uncheck "Verify SSL Certificate" in the WHM settings.'
+                );
+            }
+            if (str_contains($curlErr, 'SSL certificate problem') || str_contains($curlErr, 'self signed')) {
+                throw new RuntimeException(
+                    'SSL certificate error: ' . $curlErr . '. ' .
+                    'Uncheck "Verify SSL Certificate" in WHM settings (safe for self-signed cPanel certs).'
+                );
+            }
             throw new RuntimeException("WHM connection failed: $curlErr");
         }
         if ($httpCode === 401) {
