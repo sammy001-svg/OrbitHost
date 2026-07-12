@@ -6,6 +6,38 @@ require_once __DIR__ . '/../../admin/includes/functions.php';
 portal_start();
 if (!empty($_SESSION['client_id'])) { header('Location: ' . PORTAL_URL . '/dashboard.php'); exit; }
 
+// "Get Started" on a plan (or a domain search) passes context here so
+// signup shows what the visitor picked. Carried through the form on POST.
+$selected_plan   = trim($_GET['plan']   ?? $_POST['plan']   ?? '');
+$selected_domain = trim($_GET['domain'] ?? $_POST['domain'] ?? '');
+$plan_labels = [
+    'shared-starter'       => 'Shared Starter Hosting',
+    'shared-business'      => 'Shared Business Hosting',
+    'shared-pro'           => 'Shared Pro Hosting',
+    'vps-starter'          => 'VPS Starter',
+    'vps-business'         => 'VPS Business',
+    'vps-pro'              => 'VPS Pro',
+    'dedicated-essential'  => 'Dedicated Essential',
+    'dedicated-business'   => 'Dedicated Business',
+    'dedicated-enterprise' => 'Dedicated Enterprise',
+    'cloud-starter'        => 'Cloud Starter',
+    'cloud-business'       => 'Cloud Business',
+    'cloud-enterprise'     => 'Cloud Enterprise',
+    'wp-starter'           => 'WordPress Starter',
+    'wp-business'          => 'WordPress Business',
+    'wp-pro'               => 'WordPress Pro',
+    'reseller-starter'     => 'Reseller Starter',
+    'reseller-business'    => 'Reseller Business',
+    'reseller-pro'         => 'Reseller Pro',
+    'ssl-ov'               => 'OV SSL Certificate',
+    'ssl-ev'               => 'EV SSL Certificate',
+    'email-orbitmail'      => 'OrbitMail Email Hosting',
+    'email-m365'           => 'Microsoft 365 Email',
+    'email-gworkspace'     => 'Google Workspace Email',
+];
+$plan_label = $plan_labels[$selected_plan]
+    ?? ($selected_plan !== '' ? ucwords(str_replace('-', ' ', $selected_plan)) : '');
+
 $errors = [];
 $data   = ['first_name'=>'','last_name'=>'','email'=>'','phone'=>'','company'=>'','country'=>'Kenya'];
 
@@ -86,7 +118,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="auth-error"><?php echo htmlspecialchars(implode(' ', $errors)); ?></div>
     <?php endif; ?>
 
+    <?php if ($plan_label): ?>
+      <div style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;padding:11px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;line-height:1.5">
+        <i class="fas fa-circle-check"></i>
+        You're getting started with <strong><?php echo htmlspecialchars($plan_label); ?></strong>. Create your account and our team will set it up.
+      </div>
+    <?php endif; ?>
+    <?php if ($selected_domain): ?>
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:11px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;line-height:1.5">
+        <i class="fas fa-globe"></i>
+        Domain of interest: <strong><?php echo htmlspecialchars($selected_domain); ?></strong>
+      </div>
+    <?php endif; ?>
+
     <form method="POST">
+      <?php if ($selected_plan): ?><input type="hidden" name="plan" value="<?php echo htmlspecialchars($selected_plan); ?>" /><?php endif; ?>
+      <?php if ($selected_domain): ?><input type="hidden" name="domain" value="<?php echo htmlspecialchars($selected_domain); ?>" /><?php endif; ?>
       <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label">First Name <span class="req">*</span></label>

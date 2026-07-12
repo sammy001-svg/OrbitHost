@@ -1,104 +1,84 @@
 /**
- * OrbitHost — WHMCS Integration Config
+ * OrbitHost — Internal Client Portal link wiring
  *
- * HOW TO GO LIVE:
- *  1. Set WHMCS_BASE to your WHMCS installation URL (no trailing slash)
- *  2. Update each pid below to match the Product ID from WHMCS → Products/Services
- *  3. Save — the whole site updates automatically. No rebuild required.
+ * This file used to redirect "Log In" and "Get Started" actions to an
+ * external WHMCS billing system. That integration has been removed —
+ * every action now routes to the in-house client portal at /portal.
+ * No third-party system is contacted.
+ *
+ * The site markup is unchanged: buttons are still wired by their
+ * data-attributes, and the window.WHMCS global name is kept so the
+ * domain-search widget in main.js keeps working without edits.
+ *
+ *   data-whmcs-action="login"   → portal login        (/portal/login.php)
+ *   data-whmcs-product="slug"   → portal signup        (/portal/register.php?plan=slug)
+ *   data-whmcs-action="ticket"  → portal login (tickets live in the portal)
+ *   data-whmcs-action="kb"      → contact page
+ *   data-whmcs-action="status"  → contact page
  */
 
 (function () {
-  var WHMCS_BASE = 'https://billing.orbithost.com'; // ← change when live
+  // Derive the site base from this script's own resolved URL, so links
+  // work whether the site is served from the domain root or a subfolder,
+  // and from both top-level pages (js/whmcs.js) and /hosting/ pages
+  // (../js/whmcs.js) — the browser resolves both to an absolute .src.
+  function siteBase() {
+    var s = document.querySelector('script[src*="whmcs.js"]');
+    if (s && s.src) {
+      return s.src.replace(/\/js\/whmcs\.js.*$/i, '');
+    }
+    return ''; // fall back to root-relative paths
+  }
 
-  var PRODUCTS = {
-    /* ── Shared Hosting ─────────────────────── */
-    'shared-starter':          1,
-    'shared-business':         2,
-    'shared-pro':              3,
-    /* ── VPS Hosting ────────────────────────── */
-    'vps-starter':             4,
-    'vps-business':            5,
-    'vps-pro':                 6,
-    /* ── Dedicated Servers ──────────────────── */
-    'dedicated-essential':     7,
-    'dedicated-business':      8,
-    'dedicated-enterprise':    9,
-    /* ── Cloud Hosting ──────────────────────── */
-    'cloud-starter':          10,
-    'cloud-business':         11,
-    'cloud-enterprise':       12,
-    /* ── WordPress Hosting ──────────────────── */
-    'wp-starter':             13,
-    'wp-business':            14,
-    'wp-pro':                 15,
-    /* ── Reseller Hosting ───────────────────── */
-    'reseller-starter':       16,
-    'reseller-business':      17,
-    'reseller-pro':           18,
-    /* ── SSL Certificates ───────────────────── */
-    'ssl-ov':                 19,
-    'ssl-ev':                 20,
-    /* ── Email Hosting ──────────────────────── */
-    'email-orbitmail':        21,
-    'email-m365':             22,
-    'email-gworkspace':       23,
-  };
+  var BASE   = siteBase();
+  var PORTAL = BASE + '/portal';
 
-  /* ── URL helpers ───────────────────────────── */
+  /* ── Internal portal URL helpers (same global name for compatibility) ── */
   window.WHMCS = {
-    base: WHMCS_BASE,
-    orderUrl: function (pid) {
-      return WHMCS_BASE + '/cart.php?a=add&pid=' + pid;
+    base: PORTAL,
+    // "Get Started" on a plan → registration, carrying the chosen plan slug
+    orderUrl: function (slug) {
+      return PORTAL + '/register.php?plan=' + encodeURIComponent(slug);
     },
+    // Domain search "Add to Cart" → registration, carrying the domain
     domainUrl: function (domain) {
-      return WHMCS_BASE + '/cart.php?a=add&domain=' + encodeURIComponent(domain) + '&domaincycle=register';
+      return PORTAL + '/register.php?domain=' + encodeURIComponent(domain);
     },
-    clientArea:    WHMCS_BASE + '/clientarea.php',
-    submitTicket:  WHMCS_BASE + '/submitticket.php',
-    knowledgeBase: WHMCS_BASE + '/knowledgebase.php',
-    serverStatus:  WHMCS_BASE + '/serverstatus.php',
+    clientArea:    PORTAL + '/login.php',
+    submitTicket:  PORTAL + '/login.php',
+    knowledgeBase: BASE + '/contact.html',
+    serverStatus:  BASE + '/contact.html',
   };
 
   /* ── Auto-wire on DOM ready ────────────────── */
   document.addEventListener('DOMContentLoaded', function () {
 
-    // Plan order buttons: [data-whmcs-product="slug"]
+    // Point an element at an internal URL and keep it in the same tab.
+    function wire(el, url) {
+      el.href = url;
+      el.removeAttribute('target');
+      el.removeAttribute('rel');
+    }
+
+    // Plan "Get Started" buttons: [data-whmcs-product="slug"]
     document.querySelectorAll('[data-whmcs-product]').forEach(function (el) {
       var slug = el.getAttribute('data-whmcs-product');
-      var pid  = PRODUCTS[slug];
-      if (pid) {
-        el.href   = window.WHMCS.orderUrl(pid);
-        el.target = '_blank';
-        el.rel    = 'noopener noreferrer';
-      }
+      wire(el, window.WHMCS.orderUrl(slug));
     });
 
     // Log In / Client Area
     document.querySelectorAll('[data-whmcs-action="login"]').forEach(function (el) {
-      el.href   = window.WHMCS.clientArea;
-      el.target = '_blank';
-      el.rel    = 'noopener noreferrer';
+      wire(el, window.WHMCS.clientArea);
     });
 
-    // Submit Ticket
+    // Submit Ticket → portal login (support tickets live in the portal)
     document.querySelectorAll('[data-whmcs-action="ticket"]').forEach(function (el) {
-      el.href   = window.WHMCS.submitTicket;
-      el.target = '_blank';
-      el.rel    = 'noopener noreferrer';
+      wire(el, window.WHMCS.submitTicket);
     });
 
-    // Knowledge Base
-    document.querySelectorAll('[data-whmcs-action="kb"]').forEach(function (el) {
-      el.href   = window.WHMCS.knowledgeBase;
-      el.target = '_blank';
-      el.rel    = 'noopener noreferrer';
-    });
-
-    // Server Status
-    document.querySelectorAll('[data-whmcs-action="status"]').forEach(function (el) {
-      el.href   = window.WHMCS.serverStatus;
-      el.target = '_blank';
-      el.rel    = 'noopener noreferrer';
+    // Knowledge Base / Server Status → contact page (no separate internal pages)
+    document.querySelectorAll('[data-whmcs-action="kb"], [data-whmcs-action="status"]').forEach(function (el) {
+      wire(el, window.WHMCS.knowledgeBase);
     });
 
   });
