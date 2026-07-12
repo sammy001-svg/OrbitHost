@@ -72,7 +72,7 @@ function status_badge(string $s): string {
 
 <div class="content-header">
   <h1 class="content-title">Integrations</h1>
-  <a href="<?php echo APP_URL; ?>/admin/integrations/settings.php" class="btn btn-primary"><i class="fas fa-gear"></i> Settings</a>
+  <a href="<?php echo APP_URL; ?>/integrations/settings.php" class="btn btn-primary"><i class="fas fa-gear"></i> Settings</a>
 </div>
 
 <div class="stat-grid" style="margin-bottom:28px">

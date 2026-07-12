@@ -33,7 +33,7 @@ require_once '../../includes/header.php';
 
 <div class="content-header">
   <h1 class="content-title">Domain Availability Check</h1>
-  <a href="<?php echo APP_URL; ?>/admin/integrations/domains/" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
+  <a href="<?php echo APP_URL; ?>/integrations/domains/" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
 </div>
 
 <div style="max-width:700px">

@@ -13,7 +13,7 @@ $client = $stmt->fetch();
 
 if (!$client) {
     flash_set('error', 'Client not found.');
-    header('Location: ' . APP_URL . '/admin/clients/');
+    header('Location: ' . APP_URL . '/clients/');
     exit;
 }
 
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     log_activity('invite_sent', "Portal invite sent to client #{$id} ({$client['email']})");
     flash_set('success', "Invite sent to {$client['email']}. Link expires in 48 hours.");
-    header('Location: ' . APP_URL . '/admin/clients/view.php?id=' . $id);
+    header('Location: ' . APP_URL . '/clients/view.php?id=' . $id);
     exit;
 }
 
@@ -70,7 +70,7 @@ require_once '../includes/header.php';
 
 <div class="content-header">
   <h1 class="content-title">Send Portal Invite</h1>
-  <a href="<?php echo APP_URL; ?>/admin/clients/view.php?id=<?php echo $id; ?>" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
+  <a href="<?php echo APP_URL; ?>/clients/view.php?id=<?php echo $id; ?>" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
 </div>
 
 <div style="max-width:520px">
@@ -101,7 +101,7 @@ require_once '../includes/header.php';
         <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
         <div style="display:flex;gap:10px">
           <button type="submit" class="btn btn-primary"><i class="fas fa-envelope"></i> Send Invite Email</button>
-          <a href="<?php echo APP_URL; ?>/admin/clients/view.php?id=<?php echo $id; ?>" class="btn btn-ghost">Cancel</a>
+          <a href="<?php echo APP_URL; ?>/clients/view.php?id=<?php echo $id; ?>" class="btn btn-ghost">Cancel</a>
         </div>
       </form>
     </div>

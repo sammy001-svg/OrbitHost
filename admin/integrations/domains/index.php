@@ -25,8 +25,8 @@ require_once '../../includes/header.php';
 <div class="content-header">
   <h1 class="content-title">Domain Registrations</h1>
   <div style="display:flex;gap:8px">
-    <a href="<?php echo APP_URL; ?>/admin/integrations/domains/check.php" class="btn btn-ghost"><i class="fas fa-magnifying-glass"></i> Check Domain</a>
-    <a href="<?php echo APP_URL; ?>/admin/integrations/" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
+    <a href="<?php echo APP_URL; ?>/integrations/domains/check.php" class="btn btn-ghost"><i class="fas fa-magnifying-glass"></i> Check Domain</a>
+    <a href="<?php echo APP_URL; ?>/integrations/" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
   </div>
 </div>
 
@@ -55,7 +55,7 @@ require_once '../../includes/header.php';
             <td><?php echo ucfirst($d['registrar']); ?></td>
             <td>
               <?php if ($d['first_name']): ?>
-                <a href="<?php echo APP_URL; ?>/admin/clients/view.php?id=<?php echo $d['client_id']; ?>"><?php echo htmlspecialchars($d['first_name'] . ' ' . $d['last_name']); ?></a>
+                <a href="<?php echo APP_URL; ?>/clients/view.php?id=<?php echo $d['client_id']; ?>"><?php echo htmlspecialchars($d['first_name'] . ' ' . $d['last_name']); ?></a>
               <?php else: ?>
                 <span style="color:var(--text-muted)">—</span>
               <?php endif; ?>
@@ -94,7 +94,7 @@ require_once '../../includes/header.php';
     </table>
     <?php if ($total > PER_PAGE): ?>
       <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:6px">
-        <?php echo paginate(ceil($total / PER_PAGE), $page, '?page=%d'); ?>
+        <?php echo paginate($total, $page, PER_PAGE, '?page=%d'); ?>
       </div>
     <?php endif; ?>
   </div>

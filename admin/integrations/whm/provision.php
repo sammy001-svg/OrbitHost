@@ -87,7 +87,7 @@ require_once '../../includes/header.php';
 
 <div class="content-header">
   <h1 class="content-title">Provision cPanel Account</h1>
-  <a href="<?php echo APP_URL; ?>/admin/integrations/whm/" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
+  <a href="<?php echo APP_URL; ?>/integrations/whm/" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
 </div>
 
 <?php if ($success): ?>
@@ -106,7 +106,7 @@ require_once '../../includes/header.php';
       </div>
       <div style="margin-top:20px;display:flex;gap:10px;justify-content:center">
         <a href="provision.php" class="btn btn-primary"><i class="fas fa-plus"></i> Provision Another</a>
-        <a href="<?php echo APP_URL; ?>/admin/integrations/whm/" class="btn btn-ghost">View All Accounts</a>
+        <a href="<?php echo APP_URL; ?>/integrations/whm/" class="btn btn-ghost">View All Accounts</a>
       </div>
     </div>
   </div>

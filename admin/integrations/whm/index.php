@@ -17,7 +17,11 @@ $error   = null;
 $accounts = [];
 $server_info = [];
 
-if (!empty($whm_cfg['host']) && !empty($whm_cfg['token'])) {
+if (empty($whm_cfg['host'])) {
+    $error = 'WHM host is not set. <a href="' . APP_URL . '/integrations/settings.php#whm">Add your WHM host</a>';
+} elseif (empty($whm_cfg['token'])) {
+    $error = 'WHM API token is not set. <a href="' . APP_URL . '/integrations/settings.php#whm">Add your API token</a> — generate one in WHM › Development › Manage API Tokens.';
+} else {
     try {
         $whm = new WHMClient(
             $whm_cfg['host'],
@@ -28,10 +32,8 @@ if (!empty($whm_cfg['host']) && !empty($whm_cfg['token'])) {
         $accounts    = $whm->listAccounts();
         $server_info = $whm->getServerLoad();
     } catch (\Throwable $e) {
-        $error = $e->getMessage();
+        $error = 'Connection failed: ' . htmlspecialchars($e->getMessage());
     }
-} else {
-    $error = 'WHM is not configured. <a href="' . APP_URL . '/integrations/settings.php#whm">Configure now</a>';
 }
 
 // Handle sync action — update disk/bw usage in our DB
@@ -69,8 +71,8 @@ require_once '../../includes/header.php';
       <button type="submit" class="btn btn-ghost"><i class="fas fa-arrows-rotate"></i> Sync Usage</button>
     </form>
     <?php endif; ?>
-    <a href="<?php echo APP_URL; ?>/admin/integrations/whm/provision.php" class="btn btn-primary"><i class="fas fa-plus"></i> Provision Account</a>
-    <a href="<?php echo APP_URL; ?>/admin/integrations/" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
+    <a href="<?php echo APP_URL; ?>/integrations/whm/provision.php" class="btn btn-primary"><i class="fas fa-plus"></i> Provision Account</a>
+    <a href="<?php echo APP_URL; ?>/integrations/" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
   </div>
 </div>
 

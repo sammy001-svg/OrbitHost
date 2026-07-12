@@ -142,9 +142,15 @@ require_once '../includes/header.php';
           </div>
           <div class="form-group" style="grid-column:1/-1">
             <label class="form-label">API Token <span class="req">*</span></label>
-            <input type="password" name="whm_token" class="form-control"
-                   placeholder="WHM API token (from WHM › Development › API Tokens)"
-                   value="<?php echo v($cfg, 'whm', 'token'); ?>" autocomplete="new-password" />
+            <div style="position:relative">
+              <input type="text" name="whm_token" id="whm_token" class="form-control"
+                     placeholder="Paste your WHM API token here"
+                     value="<?php echo v($cfg, 'whm', 'token'); ?>"
+                     style="font-family:monospace;font-size:12px;padding-right:80px" />
+              <button type="button" onclick="var f=document.getElementById('whm_token');f.type=f.type==='text'?'password':'text';this.textContent=f.type==='text'?'Hide':'Show'"
+                      style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px">Hide</button>
+            </div>
+            <small class="form-hint">Generate in WHM › Development › Manage API Tokens. Paste the full token — it won't be truncated.</small>
           </div>
           <div class="form-group" style="grid-column:1/-1">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
