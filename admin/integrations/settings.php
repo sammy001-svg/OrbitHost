@@ -5,86 +5,109 @@ require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 
 auth_check();
-can('admin');  // Only admins and super_admins may change integration credentials
 $page_title = 'Integration Settings';
 
-// Load current settings
-$rows = db()->query('SELECT provider, settings FROM integration_settings')->fetchAll();
-$cfg  = [];
-foreach ($rows as $r) {
-    $cfg[$r['provider']] = json_decode($r['settings'], true) ?? [];
+// ── Reliable upsert — works on MySQL 5.6, 5.7, 8.x, MariaDB ──
+function save_provider(string $provider, array $data): void
+{
+    $json = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    $upd  = db()->prepare('UPDATE integration_settings SET settings=? WHERE provider=?');
+    $upd->execute([$json, $provider]);
+    if ($upd->rowCount() === 0) {
+        db()->prepare('INSERT INTO integration_settings (provider, settings) VALUES (?,?)')
+            ->execute([$provider, $json]);
+    }
 }
 
-function save_provider(string $provider, array $data): void {
-    $json = json_encode($data, JSON_UNESCAPED_SLASHES);
-    $stmt = db()->prepare('INSERT INTO integration_settings (provider, settings) VALUES (?,?) ON DUPLICATE KEY UPDATE settings=VALUES(settings), updated_at=NOW()');
-    $stmt->execute([$provider, $json]);
+// Load current settings
+function load_cfg(): array
+{
+    $rows = db()->query('SELECT provider, settings FROM integration_settings')->fetchAll();
+    $cfg  = [];
+    foreach ($rows as $r) {
+        $cfg[$r['provider']] = json_decode($r['settings'], true) ?? [];
+    }
+    return $cfg;
 }
+
+$cfg     = load_cfg();
+$error   = null;
+$saved   = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
     $section = $_POST['section'] ?? '';
 
-    if ($section === 'whm') {
-        save_provider('whm', [
-            'host'       => trim($_POST['whm_host'] ?? ''),
-            'user'       => trim($_POST['whm_user'] ?? 'root'),
-            'token'      => trim($_POST['whm_token'] ?? ''),
-            'port'       => (int)($_POST['whm_port'] ?? 2087),
-            'ssl_verify' => !empty($_POST['whm_ssl_verify']),
-        ]);
-        flash_set('success', 'WHM settings saved.');
-    } elseif ($section === 'namecheap') {
-        save_provider('namecheap', [
-            'api_user'   => trim($_POST['nc_api_user'] ?? ''),
-            'api_key'    => trim($_POST['nc_api_key']  ?? ''),
-            'client_ip'  => trim($_POST['nc_client_ip'] ?? ''),
-            'sandbox'    => !empty($_POST['nc_sandbox']),
-        ]);
-        flash_set('success', 'Namecheap settings saved.');
-    } elseif ($section === 'godaddy') {
-        save_provider('godaddy', [
-            'api_key'    => trim($_POST['gd_api_key']    ?? ''),
-            'api_secret' => trim($_POST['gd_api_secret'] ?? ''),
-            'sandbox'    => !empty($_POST['gd_sandbox']),
-        ]);
-        flash_set('success', 'GoDaddy settings saved.');
-    } elseif ($section === 'smtp') {
-        save_provider('smtp', [
-            'host'       => trim($_POST['smtp_host']     ?? ''),
-            'port'       => (int)($_POST['smtp_port']    ?? 587),
-            'username'   => trim($_POST['smtp_username'] ?? ''),
-            'password'   => trim($_POST['smtp_password'] ?? ''),
-            'encryption' => $_POST['smtp_encryption']   ?? 'tls',
-            'from_name'  => trim($_POST['smtp_from_name']  ?? 'OrbitHost'),
-            'from_email' => trim($_POST['smtp_from_email'] ?? ''),
-        ]);
-        flash_set('success', 'SMTP settings saved.');
+    try {
+        if ($section === 'whm') {
+            save_provider('whm', [
+                'host'       => trim($_POST['whm_host']  ?? ''),
+                'user'       => trim($_POST['whm_user']  ?? 'root'),
+                'token'      => trim($_POST['whm_token'] ?? ''),
+                'port'       => (int)($_POST['whm_port'] ?? 2087),
+                'ssl_verify' => !empty($_POST['whm_ssl_verify']),
+            ]);
+            $saved = 'whm';
+        } elseif ($section === 'namecheap') {
+            save_provider('namecheap', [
+                'api_user'  => trim($_POST['nc_api_user']  ?? ''),
+                'api_key'   => trim($_POST['nc_api_key']   ?? ''),
+                'client_ip' => trim($_POST['nc_client_ip'] ?? ''),
+                'sandbox'   => !empty($_POST['nc_sandbox']),
+            ]);
+            $saved = 'namecheap';
+        } elseif ($section === 'godaddy') {
+            save_provider('godaddy', [
+                'api_key'    => trim($_POST['gd_api_key']    ?? ''),
+                'api_secret' => trim($_POST['gd_api_secret'] ?? ''),
+                'sandbox'    => !empty($_POST['gd_sandbox']),
+            ]);
+            $saved = 'godaddy';
+        } elseif ($section === 'smtp') {
+            save_provider('smtp', [
+                'host'       => trim($_POST['smtp_host']       ?? ''),
+                'port'       => (int)($_POST['smtp_port']      ?? 587),
+                'username'   => trim($_POST['smtp_username']   ?? ''),
+                'password'   => trim($_POST['smtp_password']   ?? ''),
+                'encryption' => $_POST['smtp_encryption']      ?? 'tls',
+                'from_name'  => trim($_POST['smtp_from_name']  ?? 'OrbitHost'),
+                'from_email' => trim($_POST['smtp_from_email'] ?? ''),
+            ]);
+            $saved = 'smtp';
+        }
+
+        // Reload so the form shows what was just saved
+        $cfg = load_cfg();
+
+    } catch (\Throwable $e) {
+        $error = 'Database error: ' . $e->getMessage()
+               . ' — Check that schema_v2.sql has been imported and the integration_settings table exists.';
     }
-
-    header('Location: ' . APP_URL . '/integrations/settings.php');
-    exit;
 }
 
-// Refresh after save
-$rows = db()->query('SELECT provider, settings FROM integration_settings')->fetchAll();
-$cfg  = [];
-foreach ($rows as $r) {
-    $cfg[$r['provider']] = json_decode($r['settings'], true) ?? [];
-}
-
-function v(array $cfg, string $provider, string $key, $default = ''): string {
+function v(array $cfg, string $provider, string $key, string $default = ''): string
+{
     return htmlspecialchars($cfg[$provider][$key] ?? $default);
 }
-function checked_if(bool $condition): string { return $condition ? 'checked' : ''; }
+function checked_if(bool $cond): string { return $cond ? 'checked' : ''; }
+function saved_alert(string $section, ?string $saved): void
+{
+    if ($saved === $section) {
+        echo '<div class="alert alert-success" style="margin-bottom:16px"><i class="fas fa-check-circle"></i> Settings saved successfully.</div>';
+    }
+}
 
 require_once '../includes/header.php';
 ?>
 
 <div class="content-header">
   <h1 class="content-title">Integration Settings</h1>
-  <a href="<?php echo APP_URL; ?>/admin/integrations/" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
+  <a href="<?php echo APP_URL; ?>/integrations/" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
 </div>
+
+<?php if ($error): ?>
+  <div class="alert alert-danger"><i class="fas fa-triangle-exclamation"></i> <?php echo htmlspecialchars($error); ?></div>
+<?php endif; ?>
 
 <div style="display:flex;flex-direction:column;gap:20px;max-width:740px">
 
@@ -95,34 +118,39 @@ require_once '../includes/header.php';
       <span style="font-size:12px;color:var(--text-muted)">Web Host Manager API v1</span>
     </div>
     <div class="card-body">
+      <?php saved_alert('whm', $saved); ?>
       <form method="POST">
         <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
         <input type="hidden" name="section"    value="whm" />
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
           <div class="form-group" style="grid-column:1/-1">
             <label class="form-label">WHM Host / IP <span class="req">*</span></label>
-            <input type="text" name="whm_host" class="form-control" placeholder="e.g. server.orbithost.co.ke or 192.168.1.1"
+            <input type="text" name="whm_host" class="form-control"
+                   placeholder="e.g. server.orbithost.co.ke or 192.168.1.1"
                    value="<?php echo v($cfg, 'whm', 'host'); ?>" />
             <small class="form-hint">Without trailing slash. Port is set separately below.</small>
           </div>
           <div class="form-group">
             <label class="form-label">WHM Username</label>
-            <input type="text" name="whm_user" class="form-control" placeholder="root" value="<?php echo v($cfg, 'whm', 'user', 'root'); ?>" />
+            <input type="text" name="whm_user" class="form-control" placeholder="root"
+                   value="<?php echo v($cfg, 'whm', 'user', 'root'); ?>" />
           </div>
           <div class="form-group">
             <label class="form-label">Port</label>
-            <input type="number" name="whm_port" class="form-control" value="<?php echo v($cfg, 'whm', 'port', '2087'); ?>" />
+            <input type="number" name="whm_port" class="form-control"
+                   value="<?php echo v($cfg, 'whm', 'port', '2087'); ?>" />
           </div>
           <div class="form-group" style="grid-column:1/-1">
             <label class="form-label">API Token <span class="req">*</span></label>
-            <input type="password" name="whm_token" class="form-control" placeholder="WHM API token (from WHM > API Tokens)"
+            <input type="password" name="whm_token" class="form-control"
+                   placeholder="WHM API token (from WHM › Development › API Tokens)"
                    value="<?php echo v($cfg, 'whm', 'token'); ?>" autocomplete="new-password" />
-            <small class="form-hint">Generate in WHM under Development > Manage API Tokens.</small>
           </div>
           <div class="form-group" style="grid-column:1/-1">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-              <input type="checkbox" name="whm_ssl_verify" <?php echo checked_if(!empty($cfg['whm']['ssl_verify'])); ?> />
-              Verify SSL Certificate (disable for self-signed certs)
+              <input type="checkbox" name="whm_ssl_verify"
+                     <?php echo checked_if(!empty($cfg['whm']['ssl_verify'])); ?> />
+              Verify SSL Certificate <span style="color:var(--text-muted)">(leave unchecked for self-signed certs)</span>
             </label>
           </div>
         </div>
@@ -138,6 +166,7 @@ require_once '../includes/header.php';
       <span style="font-size:12px;color:var(--text-muted)">Domain Registrar API</span>
     </div>
     <div class="card-body">
+      <?php saved_alert('namecheap', $saved); ?>
       <form method="POST">
         <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
         <input type="hidden" name="section"    value="namecheap" />
@@ -160,7 +189,8 @@ require_once '../includes/header.php';
           </div>
           <div class="form-group" style="grid-column:1/-1">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-              <input type="checkbox" name="nc_sandbox" <?php echo checked_if(!empty($cfg['namecheap']['sandbox'])); ?> />
+              <input type="checkbox" name="nc_sandbox"
+                     <?php echo checked_if(!empty($cfg['namecheap']['sandbox'])); ?> />
               Use Sandbox (test environment — no real domains registered)
             </label>
           </div>
@@ -177,6 +207,7 @@ require_once '../includes/header.php';
       <span style="font-size:12px;color:var(--text-muted)">Domain Registrar API</span>
     </div>
     <div class="card-body">
+      <?php saved_alert('godaddy', $saved); ?>
       <form method="POST">
         <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
         <input type="hidden" name="section"    value="godaddy" />
@@ -193,7 +224,8 @@ require_once '../includes/header.php';
           </div>
           <div class="form-group" style="grid-column:1/-1">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-              <input type="checkbox" name="gd_sandbox" <?php echo checked_if(!empty($cfg['godaddy']['sandbox'])); ?> />
+              <input type="checkbox" name="gd_sandbox"
+                     <?php echo checked_if(!empty($cfg['godaddy']['sandbox'])); ?> />
               Use OTE / Sandbox environment
             </label>
           </div>
@@ -210,9 +242,10 @@ require_once '../includes/header.php';
       <span style="font-size:12px;color:var(--text-muted)">Outbound email configuration</span>
     </div>
     <div class="card-body">
+      <?php saved_alert('smtp', $saved); ?>
       <div class="alert alert-info" style="margin-bottom:16px;font-size:13px">
         <i class="fas fa-info-circle"></i>
-        These settings are stored for reference. To use SMTP, install <strong>PHPMailer</strong> and update the mail helper in <code>admin/includes/functions.php</code>.
+        Settings are stored here for reference. To send real emails, install <strong>PHPMailer</strong> via Composer and update the mail helper in <code>admin/includes/functions.php</code>.
       </div>
       <form method="POST">
         <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
@@ -225,7 +258,8 @@ require_once '../includes/header.php';
           </div>
           <div class="form-group">
             <label class="form-label">Port</label>
-            <input type="number" name="smtp_port" class="form-control" value="<?php echo v($cfg, 'smtp', 'port', '587'); ?>" />
+            <input type="number" name="smtp_port" class="form-control"
+                   value="<?php echo v($cfg, 'smtp', 'port', '587'); ?>" />
           </div>
           <div class="form-group">
             <label class="form-label">Username</label>
@@ -241,17 +275,22 @@ require_once '../includes/header.php';
             <label class="form-label">Encryption</label>
             <select name="smtp_encryption" class="form-control">
               <?php foreach (['tls' => 'TLS (STARTTLS)', 'ssl' => 'SSL', 'none' => 'None'] as $val => $lbl): ?>
-                <option value="<?php echo $val; ?>" <?php echo ($cfg['smtp']['encryption'] ?? 'tls') === $val ? 'selected' : ''; ?>><?php echo $lbl; ?></option>
+                <option value="<?php echo $val; ?>"
+                  <?php echo ($cfg['smtp']['encryption'] ?? 'tls') === $val ? 'selected' : ''; ?>>
+                  <?php echo $lbl; ?>
+                </option>
               <?php endforeach; ?>
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">From Name</label>
-            <input type="text" name="smtp_from_name" class="form-control" value="<?php echo v($cfg, 'smtp', 'from_name', 'OrbitHost'); ?>" />
+            <input type="text" name="smtp_from_name" class="form-control"
+                   value="<?php echo v($cfg, 'smtp', 'from_name', 'OrbitHost'); ?>" />
           </div>
           <div class="form-group" style="grid-column:1/-1">
             <label class="form-label">From Email</label>
-            <input type="email" name="smtp_from_email" class="form-control" placeholder="noreply@orbithost.co.ke"
+            <input type="email" name="smtp_from_email" class="form-control"
+                   placeholder="noreply@orbithost.co.ke"
                    value="<?php echo v($cfg, 'smtp', 'from_email'); ?>" />
           </div>
         </div>
