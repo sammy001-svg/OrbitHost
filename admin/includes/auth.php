@@ -36,6 +36,7 @@ function auth_login(string $email, string $password): bool
         $_SESSION['admin_id']    = $user['id'];
         $_SESSION['admin_name']  = $user['name'];
         $_SESSION['admin_role']  = $user['role'];
+        $_SESSION['admin_email'] = $user['email'];
         $_SESSION['last_active'] = time();
         db()->prepare('UPDATE admin_users SET last_login = NOW() WHERE id = ?')
             ->execute([$user['id']]);
@@ -65,10 +66,24 @@ function csrf_verify(): void
 
 function current_admin(): array
 {
+    if (!empty($_SESSION['admin_id']) && empty($_SESSION['admin_email'])) {
+        try {
+            $stmt = db()->prepare('SELECT email FROM admin_users WHERE id = ? LIMIT 1');
+            $stmt->execute([$_SESSION['admin_id']]);
+            $user = $stmt->fetch();
+            if ($user) {
+                $_SESSION['admin_email'] = $user['email'];
+            }
+        } catch (Exception $e) {
+            // Silently fallback if DB is not available
+        }
+    }
+
     return [
-        'id'   => $_SESSION['admin_id']   ?? 0,
-        'name' => $_SESSION['admin_name'] ?? 'Admin',
-        'role' => $_SESSION['admin_role'] ?? 'admin',
+        'id'    => $_SESSION['admin_id']    ?? 0,
+        'name'  => $_SESSION['admin_name']  ?? 'Admin',
+        'role'  => $_SESSION['admin_role']  ?? 'admin',
+        'email' => $_SESSION['admin_email'] ?? '',
     ];
 }
 
