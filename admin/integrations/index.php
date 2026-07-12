@@ -55,12 +55,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
         } elseif ($action === 'test') {
-            $result = match ($def['category']) {
-                'panel'     => Provider::panel($provider)->testConnection(),
-                'registrar' => Provider::registrar($provider)->testConnection(),
-                'payment'   => Provider::payment($provider)->testConnection(),
-                default     => ['success' => false, 'message' => 'No connection test for this provider type.'],
-            };
+            if ($def['category'] === 'email') {
+                require_once '../includes/Mailer.php';
+                $to = trim($_POST['test_to'] ?? '') ?: current_admin()['email'];
+                $result = Mailer::fromConfig()->test($to);
+            } else {
+                $result = match ($def['category']) {
+                    'panel'     => Provider::panel($provider)->testConnection(),
+                    'registrar' => Provider::registrar($provider)->testConnection(),
+                    'payment'   => Provider::payment($provider)->testConnection(),
+                    default     => ['success' => false, 'message' => 'No connection test for this provider type.'],
+                };
+            }
             flash_set($result['success'] ? 'success' : 'error',
                 ($result['success'] ? '✓ ' : '✗ ') . $def['name'] . ': ' . ($result['message'] ?? ($result['success'] ? 'Connected.' : 'Failed.')));
         }
@@ -238,6 +244,21 @@ require_once '../includes/header.php';
         </button>
       </form>
     </div>
+
+    <?php if ($def['category'] === 'email'): ?>
+    <div class="drawer-foot" style="flex-direction:column;align-items:stretch;gap:8px">
+      <label class="form-label" style="margin:0">Send a test email</label>
+      <form method="POST" style="margin:0;display:flex;gap:8px">
+        <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+        <input type="hidden" name="action" value="test" />
+        <input type="hidden" name="provider" value="<?php echo $key; ?>" />
+        <input type="email" name="test_to" class="form-control" required
+               placeholder="recipient@example.com" value="<?php echo h(current_admin()['email']); ?>" />
+        <button type="submit" class="btn btn-outline" style="white-space:nowrap"><i class="fas fa-paper-plane"></i> Send</button>
+      </form>
+      <small class="form-hint">Save your settings first — the test uses what's stored in the database.</small>
+    </div>
+    <?php endif; ?>
   </div>
 <?php endforeach; ?>
 
