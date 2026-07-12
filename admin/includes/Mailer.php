@@ -75,7 +75,14 @@ final class Mailer
         $transport = ($enc === 'ssl') ? 'ssl://' : '';
         $ctx = stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]]);
         $fp  = @stream_socket_client($transport . $host . ':' . $port, $errno, $errstr, 15, STREAM_CLIENT_CONNECT, $ctx);
-        if (!$fp) return ['success' => false, 'message' => "Cannot connect to {$host}:{$port} — {$errstr} ({$errno})."];
+        if (!$fp) {
+            $msg = "Cannot connect to {$host}:{$port} — {$errstr} ({$errno}).";
+            if ($errno === 0) {
+                $msg .= " This usually indicates a DNS resolution failure, or your hosting provider is blocking outbound connections on port {$port} via a firewall. " .
+                        "On cPanel/shared servers, try setting the SMTP Host to 'localhost' or '127.0.0.1' to bypass outbound SMTP restrictions.";
+            }
+            return ['success' => false, 'message' => $msg];
+        }
         stream_set_timeout($fp, 15);
 
         $read = function () use ($fp) {

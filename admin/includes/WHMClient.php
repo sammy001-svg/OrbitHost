@@ -29,7 +29,9 @@ class WHMClient
     // ── Core HTTP call ─────────────────────────────────────────
     private function call(string $func, array $params = [], string $method = 'GET'): array
     {
-        $url = $this->host . ':2087/json-api/' . $func;
+        // Force API v1 — without this WHM answers in the legacy v0 shape
+        // ({acct:[…]} at top level) and all the data unwrapping breaks.
+        $url = $this->host . ':2087/json-api/' . $func . '?api.version=1';
 
         $ch = curl_init();
         curl_setopt_array($ch, [
