@@ -26,22 +26,42 @@ defined('CURRENCY')         || define('CURRENCY',   'USD');
 defined('PER_PAGE')         || define('PER_PAGE',   20);
 defined('SESSION_TIMEOUT')  || define('SESSION_TIMEOUT', 7200);
 
-// ── Auto-detect APP_URL (works from /admin/ or any subdirectory)
-if (!defined('APP_URL') && !defined('SETUP_MODE')) {
-    $__prot  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $__host  = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $__root  = rtrim(str_replace('\\', '/', dirname(__DIR__)), '/');
-    $__doc   = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
-    $__rel   = str_replace($__doc, '', $__root);
+// ── Auto-detect APP_URL if not set in .env ────────────────────
+// Using SCRIPT_NAME is far more reliable than DOCUMENT_ROOT math
+// because DOCUMENT_ROOT can differ from the real filesystem path
+// (common on XAMPP with projects outside htdocs, or symlinked dirs).
+if (!defined('APP_URL')) {
+    $__prot   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $__host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+    if (!defined('SETUP_MODE')) {
+        // Normal context: config.php lives in admin/includes/
+        // Walk up from the current script's URL path to get /admin
+        $__script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+        // Find the position of /admin/ in the URL path and trim to it
+        $__pos    = strpos($__script, '/admin/');
+        if ($__pos !== false) {
+            $__rel = substr($__script, 0, $__pos) . '/admin';
+        } else {
+            // Fallback: derive from filesystem vs DOCUMENT_ROOT
+            $__root = rtrim(str_replace('\\', '/', dirname(__DIR__)), '/');
+            $__doc  = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
+            $__rel  = str_replace($__doc, '', $__root);
+        }
+    } else {
+        // setup.php context — /admin is one level below project root
+        $__script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+        $__pos    = strpos($__script, '/admin/');
+        if ($__pos !== false) {
+            $__rel = substr($__script, 0, $__pos) . '/admin';
+        } else {
+            $__root = rtrim(str_replace('\\', '/', dirname(dirname(__DIR__))), '/');
+            $__doc  = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
+            $__rel  = str_replace($__doc, '', $__root) . '/admin';
+        }
+    }
+
     define('APP_URL', $__prot . '://' . $__host . $__rel);
-    unset($__prot, $__host, $__root, $__doc, $__rel);
-} elseif (!defined('APP_URL')) {
-    // setup.php context
-    $__prot  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $__host  = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $__root  = rtrim(str_replace('\\', '/', dirname(dirname(__DIR__))), '/');
-    $__doc   = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
-    $__rel   = str_replace($__doc, '', $__root) . '/admin';
-    define('APP_URL', $__prot . '://' . $__host . $__rel);
-    unset($__prot, $__host, $__root, $__doc, $__rel);
+    unset($__prot, $__host, $__script, $__pos, $__rel, $__root, $__doc);
 }
+
