@@ -227,7 +227,9 @@ class DomainClient
 
         $response = curl_exec($ch);
         $err      = curl_error($ch);
-        curl_close($ch);
+        if (is_resource($ch)) {
+            curl_close($ch);
+        }
 
         if ($err) throw new RuntimeException("Namecheap connection error: $err");
 
@@ -387,7 +389,9 @@ class DomainClient
         $response = curl_exec($ch);
         $err      = curl_error($ch);
         $code     = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        if (is_resource($ch)) {
+            curl_close($ch);
+        }
 
         if ($err) throw new RuntimeException("GoDaddy connection error: $err");
 
@@ -484,7 +488,9 @@ class DomainClient
         curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_SSL_VERIFYPEER => true]);
         $res = curl_exec($ch);
         $err = curl_error($ch);
-        curl_close($ch);
+        if (is_resource($ch)) {
+            curl_close($ch);
+        }
         if ($err) throw new RuntimeException("Enom connection error: $err");
         return $res ?: '';
     }
@@ -597,7 +603,9 @@ class DomainClient
             $err         = curl_error($ch);
             $code        = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $redirectUrl = curl_getinfo($ch, CURLINFO_REDIRECT_URL) ?: null;
-            curl_close($ch);
+            if (is_resource($ch)) {
+                curl_close($ch);
+            }
 
             if ($err || !in_array($code, [301, 302, 303, 307, 308], true) || !$redirectUrl) break;
 
@@ -996,7 +1004,9 @@ class DomainClient
         if ($body) curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
         $res = curl_exec($ch);
         $err = curl_error($ch);
-        curl_close($ch);
+        if (is_resource($ch)) {
+            curl_close($ch);
+        }
         if ($err) throw new RuntimeException("Cloudflare connection error: $err");
         $data = json_decode($res, true) ?? [];
         if (!($data['success'] ?? false)) {

@@ -87,7 +87,9 @@ final class PaymentClient
         $res  = curl_exec($ch);
         $err  = curl_error($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        if (is_resource($ch)) {
+            curl_close($ch);
+        }
         if ($err) throw new RuntimeException('Connection error: ' . $err);
         return ['code' => $code, 'body' => $res, 'data' => json_decode($res, true) ?? [], 'headers' => $resHeaders];
     }

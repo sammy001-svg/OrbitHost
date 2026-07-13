@@ -38,7 +38,9 @@ function probe(string $url, bool $forceV4 = true): array
     curl_exec($ch);
     $localIp = curl_getinfo($ch, CURLINFO_LOCAL_IP) ?: null;
     $err     = curl_error($ch);
-    curl_close($ch);
+    if (is_resource($ch)) {
+        curl_close($ch);
+    }
     return ['ip' => $localIp, 'error' => $err];
 }
 
