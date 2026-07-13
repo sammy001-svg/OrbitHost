@@ -217,6 +217,16 @@ class WHMClient
         return $this->call('cpanel', ['user' => $username, 'cpanel_jsonapi_version' => 2, 'cpanel_jsonapi_module' => 'DomainInfo', 'cpanel_jsonapi_func' => 'list_domains']);
     }
 
+    /**
+     * One-click cPanel login: returns a short-lived session URL the
+     * browser can be redirected to (no username/password required).
+     */
+    public function createUserSession(string $username, string $service = 'cpaneld'): array
+    {
+        $resp = $this->call('create_user_session', ['user' => $username, 'service' => $service]);
+        return $resp['data'] ?? $resp; // { url, session, expires, ... }
+    }
+
     // ── Server info ───────────────────────────────────────────
     public function getServerVersion(): array
     {

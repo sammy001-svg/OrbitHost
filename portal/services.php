@@ -17,6 +17,16 @@ $orders = db()->query("
     ORDER BY o.status = 'active' DESC, o.created_at DESC
 ")->fetchAll();
 
+// Provisioned services (new lifecycle table) — e.g. cPanel accounts linked by admin
+$provisioned = [];
+try {
+    $stmt = db()->prepare('SELECT * FROM client_services WHERE client_id = ? ORDER BY status = "active" DESC, created_at DESC');
+    $stmt->execute([$cid]);
+    $provisioned = $stmt->fetchAll();
+} catch (\Throwable $e) {
+    // client_services not migrated yet
+}
+
 require_once __DIR__ . '/includes/header.php';
 ?>
 
@@ -57,6 +67,9 @@ require_once __DIR__ . '/includes/header.php';
         <?php echo badge($o['status']); ?>
         <?php if ($o['cpanel_user']): ?>
           <span class="badge badge-primary"><i class="fas fa-server"></i> cPanel: <?php echo htmlspecialchars($o['cpanel_user']); ?></span>
+          <a href="<?php echo PORTAL_URL; ?>/cpanel-sso.php?user=<?php echo urlencode($o['cpanel_user']); ?>" class="btn btn-primary btn-sm" target="_blank" rel="noopener">
+            <i class="fas fa-right-to-bracket"></i> Log in to cPanel
+          </a>
         <?php endif; ?>
         <a href="<?php echo PORTAL_URL; ?>/tickets/add.php?subject=Help+with+<?php echo urlencode($o['svc_name'] ?? 'service'); ?>" class="btn btn-ghost btn-sm">
           <i class="fas fa-life-ring"></i> Get Help
@@ -96,7 +109,65 @@ require_once __DIR__ . '/includes/header.php';
     </div>
   </div>
 
-<?php endforeach; else: ?>
+<?php endforeach; endif; ?>
+
+<?php foreach ($provisioned as $svc):
+    $cp = $svc['provider_key'] === 'whm' ? ($svc['username'] ?: $svc['remote_id']) : null;
+    $pct = ($svc['disk_limit_mb'] ?? 0) > 0 ? min(100, round($svc['disk_used_mb'] / $svc['disk_limit_mb'] * 100)) : 0;
+?>
+  <div class="p-card" style="margin-bottom:16px">
+    <div style="padding:20px 24px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:44px;height:44px;background:var(--green-light);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--green)">
+          <i class="fas fa-server"></i>
+        </div>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--navy)"><?php echo htmlspecialchars($svc['label']); ?></div>
+          <?php if ($svc['domain']): ?>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:2px"><i class="fas fa-globe" style="font-size:11px"></i> <?php echo htmlspecialchars($svc['domain']); ?></div>
+          <?php endif; ?>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <?php echo badge($svc['status']); ?>
+        <?php if ($cp): ?>
+          <span class="badge badge-primary"><i class="fas fa-server"></i> cPanel: <?php echo htmlspecialchars($cp); ?></span>
+          <?php if ($svc['status'] === 'active'): ?>
+            <a href="<?php echo PORTAL_URL; ?>/cpanel-sso.php?user=<?php echo urlencode($cp); ?>" class="btn btn-primary btn-sm" target="_blank" rel="noopener">
+              <i class="fas fa-right-to-bracket"></i> Log in to cPanel
+            </a>
+          <?php endif; ?>
+        <?php endif; ?>
+        <a href="<?php echo PORTAL_URL; ?>/tickets/add.php?subject=<?php echo urlencode('Help with ' . $svc['label']); ?>" class="btn btn-ghost btn-sm">
+          <i class="fas fa-life-ring"></i> Get Help
+        </a>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--border);padding:16px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Package</div>
+        <div style="font-weight:700;color:var(--navy)"><?php echo htmlspecialchars($svc['package'] ?: '—'); ?></div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Started</div>
+        <div><?php echo format_date($svc['start_date']); ?></div>
+      </div>
+      <?php if (($svc['disk_limit_mb'] ?? 0) > 0): ?>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Disk Usage</div>
+        <div>
+          <?php echo number_format($svc['disk_used_mb']); ?> / <?php echo number_format($svc['disk_limit_mb']); ?> MB
+          <div style="height:4px;background:#f1f5f9;border-radius:2px;margin-top:5px">
+            <div style="height:100%;width:<?php echo $pct; ?>%;background:<?php echo $pct > 85 ? 'var(--danger)' : 'var(--green)'; ?>;border-radius:2px"></div>
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
+    </div>
+  </div>
+<?php endforeach; ?>
+
+<?php if (!$orders && !$provisioned): ?>
   <div class="p-card">
     <div class="empty-state" style="padding:60px">
       <i class="fas fa-box-open"></i>

@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/../../admin/includes/functions.php';
+require_once dirname(__DIR__) . '/admin/includes/functions.php';
 
 portal_start();
 if (!empty($_SESSION['client_id'])) { header('Location: ' . PORTAL_URL . '/dashboard.php'); exit; }
