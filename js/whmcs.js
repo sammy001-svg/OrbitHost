@@ -45,6 +45,8 @@
       return PORTAL + '/cart.php?add=' + encodeURIComponent(domain);
     },
     clientArea:    PORTAL + '/login.php',
+    register:      PORTAL + '/register.php',
+    cart:          PORTAL + '/cart.php',
     submitTicket:  PORTAL + '/login.php',
     knowledgeBase: BASE + '/contact.html',
     serverStatus:  BASE + '/contact.html',
@@ -69,6 +71,16 @@
     // Log In / Client Area
     document.querySelectorAll('[data-whmcs-action="login"]').forEach(function (el) {
       wire(el, window.WHMCS.clientArea);
+    });
+
+    // Create Account / Get Started
+    document.querySelectorAll('[data-whmcs-action="register"]').forEach(function (el) {
+      wire(el, window.WHMCS.register);
+    });
+
+    // Cart
+    document.querySelectorAll('[data-whmcs-action="cart"]').forEach(function (el) {
+      wire(el, window.WHMCS.cart);
     });
 
     // Submit Ticket → portal login (support tickets live in the portal)
