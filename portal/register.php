@@ -75,7 +75,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['client_name']  = $data['first_name'] . ' ' . $data['last_name'];
             $_SESSION['client_email'] = $data['email'];
             $_SESSION['last_active']  = time();
-            header('Location: ' . PORTAL_URL . '/dashboard.php');
+            $to = $_SESSION['post_login_redirect'] ?? 'dashboard.php';
+            unset($_SESSION['post_login_redirect']);
+            if (!in_array($to, ['checkout.php', 'cart.php', 'dashboard.php', 'domains.php'], true)) $to = 'dashboard.php';
+            header('Location: ' . PORTAL_URL . '/' . $to);
             exit;
         }
     }

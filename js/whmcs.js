@@ -40,9 +40,9 @@
     orderUrl: function (slug) {
       return PORTAL + '/register.php?plan=' + encodeURIComponent(slug);
     },
-    // Domain search "Add to Cart" → registration, carrying the domain
+    // Domain search "Add to Cart" → portal cart
     domainUrl: function (domain) {
-      return PORTAL + '/register.php?domain=' + encodeURIComponent(domain);
+      return PORTAL + '/cart.php?add=' + encodeURIComponent(domain);
     },
     clientArea:    PORTAL + '/login.php',
     submitTicket:  PORTAL + '/login.php',

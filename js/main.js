@@ -135,54 +135,68 @@
   if (btn && bar) btn.addEventListener('click', () => bar.remove());
 })();
 
-// Domain Search
+// Domain Search — live availability + real prices via /api/domain-check.php
 (function () {
   const form = document.querySelector('.domain-form');
   const input = document.querySelector('.domain-input');
   const results = document.querySelector('.domain-results');
   if (!form) return;
 
-  const tldData = [
-    { tld: '.com',   price: '$12.99/yr',  avail: true  },
-    { tld: '.net',   price: '$14.99/yr',  avail: true  },
-    { tld: '.org',   price: '$11.99/yr',  avail: false },
-    { tld: '.co.ke', price: '$9.99/yr',   avail: true  },
-    { tld: '.ke',    price: '$19.99/yr',  avail: false },
-    { tld: '.io',    price: '$39.99/yr',  avail: true  },
-  ];
+  function siteBase() {
+    const s = document.querySelector('script[src*="main"]');
+    if (s && s.src) return s.src.replace(/\/js\/main[^\/]*\.js.*$/i, '');
+    return '';
+  }
+  const API = siteBase() + '/api/domain-check.php';
 
   form.addEventListener('submit', e => {
     e.preventDefault();
     if (!input || !results) return;
     const raw = input.value.trim();
     if (!raw) return;
-    const name = raw.replace(/\.[a-z.]+$/, '').replace(/[^a-zA-Z0-9-]/g, '').toLowerCase();
-    if (!name) return;
 
     const submitBtn = form.querySelector('button[type="submit"]');
     if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching…'; }
     results.innerHTML = '<div style="text-align:center;padding:28px 0;color:var(--text-muted);font-size:0.9375rem"><i class="fas fa-spinner fa-spin"></i> Checking availability…</div>';
 
-    setTimeout(() => {
+    const done = () => {
       if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = 'Search <i class="fas fa-search"></i>'; }
-      const rows = tldData.map(({ tld, price, avail }) => {
-        const cls = avail ? 'result-available' : 'result-taken';
-        const icon = avail ? 'fa-check-circle' : 'fa-times-circle';
-        const statusText = avail ? 'Available' : 'Taken';
-        const cartUrl = (window.WHMCS && avail) ? window.WHMCS.domainUrl(name + tld) : '#';
-      const action = avail
-          ? `<a href="${cartUrl}" class="btn btn-green btn-sm" target="_blank" rel="noopener noreferrer">Add to Cart</a>`
-          : `<span class="btn btn-outline-navy btn-sm" style="opacity:.45;cursor:default;">Unavailable</span>`;
-        return `
-          <div class="domain-result-row ${cls}">
-            <span class="result-name">${name}${tld}</span>
-            <span class="result-status"><i class="fas ${icon}"></i> ${statusText}</span>
-            <span class="result-price">${avail ? price : ''}</span>
-            ${action}
-          </div>`;
-      }).join('');
-      results.innerHTML = `<div class="domain-results-inner">${rows}</div>`;
-    }, 700);
+    };
+
+    fetch(API + '?q=' + encodeURIComponent(raw))
+      .then(r => r.json())
+      .then(data => {
+        done();
+        if (!data.ok) {
+          results.innerHTML = `<div style="text-align:center;padding:28px 0;color:var(--text-muted);font-size:0.9375rem"><i class="fas fa-circle-info"></i> ${data.error || 'Search is unavailable right now.'}</div>`;
+          return;
+        }
+        const rows = data.results.map(r => {
+          const avail = r.available;                       // true | false | null
+          const cls = avail === true ? 'result-available' : (avail === false ? 'result-taken' : '');
+          const icon = avail === true ? 'fa-check-circle' : (avail === false ? 'fa-times-circle' : 'fa-circle-question');
+          const statusText = avail === true ? 'Available' : (avail === false ? 'Taken' : 'Check with us');
+          const price = `${r.currency} ${Number(r.price).toFixed(2)}/yr`;
+          const cartUrl = (window.WHMCS && avail === true) ? window.WHMCS.domainUrl(r.domain) : '#';
+          const action = avail === true
+            ? `<a href="${cartUrl}" class="btn btn-green btn-sm">Add to Cart</a>`
+            : (avail === false
+              ? `<span class="btn btn-outline-navy btn-sm" style="opacity:.45;cursor:default;">Unavailable</span>`
+              : `<a href="contact.html" class="btn btn-outline-navy btn-sm">Ask us</a>`);
+          return `
+            <div class="domain-result-row ${cls}">
+              <span class="result-name">${r.domain}</span>
+              <span class="result-status"><i class="fas ${icon}"></i> ${statusText}</span>
+              <span class="result-price">${avail === false ? '' : price}</span>
+              ${action}
+            </div>`;
+        }).join('');
+        results.innerHTML = `<div class="domain-results-inner">${rows}</div>`;
+      })
+      .catch(() => {
+        done();
+        results.innerHTML = '<div style="text-align:center;padding:28px 0;color:var(--text-muted);font-size:0.9375rem"><i class="fas fa-triangle-exclamation"></i> Search is temporarily unavailable. Please try again shortly.</div>';
+      });
   });
 
   // TLD pills fill search input

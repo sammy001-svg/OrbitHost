@@ -36,6 +36,7 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
     <nav class="portal-nav" id="portalNav">
       <?php pnav(PORTAL_URL . '/dashboard.php', 'Dashboard',  'dashboard.php'); ?>
       <?php pnav(PORTAL_URL . '/services.php',  'Services',   'services.php'); ?>
+      <?php pnav(PORTAL_URL . '/domains.php',   'Domains',    'domains.php'); ?>
       <?php pnav(PORTAL_URL . '/invoices/',      'Invoices',   'index.php', 'invoices'); ?>
       <?php pnav(PORTAL_URL . '/tickets/',       'Support',    'index.php', 'tickets'); ?>
     </nav>

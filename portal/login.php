@@ -3,7 +3,18 @@ require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
 
 portal_start();
-if (!empty($_SESSION['client_id'])) { header('Location: ' . PORTAL_URL . '/dashboard.php'); exit; }
+
+// Where to land after auth (e.g. checkout) — whitelist of portal pages only
+$next = $_GET['next'] ?? '';
+if ($next === 'checkout') { $_SESSION['post_login_redirect'] = 'checkout.php'; }
+function portal_after_auth(): string
+{
+    $to = $_SESSION['post_login_redirect'] ?? 'dashboard.php';
+    unset($_SESSION['post_login_redirect']);
+    return in_array($to, ['checkout.php', 'cart.php', 'dashboard.php', 'domains.php'], true) ? $to : 'dashboard.php';
+}
+
+if (!empty($_SESSION['client_id'])) { header('Location: ' . PORTAL_URL . '/' . portal_after_auth()); exit; }
 
 $error   = '';
 $timeout = isset($_GET['timeout']);
@@ -14,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$email || !$pass) {
         $error = 'Please enter your email and password.';
     } elseif (portal_login($email, $pass)) {
-        header('Location: ' . PORTAL_URL . '/dashboard.php');
+        header('Location: ' . PORTAL_URL . '/' . portal_after_auth());
         exit;
     } else {
         $error = 'Invalid email or password. If you have not set a portal password yet, please use the link in your welcome email.';
