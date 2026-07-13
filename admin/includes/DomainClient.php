@@ -668,7 +668,29 @@ class DomainClient
     /** TLD list + our wholesale 1-year costs from reseller-cost-price.json */
     private function lbTldPricing(): array
     {
-        $cost = $this->rcCall('products/reseller-cost-price.json');
+        try {
+            $cost = $this->rcCall('products/reseller-cost-price.json');
+        } catch (RuntimeException $e) {
+            if (stripos($e->getMessage(), 'invalid credentials') === false) throw $e;
+            // Some accounts (typically new/unfunded ones, or sub-resellers) are rejected
+            // by the cost-price API while the rest of the API works fine. The
+            // customer-price endpoint returns the same structure with the account's
+            // default selling prices, which at least gets the catalogue populated.
+            try {
+                $cost = $this->rcCall('products/customer-price.json');
+            } catch (RuntimeException $e2) {
+                throw new RuntimeException(
+                    'Both pricing endpoints (reseller-cost-price.json and customer-price.json) rejected these '
+                    . 'credentials, while domain-availability calls succeed. This pattern almost always means the '
+                    . 'reseller account itself is not fully active for commerce yet — commonly because it has no '
+                    . 'funds added, or activation is still pending on the registrar\'s side. Add funds in your '
+                    . ucfirst($this->provider) . ' control panel (Billing › Add Funds) if you haven\'t, then retry; '
+                    . 'otherwise ask their support why the Products/Pricing API rejects reseller ID '
+                    . ($this->config['auth_userid'] ?? '') . ' when domain lookups work. Original error: '
+                    . $e->getMessage()
+                );
+            }
+        }
         $out  = [];
         foreach ($cost as $key => $data) {
             $tld = $this->lbKeyToTld((string)$key);
