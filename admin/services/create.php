@@ -9,7 +9,12 @@ auth_check();
 $page_title = 'Create Service';
 
 $clients = db()->query('SELECT id, first_name, last_name, email, phone FROM clients ORDER BY first_name, last_name')->fetchAll();
-$plans   = db()->query('SELECT id, name, category, billing_cycle, price FROM services WHERE is_active = 1 ORDER BY category, price')->fetchAll();
+try {
+    $plans = db()->query('SELECT id, name, category, billing_cycle, price, panel_package FROM services WHERE is_active = 1 ORDER BY category, price')->fetchAll();
+} catch (\Throwable $e) {
+    // panel_package column not migrated yet (visit Plans & Packages once, or import schema_v4.sql)
+    $plans = db()->query('SELECT id, name, category, billing_cycle, price, NULL AS panel_package FROM services WHERE is_active = 1 ORDER BY category, price')->fetchAll();
+}
 
 // Active + configured hosting panels available for provisioning
 $panels = [];
@@ -153,7 +158,8 @@ require_once '../includes/header.php';
                   data-name="<?php echo h($p['name']); ?>"
                   data-category="<?php echo h($p['category']); ?>"
                   data-cycle="<?php echo h($p['billing_cycle']); ?>"
-                  data-price="<?php echo h($p['price']); ?>">
+                  data-price="<?php echo h($p['price']); ?>"
+                  data-package="<?php echo h($p['panel_package'] ?? ''); ?>">
             <?php echo h($p['name'] . ' — ' . format_money((float)$p['price'])); ?>
           </option>
         <?php endforeach; ?>
@@ -218,7 +224,8 @@ require_once '../includes/header.php';
     </div>
     <div class="form-group">
       <label class="form-label">Package / plan name</label>
-      <input type="text" name="package" class="form-control" placeholder="default" />
+      <input type="text" name="package" id="packageField" class="form-control" placeholder="default" />
+      <small class="form-hint">Auto-filled when the chosen plan is linked to a WHM package (see Plans &amp; Packages).</small>
     </div>
     <div class="form-group">
       <label class="form-label">Username</label>
@@ -261,6 +268,7 @@ require_once '../includes/header.php';
     fill('labelField', o.dataset.name);
     fill('amountField', o.dataset.price);
     fill('cycleField', o.dataset.cycle);
+    if (o.dataset.package) fill('packageField', o.dataset.package);
     var cat = o.dataset.category, map = { shared:'hosting', wordpress:'hosting', cloud:'hosting', dedicated:'hosting', vps:'vps', reseller:'reseller', ssl:'ssl', email:'email', domain:'domain' };
     fill('categoryField', map[cat] || 'hosting');
   });

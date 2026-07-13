@@ -30,6 +30,7 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
 
     <div class="nav-label">Operations</div>
     <?php _nav(APP_URL . '/services/',  'fa-layer-group',  'Services',  'services'); ?>
+    <?php _nav(APP_URL . '/plans/',     'fa-tags',         'Plans & Packages', 'plans'); ?>
     <?php _nav(APP_URL . '/clients/',   'fa-users',        'Clients',   'clients'); ?>
     <?php _nav(APP_URL . '/orders/',    'fa-box',          'Orders',    'orders'); ?>
 

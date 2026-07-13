@@ -78,6 +78,7 @@ require_once '../../includes/header.php';
       <button type="submit" class="btn btn-ghost"><i class="fas fa-arrows-rotate"></i> Sync Usage</button>
     </form>
     <?php endif; ?>
+    <a href="<?php echo APP_URL; ?>/integrations/whm/packages.php" class="btn btn-ghost"><i class="fas fa-cubes"></i> Packages</a>
     <a href="<?php echo APP_URL; ?>/integrations/whm/provision.php" class="btn btn-primary"><i class="fas fa-plus"></i> Provision Account</a>
     <a href="<?php echo APP_URL; ?>/integrations/" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
   </div>
