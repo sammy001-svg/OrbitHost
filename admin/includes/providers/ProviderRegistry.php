@@ -125,6 +125,7 @@ final class ProviderRegistry
                 'color'    => '#f26722',
                 'tagline'  => 'Domains + hosting reseller platform (LogicBoxes).',
                 'client'   => 'DomainClient',
+                'ip_whitelist_note' => true,
                 'docs'     => 'https://manage.resellerclub.com/kb/answer/751',
                 'fields'   => [
                     ['key'=>'auth_userid', 'label'=>'Reseller ID', 'type'=>'text',   'required'=>true],
@@ -140,6 +141,7 @@ final class ProviderRegistry
                 'color'    => '#1d4ed8',
                 'tagline'  => 'Wholesale domains via the NetEarthOne (LogicBoxes) reseller API — with TLD pricing sync.',
                 'client'   => 'DomainClient',
+                'ip_whitelist_note' => true,
                 'docs'     => 'https://manage.netearthone.com/kb/answer/751',
                 'fields'   => [
                     ['key'=>'auth_userid', 'label'=>'Reseller ID',  'type'=>'text',   'required'=>true, 'hint'=>'NetEarthOne control panel › Settings › API.'],

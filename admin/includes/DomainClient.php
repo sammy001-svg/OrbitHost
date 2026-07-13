@@ -580,7 +580,16 @@ class DomainClient
             $data = ['value' => is_numeric(trim((string)$res)) ? trim((string)$res) : $res];
         }
         if (($data['status'] ?? '') === 'ERROR' || isset($data['error'])) {
-            throw new RuntimeException('Registrar error: ' . ($data['message'] ?? $data['error'] ?? 'unknown'));
+            $msg = (string) ($data['message'] ?? $data['error'] ?? 'unknown');
+            if (in_array($this->provider, ['resellerclub', 'netearthone'], true)
+                && (stripos($msg, 'access denied') !== false || stripos($msg, 'not authorized') !== false)) {
+                $msg .= ' — this is the standard LogicBoxes response when your server\'s IP address is not on '
+                     . 'the API IP Access list in your reseller control panel. Add your server\'s outbound IP '
+                     . '(use the "Detect my server IP" button below) under Settings › API in your '
+                     . ucfirst($this->provider) . ' account, then try again. Also double-check you are not '
+                     . 'mixing sandbox/demo credentials with the live endpoint (or vice versa).';
+            }
+            throw new RuntimeException('Registrar error: ' . $msg);
         }
         return $data;
     }

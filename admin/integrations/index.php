@@ -224,6 +224,20 @@ require_once '../includes/header.php';
         <?php if (!empty($def['docs'])): ?>
           <a href="<?php echo h($def['docs']); ?>" target="_blank" rel="noopener" class="code-chip" style="text-decoration:none;display:inline-flex;gap:6px;align-items:center;margin-bottom:16px"><i class="fas fa-book"></i> API documentation</a>
         <?php endif; ?>
+
+        <?php if (!empty($def['ip_whitelist_note'])): ?>
+          <div class="alert alert-info" style="font-size:12.5px;margin-bottom:16px">
+            <i class="fas fa-shield-halved"></i>
+            <div style="flex:1">
+              This registrar rejects requests from IP addresses that aren't whitelisted in your account's API settings.
+              <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <button type="button" class="btn btn-ghost btn-sm ip-detect-btn" data-target="ip-result-<?php echo $key; ?>"><i class="fas fa-magnifying-glass-location"></i> Detect my server IP</button>
+                <span id="ip-result-<?php echo $key; ?>" class="code-chip" style="display:none"></span>
+              </div>
+            </div>
+          </div>
+        <?php endif; ?>
+
         <?php foreach ($def['fields'] as $f) { echo render_field($f, $cfg); } ?>
       </div>
       <div class="drawer-foot">

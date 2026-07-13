@@ -176,6 +176,32 @@ document.addEventListener('DOMContentLoaded', function () {
     btn.textContent = show ? 'Hide' : 'Show';
   });
 
+  // ── "Detect my server IP" (registrar IP-whitelist helper) ──
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.ip-detect-btn') : null;
+    if (!btn) return;
+    var out = document.getElementById(btn.getAttribute('data-target'));
+    if (!out) return;
+    var original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detecting…';
+    fetch('server-ip.php')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        out.style.display = 'inline-flex';
+        if (d.ok) {
+          out.textContent = d.ip;
+          out.title = 'Click to copy';
+          out.style.cursor = 'pointer';
+          out.onclick = function () { navigator.clipboard.writeText(d.ip); out.textContent = 'Copied!'; setTimeout(function () { out.textContent = d.ip; }, 1200); };
+        } else {
+          out.textContent = d.error || 'Could not detect IP.';
+        }
+      })
+      .catch(function () { out.style.display = 'inline-flex'; out.textContent = 'Detection failed — try again.'; })
+      .finally(function () { btn.disabled = false; btn.innerHTML = original; });
+  });
+
   // ── Quick status filter links ────────────────────────────
   document.querySelectorAll('[data-filter-status]').forEach(function (el) {
     el.addEventListener('click', function (e) {
