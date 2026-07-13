@@ -72,7 +72,7 @@ require_once '../includes/header.php';
 </div>
 
 <?php if (!$gateways): ?>
-  <div class="alert alert-info"><i class="fas fa-circle-info"></i> No payment gateway is active yet. Enable Stripe, PayPal, M-Pesa or Flutterwave in <a href="<?php echo APP_URL; ?>/integrations/" style="font-weight:600">Providers</a> to collect payments online.</div>
+  <div class="alert alert-info"><i class="fas fa-circle-info"></i> No payment method is active yet. Enable Stripe, PayPal, M-Pesa (Kopo Kopo STK), Flutterwave — or an offline method like Bank Transfer, Manual M-Pesa or Cheque — in <a href="<?php echo APP_URL; ?>/integrations/" style="font-weight:600">Providers</a>.</div>
 <?php endif; ?>
 
 <div style="display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start">
