@@ -202,6 +202,54 @@ document.addEventListener('DOMContentLoaded', function () {
       .finally(function () { btn.disabled = false; btn.innerHTML = original; });
   });
 
+  // ── Notification bell ────────────────────────────────────
+  (function () {
+    var toggle = document.getElementById('notifToggle');
+    var dropdown = document.getElementById('notifDropdown');
+    var menu = document.getElementById('notifMenu');
+    if (!toggle || !dropdown) return;
+
+    toggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      dropdown.classList.toggle('open');
+    });
+    document.addEventListener('click', function (e) {
+      if (menu && !menu.contains(e.target)) dropdown.classList.remove('open');
+    });
+
+    function render(data) {
+      toggle.querySelector('.dot')?.remove();
+      if (data.unread > 0) {
+        var dot = document.createElement('span');
+        dot.className = 'dot';
+        toggle.appendChild(dot);
+      }
+      var list = dropdown.querySelector('.notif-dd-list');
+      if (!list) return;
+      if (!data.items.length) {
+        list.innerHTML = '<div class="notif-empty"><i class="fas fa-bell-slash"></i><p>No notifications yet.</p></div>';
+        return;
+      }
+      list.innerHTML = data.items.map(function (n) {
+        return '<a href="' + n.link + '" class="notif-item' + (n.is_read ? '' : ' unread') + '">' +
+          '<span class="notif-item-title">' + n.title + '</span>' +
+          '<span class="notif-item-msg">' + n.message + '</span>' +
+          '<span class="notif-item-time">' + n.time + '</span></a>';
+      }).join('');
+    }
+
+    // Resolve the admin app root from this script's own tag so polling works
+    // reliably regardless of how deep the current admin page is nested.
+    var adminScript = document.querySelector('script[src*="/js/admin.js"]');
+    var appBase = adminScript ? adminScript.src.replace(/\/js\/admin\.js.*$/i, '') : '';
+    var pollUrl = appBase + '/notifications/poll.php';
+    function refresh() {
+      fetch(pollUrl).then(function (r) { return r.json(); }).then(function (d) { if (d.ok) render(d); }).catch(function () {});
+    }
+    refresh();
+    setInterval(refresh, 25000);
+  })();
+
   // ── Quick status filter links ────────────────────────────
   document.querySelectorAll('[data-filter-status]').forEach(function (el) {
     el.addEventListener('click', function (e) {

@@ -1,9 +1,14 @@
 <?php
+require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/Notifier.php';
+
 portal_start();
 $_c     = current_client();
 $_flash = portal_flash_get();
 $_cur   = basename($_SERVER['PHP_SELF']);
 $_cdir  = basename(dirname($_SERVER['PHP_SELF']));
+$_unread  = $_c['id'] ? Notifier::unreadCount('client', (int) $_c['id']) : 0;
+$_notifs  = $_c['id'] ? Notifier::listFor('client', (int) $_c['id'], 8) : [];
 
 function pnav(string $href, string $label, string $file = '', string $dir = ''): void {
     global $_cur, $_cdir;
@@ -42,6 +47,37 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
     </nav>
 
     <div class="ph-right">
+      <div class="notif-menu" id="notifMenu">
+        <button type="button" class="notif-bell" id="notifToggle" title="Notifications">
+          <i class="fas fa-bell"></i>
+          <?php if ($_unread): ?><span class="dot"></span><?php endif; ?>
+        </button>
+        <div class="notif-dropdown" id="notifDropdown">
+          <div class="notif-dd-head">
+            <span>Notifications</span>
+            <?php if ($_unread): ?>
+              <form method="POST" action="<?php echo PORTAL_URL; ?>/notifications.php" style="margin:0">
+                <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
+                <input type="hidden" name="action" value="mark_all_read" />
+                <button type="submit" class="notif-markall">Mark all read</button>
+              </form>
+            <?php endif; ?>
+          </div>
+          <div class="notif-dd-list">
+            <?php if (!$_notifs): ?>
+              <div class="notif-empty"><i class="fas fa-bell-slash"></i><p>No notifications yet.</p></div>
+            <?php else: foreach ($_notifs as $n): ?>
+              <a href="<?php echo PORTAL_URL; ?>/notifications.php?open=<?php echo (int) $n['id']; ?>" class="notif-item<?php echo $n['is_read'] ? '' : ' unread'; ?>">
+                <span class="notif-item-title"><?php echo htmlspecialchars($n['title']); ?></span>
+                <span class="notif-item-msg"><?php echo htmlspecialchars($n['message']); ?></span>
+                <span class="notif-item-time"><?php echo time_ago($n['created_at']); ?></span>
+              </a>
+            <?php endforeach; endif; ?>
+          </div>
+          <a href="<?php echo PORTAL_URL; ?>/notifications.php" class="notif-dd-foot">View all notifications</a>
+        </div>
+      </div>
+
       <div class="client-menu">
         <button class="client-trigger" id="clientTrigger">
           <span class="client-avatar"><?php echo strtoupper(substr($_c['name'], 0, 1)); ?></span>
@@ -54,6 +90,7 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
             <div class="dropdown-email"><?php echo htmlspecialchars($_c['email']); ?></div>
           </div>
           <a href="<?php echo PORTAL_URL; ?>/profile.php"><i class="fas fa-user"></i> My Profile</a>
+          <a href="<?php echo PORTAL_URL; ?>/notifications.php"><i class="fas fa-bell"></i> Notifications</a>
           <a href="<?php echo PORTAL_URL; ?>/logout.php" style="color:var(--danger)"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
         </div>
       </div>

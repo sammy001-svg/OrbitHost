@@ -1,7 +1,10 @@
 <?php
 auth_start();
+require_once __DIR__ . '/Notifier.php';
 $_flash = flash_get();
 $_admin = current_admin();
+$_unread = Notifier::unreadCount('admin', (int) $_admin['id']);
+$_notifs = Notifier::listFor('admin', (int) $_admin['id'], 8);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -27,6 +30,38 @@ $_admin = current_admin();
       <a href="<?php echo APP_URL; ?>/tickets/" class="topbar-icon" title="Support Tickets">
         <i class="fas fa-comments"></i>
       </a>
+
+      <div class="notif-menu" id="notifMenu">
+        <button type="button" class="topbar-icon" id="notifToggle" title="Notifications">
+          <i class="fas fa-bell"></i>
+          <?php if ($_unread): ?><span class="dot"></span><?php endif; ?>
+        </button>
+        <div class="notif-dropdown" id="notifDropdown">
+          <div class="notif-dd-head">
+            <span>Notifications</span>
+            <?php if ($_unread): ?>
+              <form method="POST" action="<?php echo APP_URL; ?>/notifications/index.php" style="margin:0">
+                <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+                <input type="hidden" name="action" value="mark_all_read" />
+                <button type="submit" class="notif-markall">Mark all read</button>
+              </form>
+            <?php endif; ?>
+          </div>
+          <div class="notif-dd-list">
+            <?php if (!$_notifs): ?>
+              <div class="notif-empty"><i class="fas fa-bell-slash"></i><p>No notifications yet.</p></div>
+            <?php else: foreach ($_notifs as $n): ?>
+              <a href="<?php echo APP_URL; ?>/notifications/index.php?open=<?php echo (int) $n['id']; ?>" class="notif-item<?php echo $n['is_read'] ? '' : ' unread'; ?>">
+                <span class="notif-item-title"><?php echo h($n['title']); ?></span>
+                <span class="notif-item-msg"><?php echo h($n['message']); ?></span>
+                <span class="notif-item-time"><?php echo time_ago($n['created_at']); ?></span>
+              </a>
+            <?php endforeach; endif; ?>
+          </div>
+          <a href="<?php echo APP_URL; ?>/notifications/" class="notif-dd-foot">View all notifications</a>
+        </div>
+      </div>
+
       <div class="topbar-divider"></div>
       <div class="topbar-user">
         <div class="topbar-avatar"><?php echo strtoupper(substr($_admin['name'], 0, 1)); ?></div>

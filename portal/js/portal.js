@@ -19,6 +19,54 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('click', function () { dropdown.classList.remove('open'); });
   }
 
+  // Notification bell
+  (function () {
+    var notifToggle = document.getElementById('notifToggle');
+    var notifDropdown = document.getElementById('notifDropdown');
+    var notifMenu = document.getElementById('notifMenu');
+    if (!notifToggle || !notifDropdown) return;
+
+    notifToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      notifDropdown.classList.toggle('open');
+    });
+    document.addEventListener('click', function (e) {
+      if (notifMenu && !notifMenu.contains(e.target)) notifDropdown.classList.remove('open');
+    });
+
+    var script = document.querySelector('script[src*="/js/portal.js"]');
+    var base = script ? script.src.replace(/\/js\/portal\.js.*$/i, '') : '';
+    var pollUrl = base + '/notifications-poll.php';
+
+    function render(data) {
+      var existingDot = notifToggle.querySelector('.dot');
+      if (existingDot) existingDot.remove();
+      if (data.unread > 0) {
+        var dot = document.createElement('span');
+        dot.className = 'dot';
+        notifToggle.appendChild(dot);
+      }
+      var list = notifDropdown.querySelector('.notif-dd-list');
+      if (!list) return;
+      if (!data.items.length) {
+        list.innerHTML = '<div class="notif-empty"><i class="fas fa-bell-slash"></i><p>No notifications yet.</p></div>';
+        return;
+      }
+      list.innerHTML = data.items.map(function (n) {
+        return '<a href="' + n.link + '" class="notif-item' + (n.is_read ? '' : ' unread') + '">' +
+          '<span class="notif-item-title">' + n.title + '</span>' +
+          '<span class="notif-item-msg">' + n.message + '</span>' +
+          '<span class="notif-item-time">' + n.time + '</span></a>';
+      }).join('');
+    }
+
+    function refresh() {
+      fetch(pollUrl).then(function (r) { return r.json(); }).then(function (d) { if (d.ok) render(d); }).catch(function () {});
+    }
+    refresh();
+    setInterval(refresh, 25000);
+  })();
+
   // Auto-dismiss alerts
   document.querySelectorAll('.p-alert').forEach(function (el) {
     setTimeout(function () {

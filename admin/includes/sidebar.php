@@ -42,8 +42,9 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <?php _nav(APP_URL . '/billing/',   'fa-credit-card',  'Payments',  'billing'); ?>
 
     <div class="nav-label">Support</div>
-    <?php _nav(APP_URL . '/tickets/',   'fa-ticket',       'Tickets',   'tickets'); ?>
-    <?php _nav(APP_URL . '/chat/',      'fa-comments',     'Live Chat', 'chat'); ?>
+    <?php _nav(APP_URL . '/tickets/',       'fa-ticket',   'Tickets',        'tickets'); ?>
+    <?php _nav(APP_URL . '/chat/',          'fa-comments', 'Live Chat',      'chat'); ?>
+    <?php _nav(APP_URL . '/notifications/', 'fa-bell',     'Notifications',  'notifications'); ?>
 
     <div class="nav-label">Integrations</div>
     <?php _nav(APP_URL . '/integrations/',         'fa-plug',   'Providers',    'integrations', 'index.php'); ?>
