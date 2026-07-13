@@ -651,6 +651,28 @@ class DomainClient
             ];
         }
         ksort($out);
+
+        if (!$out) {
+            if (!is_array($cost) || count($cost) === 0) {
+                throw new RuntimeException(
+                    'NetEarthOne returned an empty product list — this reseller account has no TLDs enabled for '
+                    . 'selling yet. This is separate from the API/IP-whitelist check you already passed: '
+                    . 'reseller-cost-price.json only returns cost pricing for products your reseller account has '
+                    . 'been granted access to sell. Log in to your NetEarthOne control panel and look for '
+                    . 'Settings › Products (or Manage Pricing / Customer Pricing) and enable the TLDs you want to '
+                    . 'resell (.com, .net, .co.ke, etc.) — or ask NetEarthOne support to enable a default TLD set '
+                    . 'for reseller ID ' . ($this->config['auth_userid'] ?? '') . ', then sync again.'
+                );
+            }
+            $sample = array_slice(array_keys($cost), 0, 10);
+            throw new RuntimeException(
+                'NetEarthOne returned ' . count($cost) . ' product entries, but none matched the expected TLD/price '
+                . 'format. Sample product keys received: ' . implode(', ', $sample) . '. This usually means the key '
+                . 'naming differs from standard LogicBoxes conventions — share this list so the mapping in '
+                . 'DomainClient::lbKeyToTld() can be extended to cover them.'
+            );
+        }
+
         return $out;
     }
 
