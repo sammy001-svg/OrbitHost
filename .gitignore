@@ -4,3 +4,7 @@
 .idea/
 .DS_Store
 Thumbs.db
+
+# Environment config — holds real DB credentials/URLs per-server.
+# Never track this; copy .env.example instead. See .env.example for setup.
+.env
