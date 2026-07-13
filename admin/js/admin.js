@@ -189,11 +189,20 @@ document.addEventListener('DOMContentLoaded', function () {
       .then(function (r) { return r.json(); })
       .then(function (d) {
         out.style.display = 'inline-flex';
+        var oldWarn = out.parentNode.querySelector('.ip-mismatch-warn');
+        if (oldWarn) oldWarn.remove();
         if (d.ok) {
           out.textContent = d.ip;
-          out.title = 'Click to copy';
+          out.title = 'Detected via ' + d.source + '. Click to copy.';
           out.style.cursor = 'pointer';
           out.onclick = function () { navigator.clipboard.writeText(d.ip); out.textContent = 'Copied!'; setTimeout(function () { out.textContent = d.ip; }, 1200); };
+          if (d.mismatch) {
+            var warn = document.createElement('div');
+            warn.className = 'ip-mismatch-warn';
+            warn.style.cssText = 'flex-basis:100%;margin-top:6px;font-size:11.5px;color:var(--warning);line-height:1.5';
+            warn.innerHTML = '<i class="fas fa-triangle-exclamation"></i> This server appears to use more than one outbound IP — a generic "what\'s my IP" check reported <code>' + d.echo_ip + '</code>, but the address above (<code>' + d.ip + '</code>) is what the registrar\'s own endpoint actually saw, so that\'s the one to whitelist.';
+            out.parentNode.appendChild(warn);
+          }
         } else {
           out.textContent = d.error || 'Could not detect IP.';
         }

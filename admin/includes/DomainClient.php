@@ -596,10 +596,18 @@ class DomainClient
             if (in_array($this->provider, ['resellerclub', 'netearthone'], true)
                 && (stripos($msg, 'access denied') !== false || stripos($msg, 'not authorized') !== false)) {
                 $msg .= ' — this is the standard LogicBoxes response when your server\'s IP address is not on '
-                     . 'the API IP Access list in your reseller control panel. Add your server\'s outbound IP '
-                     . '(use the "Detect my server IP" button below) under Settings › API in your '
-                     . ucfirst($this->provider) . ' account, then try again. Also double-check you are not '
-                     . 'mixing sandbox/demo credentials with the live endpoint (or vice versa).';
+                     . 'the API IP Access list in your reseller control panel. Use the "Detect my server IP" '
+                     . 'button below — it connects directly to the registrar\'s own endpoint and reads the real '
+                     . 'source IP of that connection (not a generic "what\'s my IP" service), because on some '
+                     . 'hosts the IP a third-party site sees differs from the IP the registrar actually sees '
+                     . '(IPv6 vs IPv4, or a multi-IP server). Add the EXACT IP it reports under Settings › API '
+                     . 'in your ' . ucfirst($this->provider) . ' account. If you already whitelisted an IP and '
+                     . 'still see this: (1) re-run the detector now in case it was a mismatch, (2) confirm API '
+                     . 'access itself is enabled on your reseller account — some accounts have it off by default '
+                     . 'separately from the IP list, (3) if this is a sub-reseller account, the IP whitelist may '
+                     . 'only be editable by the parent account/support, and (4) allow a few minutes for a newly '
+                     . 'added IP to propagate, then also confirm you are not mixing sandbox/demo credentials '
+                     . 'with the live endpoint (or vice versa).';
             }
             throw new RuntimeException('Registrar error: ' . $msg);
         }
