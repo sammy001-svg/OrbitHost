@@ -136,8 +136,20 @@ class DomainClient
             'godaddy'      => ['success' => false, 'message' => 'Use GoDaddy panel to renew.'],
             'enom'         => $this->enomRenew($domain, $years),
             'resellerclub',
-            'netearthone'  => ['success' => false, 'message' => 'Renew LogicBoxes domains from the reseller panel for now.'],
+            'netearthone'  => $this->lbRenew($domain, $years),
             'cloudflare'   => ['success' => false, 'message' => 'Cloudflare auto-renews at cost; manage in the dashboard.'],
+            default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
+        };
+    }
+
+    // ── Domain transfer-in (from another registrar to us) ─────
+    public function transfer(string $domain, string $authCode, array $contact, int $years = 1, array $nameservers = []): array
+    {
+        return match($this->provider) {
+            'resellerclub',
+            'netearthone'  => $this->lbTransfer($domain, $authCode, $contact, $years, $nameservers),
+            'namecheap', 'godaddy', 'enom', 'cloudflare'
+                           => ['success' => false, 'message' => 'Automated transfers are not available for ' . ucfirst($this->provider) . ' yet — our team will complete this transfer manually.'],
             default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
         };
     }
@@ -686,6 +698,72 @@ class DomainClient
             'expires'     => date('Y-m-d', strtotime("+{$years} years")),
             'message'     => $ok ? 'Domain registered.' : (string)($r['actionstatusdesc'] ?? 'Registration was not confirmed by the registrar.'),
             'raw'         => $r,
+        ];
+    }
+
+    /** Renew an existing LogicBoxes domain order by the given number of years. */
+    private function lbRenew(string $domain, int $years): array
+    {
+        $d = $this->rcCall('domains/details-by-name.json', ['domain-name' => $domain, 'options' => 'OrderDetails']);
+        $orderId = $d['orderid'] ?? null;
+        if (!$orderId) {
+            return ['success' => false, 'message' => 'Domain order not found at the registrar. It may need to be relinked — contact support.'];
+        }
+        // LogicBoxes requires the current expiry date as a safety check against
+        // double-renewal (it rejects the call if this doesn't match their record).
+        $expDate = isset($d['endtime']) ? date('d-m-Y', (int) $d['endtime']) : '';
+
+        $r = $this->rcCall('domains/renew.json', [
+            'order-id'       => $orderId,
+            'years'          => $years,
+            'exp-date'       => $expDate,
+            'invoice-option' => 'NoInvoice',
+        ], 'POST');
+
+        $ok = (($r['actionstatus'] ?? $r['status'] ?? '') === 'Success') || !empty($r['entityid']) || !empty($r['value']);
+        return [
+            'success' => $ok,
+            'domain'  => $domain,
+            'message' => $ok ? 'Domain renewed for ' . $years . ' year(s).' : (string) ($r['actionstatusdesc'] ?? 'Renewal was not confirmed by the registrar.'),
+            'raw'     => $r,
+        ];
+    }
+
+    /**
+     * Submit an inbound transfer request for a domain registered elsewhere.
+     * Transfers are not instant — the losing registrar/registrant must
+     * approve (or the 5–7 day auto-approval window must pass) before the
+     * domain actually moves, so "success" here means "accepted for
+     * processing", not "completed".
+     */
+    private function lbTransfer(string $domain, string $authCode, array $c, int $years, array $ns = []): array
+    {
+        $customerId = $this->lbEnsureCustomer($c);
+        $contactId  = $this->lbAddContact($customerId, $c);
+
+        $params = [
+            'domain-name'        => $domain,
+            'auth-code'          => $authCode,
+            'customer-id'        => $customerId,
+            'reg-contact-id'     => $contactId,
+            'admin-contact-id'   => $contactId,
+            'tech-contact-id'    => $contactId,
+            'billing-contact-id' => $contactId,
+            'invoice-option'     => 'NoInvoice',
+            'protect-privacy'    => 'false',
+        ];
+        $repeat = $ns ? ['ns' => array_slice(array_values($ns), 0, 6)] : [];
+
+        $r  = $this->rcCall('domains/transfer.json', $params, 'POST', $repeat);
+        $ok = (($r['actionstatus'] ?? $r['status'] ?? '') === 'Success') || !empty($r['entityid']);
+        return [
+            'success'     => $ok,
+            'domain'      => $domain,
+            'transaction' => (string) ($r['entityid'] ?? ''),
+            'message'     => $ok
+                ? 'Transfer request submitted — this can take 5–7 days to complete once the current registrar approves it.'
+                : (string) ($r['actionstatusdesc'] ?? 'The transfer request was rejected. Double-check the auth/EPP code and that the domain is unlocked at its current registrar.'),
+            'raw' => $r,
         ];
     }
 

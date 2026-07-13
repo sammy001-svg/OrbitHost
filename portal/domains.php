@@ -20,7 +20,10 @@ require_once __DIR__ . '/includes/header.php';
       <h1>My Domains</h1>
       <p>Domain names registered with OrbitHost</p>
     </div>
-    <a href="../domains.html" class="btn btn-white"><i class="fas fa-plus"></i> Register a Domain</a>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="<?php echo PORTAL_URL; ?>/domain-transfer.php" class="btn btn-ghost" style="border:1px solid rgba(255,255,255,.3);color:#fff"><i class="fas fa-right-left"></i> Transfer a Domain</a>
+      <a href="../domains.html" class="btn btn-white"><i class="fas fa-plus"></i> Register a Domain</a>
+    </div>
   </div>
 </div>
 
@@ -47,6 +50,11 @@ require_once __DIR__ . '/includes/header.php';
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <?php echo badge($d['status']); ?>
         <?php if ($d['auto_renew']): ?><span class="badge badge-success"><i class="fas fa-rotate"></i> Auto-renew</span><?php endif; ?>
+        <?php if ($d['status'] !== 'pending'): ?>
+          <a href="<?php echo PORTAL_URL; ?>/domain-renew.php?id=<?php echo $d['id']; ?>" class="btn btn-primary btn-sm">
+            <i class="fas fa-rotate"></i> Renew
+          </a>
+        <?php endif; ?>
         <a href="<?php echo PORTAL_URL; ?>/tickets/add.php?subject=<?php echo urlencode('Domain help: ' . $d['domain_name']); ?>" class="btn btn-ghost btn-sm">
           <i class="fas fa-life-ring"></i> Get Help
         </a>
