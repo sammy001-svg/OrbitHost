@@ -226,8 +226,24 @@ final class PaymentClient
         $r = $this->http($this->mpesaBase() . '/mpesa/stkpushquery/v1/query', 'POST',
             ['Authorization: Bearer ' . $token, 'Content-Type: application/json'],
             ['BusinessShortCode' => $shortcode, 'Password' => $password, 'Timestamp' => $timestamp, 'CheckoutRequestID' => $ref]);
-        $paid = ($r['data']['ResultCode'] ?? '1') === '0';
-        return ['success' => $paid, 'status' => $r['data']['ResultDesc'] ?? 'pending', 'amount' => 0];
+
+        // Safaricom omits ResultCode entirely (returning a top-level
+        // errorCode/errorMessage instead) while the STK push is still
+        // awaiting the customer's PIN — that is NOT a failure. Only a
+        // present ResultCode is a final, definitive result: "0" = paid,
+        // anything else = genuinely failed (cancelled, wrong PIN, timed
+        // out, insufficient funds, etc).
+        if (!array_key_exists('ResultCode', $r['data'] ?? [])) {
+            return ['success' => false, 'status' => 'pending', 'amount' => 0,
+                    'message' => $r['data']['errorMessage'] ?? 'Payment not confirmed yet — waiting for the customer to complete it on their phone.'];
+        }
+        $paid = (string) $r['data']['ResultCode'] === '0';
+        return [
+            'success' => $paid,
+            'status'  => $paid ? 'completed' : 'failed',
+            'amount'  => 0,
+            'message' => $r['data']['ResultDesc'] ?? ($paid ? 'Payment completed.' : 'Payment was not completed.'),
+        ];
     }
 
     // ══════════════════════════════════════════════════════════

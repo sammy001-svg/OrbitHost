@@ -75,12 +75,13 @@ function dp_context(array $payment): array
 
 /**
  * Verify a payment belonging to this client. Returns:
- *   ['ok'=>true,  'payment'=>row, 'already'=>bool]   — confirmed paid
- *   ['ok'=>false, 'pending'=>true, 'message'=>...]    — not confirmed yet
- *   ['ok'=>false, 'message'=>...]                     — not found / error
- * Marks the payment completed and its invoice paid on success — does
- * NOT perform the domain action itself; the caller does that once and
- * only once (idempotency is the caller's responsibility).
+ *   ['ok'=>true,  'payment'=>row, 'already'=>bool]    — confirmed paid
+ *   ['ok'=>false, 'failed'=>true, 'payment'=>row, ...] — definitively failed
+ *   ['ok'=>false, 'pending'=>true, 'message'=>...]     — not confirmed yet, keep waiting
+ *   ['ok'=>false, 'message'=>...]                      — not found / error
+ * Marks the payment completed/failed and its invoice paid on success —
+ * does NOT perform the domain action itself; the caller does that once
+ * and only once (idempotency is the caller's responsibility).
  */
 function dp_verify(int $payment_id, int $client_id): array
 {
@@ -89,6 +90,7 @@ function dp_verify(int $payment_id, int $client_id): array
     $pay = $stmt->fetch();
     if (!$pay) return ['ok' => false, 'message' => 'Payment record not found.'];
     if ($pay['status'] === 'completed') return ['ok' => true, 'already' => true, 'payment' => $pay];
+    if ($pay['status'] === 'failed') return ['ok' => false, 'failed' => true, 'already' => true, 'payment' => $pay, 'message' => 'This payment attempt failed. Please start a new payment.'];
 
     try {
         $v = Provider::payment($pay['gateway'])->verify($pay['gateway_ref']);
@@ -96,6 +98,10 @@ function dp_verify(int $payment_id, int $client_id): array
         return ['ok' => false, 'pending' => true, 'message' => $e->getMessage()];
     }
     if (empty($v['success'])) {
+        if (($v['status'] ?? '') === 'failed') {
+            db()->prepare("UPDATE payments SET status = 'failed' WHERE id = ?")->execute([$payment_id]);
+            return ['ok' => false, 'failed' => true, 'payment' => $pay, 'message' => $v['message'] ?? 'Payment failed.'];
+        }
         return ['ok' => false, 'pending' => true, 'message' => $v['message'] ?? ($v['status'] ?? 'Payment not confirmed yet.')];
     }
 

@@ -118,6 +118,9 @@ if (isset($_GET['pay'])) {
     } elseif ($pay['status'] === 'completed') {
         $view = 'success';
         $done = json_decode($pay['raw'] ?? '', true)['fulfilment'] ?? [];
+    } elseif ($pay['status'] === 'failed') {
+        $view = 'failed';
+        $error = 'This payment attempt failed. Please start over from your cart.';
     } else {
         try {
             $v = Provider::payment($pay['gateway'])->verify($pay['gateway_ref']);
@@ -159,6 +162,16 @@ if (isset($_GET['pay'])) {
                     'item' => $item_desc, 'amount' => $currency . ' ' . number_format($total, 2),
                     'gateway' => ucfirst($pay['gateway']),
                     'link' => APP_URL . '/integrations/domains/',
+                ]);
+            } elseif (($v['status'] ?? '') === 'failed') {
+                db()->prepare("UPDATE payments SET status='failed' WHERE id=?")->execute([$pay_id]);
+                $view = 'failed';
+                $error = $v['message'] ?? 'Payment failed.';
+                Notifier::send('payment_failed', $client_id, [
+                    'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
+                    'amount' => $currency . ' ' . number_format($total, 2),
+                    'gateway' => ucfirst($pay['gateway']), 'reason' => $error,
+                    'email' => $client['email'], 'link' => PORTAL_URL . '/cart.php',
                 ]);
             } else {
                 $view = 'pending';
@@ -284,6 +297,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
       <div class="co-info"><i class="fas fa-mobile-screen"></i> <?php echo htmlspecialchars($push_msg ?: 'Waiting for payment confirmation.'); ?></div>
       <?php if ($error): ?><div class="co-error" style="background:#fffbeb;color:#92400e"><i class="fas fa-hourglass-half"></i> <?php echo htmlspecialchars($error); ?></div><?php endif; ?>
       <a href="<?php echo PORTAL_URL; ?>/checkout.php?pay=<?php echo $pay_id; ?>" class="btn btn-primary btn-pay"><i class="fas fa-rotate"></i> I've paid — verify now</a>
+
+    <?php elseif ($view === 'failed'): ?>
+      <div style="text-align:center;margin-bottom:14px">
+        <i class="fas fa-circle-xmark" style="font-size:40px;color:var(--danger)"></i>
+        <h2 style="font-size:17px;margin-top:10px">Payment failed</h2>
+      </div>
+      <p style="font-size:13.5px;color:var(--text-muted);margin-bottom:16px"><?php echo htmlspecialchars($error); ?></p>
+      <a href="<?php echo PORTAL_URL; ?>/checkout.php" class="btn btn-primary btn-pay"><i class="fas fa-rotate"></i> Try Again</a>
 
     <?php elseif (!$items): ?>
       <div style="text-align:center;padding:24px 0;color:var(--text-muted)">

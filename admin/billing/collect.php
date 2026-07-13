@@ -56,6 +56,18 @@ if (isset($_GET['paid']) && $inv['status'] !== 'paid') {
                     ->execute([$pending['gateway'], $invoice_id]);
                 notify_invoice_paid_admin($inv, $invoice_id, $pending['gateway']);
                 flash_set('success', 'Payment confirmed — invoice marked as paid.');
+            } elseif (($v['status'] ?? '') === 'failed') {
+                db()->prepare("UPDATE payments SET status = 'failed' WHERE id = ?")->execute([$pending['id']]);
+                $reason = $v['message'] ?? 'Payment failed.';
+                flash_set('error', 'Payment failed: ' . $reason);
+                if ($inv['client_id'] && $inv['email']) {
+                    Notifier::send('payment_failed', (int) $inv['client_id'], [
+                        'client_name' => trim(($inv['first_name'] ?? '') . ' ' . ($inv['last_name'] ?? '')),
+                        'amount' => $currency . ' ' . number_format((float) $pending['amount'], 2),
+                        'gateway' => ucfirst($pending['gateway']), 'reason' => $reason,
+                        'email' => $inv['email'], 'link' => portal_base_url() . '/invoices/view.php?id=' . $invoice_id,
+                    ]);
+                }
             } else {
                 flash_set('error', $v['message'] ?? ($v['status'] ?? 'Payment not confirmed yet — try again shortly.'));
             }

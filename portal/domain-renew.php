@@ -55,8 +55,21 @@ if (isset($_GET['pay'])) {
     $result = dp_verify($pay_id, $client_id);
 
     if (!$result['ok']) {
-        $view = !empty($result['pending']) ? 'pending' : 'form';
-        $error = $result['message'] ?? 'Payment could not be confirmed.';
+        if (!empty($result['failed'])) {
+            $view = 'failed';
+            $error = $result['message'] ?? 'Payment failed.';
+            if (empty($result['already'])) {
+                Notifier::send('payment_failed', $client_id, [
+                    'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
+                    'amount' => $result['payment']['currency'] . ' ' . number_format($result['payment']['amount'], 2),
+                    'gateway' => ucfirst($result['payment']['gateway']), 'reason' => $error,
+                    'email' => $client['email'], 'link' => PORTAL_URL . '/domain-renew.php?id=' . $id,
+                ]);
+            }
+        } else {
+            $view = !empty($result['pending']) ? 'pending' : 'form';
+            $error = $result['message'] ?? 'Payment could not be confirmed.';
+        }
     } else {
         $view = 'success';
         if (empty($result['already'])) {
@@ -188,6 +201,14 @@ $days_left = $dom['expiry_date'] ? (int) ceil((strtotime($dom['expiry_date']) - 
       <div class="co-info"><i class="fas fa-mobile-screen"></i> <?php echo htmlspecialchars($push_msg ?: 'Waiting for payment confirmation.'); ?></div>
       <?php if ($error): ?><div class="co-error" style="background:#fffbeb;color:#92400e"><i class="fas fa-hourglass-half"></i> <?php echo htmlspecialchars($error); ?></div><?php endif; ?>
       <a href="<?php echo PORTAL_URL; ?>/domain-renew.php?id=<?php echo $id; ?>&pay=<?php echo $pay_id; ?>" class="btn btn-primary btn-pay"><i class="fas fa-rotate"></i> I've paid — verify now</a>
+
+    <?php elseif ($view === 'failed'): ?>
+      <div style="text-align:center;margin-bottom:14px">
+        <i class="fas fa-circle-xmark" style="font-size:40px;color:var(--danger)"></i>
+        <h2 style="font-size:17px;margin-top:10px">Payment failed</h2>
+      </div>
+      <p style="font-size:13.5px;color:var(--text-muted);margin-bottom:16px"><?php echo htmlspecialchars($error); ?></p>
+      <a href="<?php echo PORTAL_URL; ?>/domain-renew.php?id=<?php echo $id; ?>" class="btn btn-primary btn-pay"><i class="fas fa-rotate"></i> Try Again</a>
 
     <?php elseif (!$registrar_ok): ?>
       <div class="co-info"><i class="fas fa-circle-info"></i> This domain isn't linked to an active automated registrar, so it can't be renewed online yet.</div>
