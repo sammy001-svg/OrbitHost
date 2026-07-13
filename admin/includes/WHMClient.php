@@ -53,7 +53,12 @@ class WHMClient
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
         } else {
-            curl_setopt($ch, CURLOPT_URL, $url . '?' . http_build_query($params));
+            // $url already ends in "?api.version=1" — join further params with
+            // "&", not "?" (a second "?" would corrupt the query string: it
+            // gets absorbed into the value of api.version instead of starting
+            // new parameters, so e.g. "user" is never actually received).
+            $qs = http_build_query($params);
+            curl_setopt($ch, CURLOPT_URL, $qs !== '' ? $url . '&' . $qs : $url);
         }
 
         $response = curl_exec($ch);
