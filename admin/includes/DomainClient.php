@@ -90,8 +90,8 @@ class DomainClient
                 'namecheap'    => ['success' => (bool)$this->ncCall('namecheap.domains.getTldList'), 'message' => 'Namecheap credentials valid'],
                 'godaddy'      => ['success' => true, 'message' => 'GoDaddy reachable', 'data' => $this->gdCall('/domains/available?domain=example-check-orbit.com')],
                 'enom'         => ['success' => str_contains($this->enomRaw('GetBalance'), 'AvailableBalance'), 'message' => 'Enom credentials valid'],
-                'resellerclub' => ['success' => true, 'message' => 'ResellerClub reachable', 'data' => $this->rcCall('domains/available.json', ['domain-name' => 'orbit'], 'GET', ['tlds' => ['com']])],
-                'netearthone'  => ['success' => true, 'message' => 'NetEarthOne credentials valid', 'data' => $this->rcCall('domains/available.json', ['domain-name' => 'orbit'], 'GET', ['tlds' => ['com']])],
+                'resellerclub',
+                'netearthone'  => $this->lbTestConnection(),
                 'cloudflare'   => $this->cfTest(),
                 default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
             };
@@ -663,6 +663,32 @@ class DomainClient
             'status'  => $data['currentstatus'] ?? 'unknown',
             'expires' => isset($data['endtime']) ? date('Y-m-d', (int)$data['endtime']) : '',
         ];
+    }
+
+    /**
+     * Strict two-step credential test. domains/available.json alone is a weak
+     * check — LogicBoxes serves availability data even for API keys that every
+     * authenticated endpoint rejects (it mainly enforces the IP whitelist), so
+     * we also hit customers/search.json, which genuinely validates the key.
+     */
+    private function lbTestConnection(): array
+    {
+        $this->rcCall('domains/available.json', ['domain-name' => 'orbit'], 'GET', ['tlds' => ['com']]);
+        try {
+            $this->rcCall('customers/search.json', ['no-of-records' => 10, 'page-no' => 1]);
+        } catch (RuntimeException $e) {
+            if (stripos($e->getMessage(), 'invalid credentials') !== false) {
+                throw new RuntimeException(
+                    'Domain lookups work (IP whitelist OK) but the authenticated API rejects this API key: '
+                    . 'the key itself is wrong, regenerated since it was saved here, or the account is not active. '
+                    . 'Regenerate the key under Settings › API in your ' . ucfirst($this->provider)
+                    . ' control panel, paste the new one here, save, and test again. Underlying error: '
+                    . $e->getMessage()
+                );
+            }
+            throw $e;
+        }
+        return ['success' => true, 'message' => ucfirst($this->provider) . ' credentials fully valid (IP whitelist + authenticated API both OK)'];
     }
 
     /** TLD list + our wholesale 1-year costs from reseller-cost-price.json */
