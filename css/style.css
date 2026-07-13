@@ -703,6 +703,7 @@ p  { color: var(--text-sub); line-height: 1.75; }
 .newsletter-note { font-size: 0.78rem; color: rgba(255,255,255,0.4); }
 .newsletter-note a { color: rgba(255,255,255,0.6); text-decoration: underline; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 @media (max-width: 768px) {
   .newsletter-inner { grid-template-columns: 1fr; gap: 28px; }
 }
