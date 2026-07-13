@@ -529,11 +529,12 @@ p  { color: var(--text-sub); line-height: 1.75; }
 .card-cta:hover { color: var(--green); gap: 10px; }
 
 /* ========== DOMAIN SEARCH ========== */
-.domain-section { background: var(--navy); padding: 72px 0; }
+.domain-section { background: var(--navy); padding: 72px 0; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 .domain-section .section-header h2 { color: var(--white); }
 .domain-section .section-header p { color: rgba(255,255,255,0.7); }
 .domain-search-wrap { max-width: 700px; margin: 0 auto 28px; }
-.domain-form { display: flex; background: var(--white); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-xl); }
+.domain-form { display: flex; background: var(--white); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-xl); border: 2px solid var(--white); transition: var(--transition); }
+.domain-form:focus-within { border-color: var(--green); box-shadow: 0 0 0 4px rgba(26, 138, 69, 0.15), var(--shadow-xl); }
 .domain-form input {
   flex: 1;
   padding: 18px 20px;
