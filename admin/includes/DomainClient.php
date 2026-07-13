@@ -575,24 +575,36 @@ class DomainClient
         }
         $url = $this->rcBase() . '/' . ltrim($path, '/') . '?' . $q;
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 40,
-            CURLOPT_SSL_VERIFYPEER => true,
-            // Some endpoints 301 behind Cloudflare (e.g. products/reseller-cost-price.json) —
-            // all params live in the query string either way, so following is safe even if a
-            // redirect downgrades POST to GET.
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS      => 3,
-        ]);
-        if ($method === 'POST') {
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, ''); // LogicBoxes POST APIs take params in the query string
+        // Some endpoints 301 behind Cloudflare (e.g. products/reseller-cost-price.json).
+        // We can't use a bare CURLOPT_FOLLOWLOCATION: when the Location header is relative
+        // it doesn't repeat the query string, so blindly following it silently strips
+        // auth-userid/api-key and turns a valid request into an unauthenticated one (which
+        // LogicBoxes reports as "Invalid credentials..."). Instead we follow manually and
+        // re-attach our own query string to whatever URL the redirect points to.
+        $res = null; $err = '';
+        for ($redirects = 0; $redirects < 3; $redirects++) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 40,
+                CURLOPT_SSL_VERIFYPEER => true,
+            ]);
+            if ($method === 'POST') {
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, ''); // LogicBoxes POST APIs take params in the query string
+            }
+            $res         = curl_exec($ch);
+            $err         = curl_error($ch);
+            $code        = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $redirectUrl = curl_getinfo($ch, CURLINFO_REDIRECT_URL) ?: null;
+            curl_close($ch);
+
+            if ($err || !in_array($code, [301, 302, 303, 307, 308], true) || !$redirectUrl) break;
+
+            $url = (parse_url($redirectUrl, PHP_URL_QUERY) === null)
+                ? $redirectUrl . (str_contains($redirectUrl, '?') ? '&' : '?') . $q
+                : $redirectUrl;
         }
-        $res = curl_exec($ch);
-        $err = curl_error($ch);
-        curl_close($ch);
         if ($err) throw new RuntimeException('LogicBoxes connection error: ' . $err);
 
         $data = json_decode($res, true);
