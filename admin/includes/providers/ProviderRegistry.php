@@ -132,6 +132,23 @@ final class ProviderRegistry
                     ['key'=>'sandbox',     'label'=>'Test / demo mode', 'type'=>'toggle', 'default'=>true],
                 ],
             ],
+            'netearthone' => [
+                'key'      => 'netearthone',
+                'name'     => 'NetEarthOne',
+                'category' => 'registrar',
+                'icon'     => 'fa-earth-africa',
+                'color'    => '#1d4ed8',
+                'tagline'  => 'Wholesale domains via the NetEarthOne (LogicBoxes) reseller API — with TLD pricing sync.',
+                'client'   => 'DomainClient',
+                'docs'     => 'https://manage.netearthone.com/kb/answer/751',
+                'fields'   => [
+                    ['key'=>'auth_userid', 'label'=>'Reseller ID',  'type'=>'text',   'required'=>true, 'hint'=>'NetEarthOne control panel › Settings › API.'],
+                    ['key'=>'api_key',     'label'=>'API Key',      'type'=>'secret', 'required'=>true, 'hint'=>'Your server IP must be whitelisted in the API settings.'],
+                    ['key'=>'api_base',    'label'=>'API Endpoint', 'type'=>'text',   'default'=>'https://httpapi.com/api', 'hint'=>'LogicBoxes endpoint. Change only if NetEarthOne gives you a brand-specific URL.'],
+                    ['key'=>'default_ns',  'label'=>'Default Nameservers', 'type'=>'text', 'placeholder'=>'ns1.orbitcloud.co.ke, ns2.orbitcloud.co.ke', 'hint'=>'Comma-separated. Used when registering domains for clients.'],
+                    ['key'=>'sandbox',     'label'=>'Test / demo mode', 'type'=>'toggle', 'default'=>true],
+                ],
+            ],
             'cloudflare' => [
                 'key'      => 'cloudflare',
                 'name'     => 'Cloudflare Registrar',

@@ -25,6 +25,7 @@ require_once '../../includes/header.php';
 <div class="content-header">
   <h1 class="content-title">Domain Registrations</h1>
   <div style="display:flex;gap:8px">
+    <a href="<?php echo APP_URL; ?>/integrations/domains/tlds.php" class="btn btn-primary"><i class="fas fa-tags"></i> TLD Pricing</a>
     <a href="<?php echo APP_URL; ?>/integrations/domains/check.php" class="btn btn-ghost"><i class="fas fa-magnifying-glass"></i> Check Domain</a>
     <a href="<?php echo APP_URL; ?>/integrations/" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
   </div>

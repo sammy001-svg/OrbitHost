@@ -34,9 +34,51 @@ class DomainClient
             'namecheap'    => $this->ncCheck($domain),
             'godaddy'      => $this->gdCheck($domain),
             'enom'         => $this->enomCheck($domain),
-            'resellerclub' => $this->rcCheck($domain),
+            'resellerclub',
+            'netearthone'  => $this->rcCheck($domain),
             'cloudflare'   => ['domain' => $domain, 'available' => null, 'provider' => 'cloudflare', 'note' => 'Cloudflare Registrar has no public availability API — check in the Cloudflare dashboard.'],
             default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
+        };
+    }
+
+    /**
+     * Check one SLD against many TLDs. LogicBoxes brands do it in a single
+     * API call; other providers fall back to per-domain checks.
+     * @return array<string,?bool> "sld.tld" => true|false|null(unknown)
+     */
+    public function checkBulk(string $sld, array $tlds): array
+    {
+        if (in_array($this->provider, ['resellerclub', 'netearthone'], true)) {
+            $data = $this->rcCall('domains/available.json', ['domain-name' => $sld], 'GET', ['tlds' => $tlds]);
+            $out  = [];
+            foreach ($tlds as $t) {
+                $st = $data["$sld.$t"]['status'] ?? 'unknown';
+                $out["$sld.$t"] = $st === 'available' ? true : ($st === 'unknown' ? null : false);
+            }
+            return $out;
+        }
+        $out = [];
+        foreach ($tlds as $t) {
+            try {
+                $r = $this->check("$sld.$t");
+                $out["$sld.$t"] = $r['available'];
+            } catch (\Throwable $e) {
+                $out["$sld.$t"] = null;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Fetch the provider's TLD list with our wholesale cost (1-year prices).
+     * @return array<string,array{register:float,renew:float,transfer:float}> keyed by tld
+     */
+    public function getTldPricing(): array
+    {
+        return match($this->provider) {
+            'resellerclub',
+            'netearthone' => $this->lbTldPricing(),
+            default       => throw new RuntimeException('TLD pricing sync is available for NetEarthOne / ResellerClub (LogicBoxes) providers.'),
         };
     }
 
@@ -48,7 +90,8 @@ class DomainClient
                 'namecheap'    => ['success' => (bool)$this->ncCall('namecheap.domains.getTldList'), 'message' => 'Namecheap credentials valid'],
                 'godaddy'      => ['success' => true, 'message' => 'GoDaddy reachable', 'data' => $this->gdCall('/domains/available?domain=example-check-orbit.com')],
                 'enom'         => ['success' => str_contains($this->enomRaw('GetBalance'), 'AvailableBalance'), 'message' => 'Enom credentials valid'],
-                'resellerclub' => ['success' => true, 'message' => 'ResellerClub reachable', 'data' => $this->rcCall('domains/available.json', ['domain-name' => 'orbit', 'tlds' => 'com'])],
+                'resellerclub' => ['success' => true, 'message' => 'ResellerClub reachable', 'data' => $this->rcCall('domains/available.json', ['domain-name' => 'orbit'], 'GET', ['tlds' => ['com']])],
+                'netearthone'  => ['success' => true, 'message' => 'NetEarthOne credentials valid', 'data' => $this->rcCall('domains/available.json', ['domain-name' => 'orbit'], 'GET', ['tlds' => ['com']])],
                 'cloudflare'   => $this->cfTest(),
                 default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
             };
@@ -78,7 +121,8 @@ class DomainClient
             'namecheap'    => $this->ncRegister($domain, $contact, $years, $nameservers),
             'godaddy'      => $this->gdRegister($domain, $contact, $years),
             'enom'         => $this->enomRegister($domain, $contact, $years, $nameservers),
-            'resellerclub' => $this->rcRegister($domain, $contact, $years, $nameservers),
+            'resellerclub',
+            'netearthone'  => $this->lbRegister($domain, $contact, $years, $nameservers),
             'cloudflare'   => ['success' => false, 'message' => 'Cloudflare only registers domains already in your account via the dashboard.'],
             default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
         };
@@ -91,7 +135,8 @@ class DomainClient
             'namecheap'    => $this->ncRenew($domain, $years),
             'godaddy'      => ['success' => false, 'message' => 'Use GoDaddy panel to renew.'],
             'enom'         => $this->enomRenew($domain, $years),
-            'resellerclub' => ['success' => false, 'message' => 'Renew ResellerClub domains from the reseller panel.'],
+            'resellerclub',
+            'netearthone'  => ['success' => false, 'message' => 'Renew LogicBoxes domains from the reseller panel for now.'],
             'cloudflare'   => ['success' => false, 'message' => 'Cloudflare auto-renews at cost; manage in the dashboard.'],
             default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
         };
@@ -104,7 +149,8 @@ class DomainClient
             'namecheap'    => $this->ncSetNameservers($domain, $nameservers),
             'godaddy'      => $this->gdSetNameservers($domain, $nameservers),
             'enom'         => $this->enomSetNameservers($domain, $nameservers),
-            'resellerclub' => ['success' => false, 'message' => 'Set ResellerClub nameservers from the reseller panel.'],
+            'resellerclub',
+            'netearthone'  => $this->lbSetNameservers($domain, $nameservers),
             'cloudflare'   => ['success' => false, 'message' => 'Cloudflare domains use Cloudflare nameservers by design.'],
             default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
         };
@@ -117,7 +163,8 @@ class DomainClient
             'namecheap'    => $this->ncGetInfo($domain),
             'godaddy'      => $this->gdGetInfo($domain),
             'enom'         => $this->enomGetInfo($domain),
-            'resellerclub' => $this->rcGetInfo($domain),
+            'resellerclub',
+            'netearthone'  => $this->rcGetInfo($domain),
             'cloudflare'   => $this->cfGetInfo($domain),
             default        => throw new RuntimeException("Unsupported provider: {$this->provider}"),
         };
@@ -482,44 +529,70 @@ class DomainClient
     }
 
     // ══════════════════════════════════════════════════════════
-    // RESELLERCLUB — LogicBoxes JSON API
+    // LOGICBOXES (ResellerClub, NetEarthOne) — JSON API
+    // Both brands run on the same platform; api_base is configurable.
     // ══════════════════════════════════════════════════════════
     private function rcBase(): string
     {
-        return ($this->config['sandbox'] ?? true)
-            ? 'https://test.httpapi.com/api'
-            : 'https://httpapi.com/api';
+        // Sandbox always uses the shared LogicBoxes demo environment
+        if (!empty($this->config['sandbox'])) {
+            return 'https://test.httpapi.com/api';
+        }
+        $base = rtrim(trim($this->config['api_base'] ?? ''), '/');
+        if ($base !== '') {
+            if (!preg_match('#/api$#i', $base)) $base .= '/api';
+            return $base;
+        }
+        return 'https://httpapi.com/api';
     }
-    private function rcCall(string $path, array $params = []): array
+
+    /**
+     * @param array $repeat keys whose values are arrays sent as repeated
+     *                      query params (LogicBoxes style: &ns=a&ns=b)
+     */
+    private function rcCall(string $path, array $params = [], string $method = 'GET', array $repeat = []): array
     {
         $q = http_build_query(array_merge([
             'auth-userid' => $this->config['auth_userid'] ?? '',
             'api-key'     => $this->config['api_key'] ?? '',
         ], $params));
-        $ch = curl_init($this->rcBase() . '/' . ltrim($path, '/') . '?' . $q);
-        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30, CURLOPT_SSL_VERIFYPEER => true]);
+        foreach ($repeat as $key => $vals) {
+            foreach ((array)$vals as $v) {
+                $q .= '&' . rawurlencode($key) . '=' . rawurlencode((string)$v);
+            }
+        }
+        $url = $this->rcBase() . '/' . ltrim($path, '/') . '?' . $q;
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 40, CURLOPT_SSL_VERIFYPEER => true]);
+        if ($method === 'POST') {
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, ''); // LogicBoxes POST APIs take params in the query string
+        }
         $res = curl_exec($ch);
         $err = curl_error($ch);
         curl_close($ch);
-        if ($err) throw new RuntimeException("ResellerClub connection error: $err");
-        $data = json_decode($res, true) ?? [];
-        if (($data['status'] ?? '') === 'ERROR') {
-            throw new RuntimeException('ResellerClub error: ' . ($data['message'] ?? 'unknown'));
+        if ($err) throw new RuntimeException('LogicBoxes connection error: ' . $err);
+
+        $data = json_decode($res, true);
+        if (!is_array($data)) {
+            // Some endpoints (customer signup, contact add) return a bare id
+            $data = ['value' => is_numeric(trim((string)$res)) ? trim((string)$res) : $res];
+        }
+        if (($data['status'] ?? '') === 'ERROR' || isset($data['error'])) {
+            throw new RuntimeException('Registrar error: ' . ($data['message'] ?? $data['error'] ?? 'unknown'));
         }
         return $data;
     }
+
     private function rcCheck(string $domain): array
     {
         [$sld, $tld] = array_pad(explode('.', $domain, 2), 2, 'com');
-        $data = $this->rcCall('domains/available.json', ['domain-name' => $sld, 'tlds' => $tld]);
-        $entry = $data[$domain] ?? reset($data) ?: [];
-        return ['domain' => $domain, 'available' => ($entry['status'] ?? '') === 'available', 'provider' => 'resellerclub'];
+        $data  = $this->rcCall('domains/available.json', ['domain-name' => $sld], 'GET', ['tlds' => [$tld]]);
+        $entry = $data[$domain] ?? (is_array(reset($data)) ? reset($data) : []);
+        return ['domain' => $domain, 'available' => ($entry['status'] ?? '') === 'available', 'provider' => $this->provider];
     }
-    private function rcRegister(string $domain, array $c, int $years, array $ns = []): array
-    {
-        // ResellerClub registration requires a pre-created contact ID; surface a clear message
-        return ['success' => false, 'message' => 'ResellerClub registration needs a contact ID created in the reseller panel first.'];
-    }
+
     private function rcGetInfo(string $domain): array
     {
         $data = $this->rcCall('domains/details-by-name.json', ['domain-name' => $domain, 'options' => 'All']);
@@ -528,6 +601,170 @@ class DomainClient
             'status'  => $data['currentstatus'] ?? 'unknown',
             'expires' => isset($data['endtime']) ? date('Y-m-d', (int)$data['endtime']) : '',
         ];
+    }
+
+    /** TLD list + our wholesale 1-year costs from reseller-cost-price.json */
+    private function lbTldPricing(): array
+    {
+        $cost = $this->rcCall('products/reseller-cost-price.json');
+        $out  = [];
+        foreach ($cost as $key => $data) {
+            $tld = $this->lbKeyToTld((string)$key);
+            if (!$tld || !is_array($data)) continue;
+            $reg = $data['addnewdomain']['1']      ?? $data['addnewdomain'][1]      ?? null;
+            $ren = $data['renewdomain']['1']       ?? $data['renewdomain'][1]       ?? null;
+            $trf = $data['addtransferdomain']['1'] ?? $data['addtransferdomain'][1] ?? null;
+            if ($reg === null && $ren === null && $trf === null) continue;
+            $out[$tld] = [
+                'register' => (float)($reg ?? 0),
+                'renew'    => (float)($ren ?? ($reg ?? 0)),
+                'transfer' => (float)($trf ?? ($reg ?? 0)),
+            ];
+        }
+        ksort($out);
+        return $out;
+    }
+
+    /** Map LogicBoxes product keys to TLDs (dotnet→net, domcno→com, …) */
+    private function lbKeyToTld(string $key): ?string
+    {
+        $special = [
+            'domcno' => 'com', 'dotcoop' => 'coop', 'dotnl' => 'nl',
+            'centralnicuscom' => 'us.com', 'centralnicukcom' => 'uk.com', 'centralnicuknet' => 'uk.net',
+            'centralniceucom' => 'eu.com', 'centralnicgbnet' => 'gb.net', 'centralniccncom' => 'cn.com',
+            'centralnicdecom' => 'de.com', 'centralnicjpnet' => 'jp.net',
+            'thirdleveldotname' => null, 'dotname' => 'name',
+        ];
+        if (array_key_exists($key, $special)) return $special[$key];
+        if (str_starts_with($key, 'dot')) {
+            $tld = substr($key, 3);
+            return preg_match('/^[a-z0-9.]{2,}$/', $tld) ? $tld : null;
+        }
+        return null;
+    }
+
+    /** Full registration: ensure customer → add contact → register domain */
+    private function lbRegister(string $domain, array $c, int $years, array $ns = []): array
+    {
+        $customerId = $this->lbEnsureCustomer($c);
+        $contactId  = $this->lbAddContact($customerId, $c);
+
+        if (!$ns) {
+            $ns = array_filter(array_map('trim', explode(',', $this->config['default_ns'] ?? '')));
+        }
+        if (!$ns) {
+            $host = $_SERVER['HTTP_HOST'] ?? 'orbitcloud.co.ke';
+            $ns   = ['ns1.' . $host, 'ns2.' . $host];
+        }
+
+        $r = $this->rcCall('domains/register.json', [
+            'domain-name'        => $domain,
+            'years'              => $years,
+            'customer-id'        => $customerId,
+            'reg-contact-id'     => $contactId,
+            'admin-contact-id'   => $contactId,
+            'tech-contact-id'    => $contactId,
+            'billing-contact-id' => $contactId,
+            'invoice-option'     => 'NoInvoice',
+            'protect-privacy'    => 'false',
+        ], 'POST', ['ns' => array_slice(array_values($ns), 0, 6)]);
+
+        $ok = (($r['actionstatus'] ?? $r['status'] ?? '') === 'Success') || !empty($r['entityid']);
+        return [
+            'success'     => $ok,
+            'domain'      => $domain,
+            'transaction' => (string)($r['entityid'] ?? ($r['eaqid'] ?? '')),
+            'expires'     => date('Y-m-d', strtotime("+{$years} years")),
+            'message'     => $ok ? 'Domain registered.' : (string)($r['actionstatusdesc'] ?? 'Registration was not confirmed by the registrar.'),
+            'raw'         => $r,
+        ];
+    }
+
+    /** Find the LogicBoxes customer by email, or create one. Returns customer id. */
+    private function lbEnsureCustomer(array $c): string
+    {
+        $email = trim($c['email'] ?? '');
+        if (!$email) throw new RuntimeException('A customer email is required to register a domain.');
+
+        try {
+            $d = $this->rcCall('customers/details.json', ['username' => $email]);
+            if (!empty($d['customerid'])) return (string)$d['customerid'];
+        } catch (\Throwable $e) {
+            // not found — create below
+        }
+
+        [$cc, $phone] = $this->lbPhone($c['phone'] ?? '');
+        $r = $this->rcCall('customers/signup.json', [
+            'username'       => $email,
+            'passwd'         => $this->lbPassword(),
+            'name'           => trim(($c['first_name'] ?? 'Client') . ' ' . ($c['last_name'] ?? '')),
+            'company'        => $c['company'] ?: 'N/A',
+            'address-line-1' => $c['address'] ?? 'N/A',
+            'city'           => $c['city'] ?? 'Nairobi',
+            'state'          => $c['state'] ?? 'Nairobi',
+            'country'        => strtoupper($c['country_code'] ?? 'KE'),
+            'zipcode'        => $c['postcode'] ?? '00100',
+            'phone-cc'       => $cc,
+            'phone'          => $phone,
+            'lang-pref'      => 'en',
+        ], 'POST');
+
+        $id = $r['value'] ?? ($r['customerid'] ?? null);
+        if (!$id || !is_numeric((string)$id)) {
+            throw new RuntimeException('Could not create registrar customer account: ' . json_encode($r));
+        }
+        return (string)$id;
+    }
+
+    /** Create a contact under the customer. Returns contact id. */
+    private function lbAddContact(string $customerId, array $c): string
+    {
+        [$cc, $phone] = $this->lbPhone($c['phone'] ?? '');
+        $r = $this->rcCall('contacts/add.json', [
+            'name'           => trim(($c['first_name'] ?? 'Client') . ' ' . ($c['last_name'] ?? '')),
+            'company'        => $c['company'] ?: 'N/A',
+            'email'          => trim($c['email'] ?? ''),
+            'address-line-1' => $c['address'] ?? 'N/A',
+            'city'           => $c['city'] ?? 'Nairobi',
+            'state'          => $c['state'] ?? 'Nairobi',
+            'country'        => strtoupper($c['country_code'] ?? 'KE'),
+            'zipcode'        => $c['postcode'] ?? '00100',
+            'phone-cc'       => $cc,
+            'phone'          => $phone,
+            'customer-id'    => $customerId,
+            'type'           => 'Contact',
+        ], 'POST');
+
+        $id = $r['value'] ?? null;
+        if (!$id || !is_numeric((string)$id)) {
+            throw new RuntimeException('Could not create registrar contact: ' . json_encode($r));
+        }
+        return (string)$id;
+    }
+
+    private function lbSetNameservers(string $domain, array $ns): array
+    {
+        $d = $this->rcCall('domains/details-by-name.json', ['domain-name' => $domain, 'options' => 'OrderDetails']);
+        $orderId = $d['orderid'] ?? null;
+        if (!$orderId) return ['success' => false, 'message' => 'Domain order not found at the registrar.'];
+        $r = $this->rcCall('domains/modify-ns.json', ['order-id' => $orderId], 'POST', ['ns' => array_slice(array_values($ns), 0, 6)]);
+        return ['success' => (($r['actionstatus'] ?? $r['status'] ?? '') === 'Success'), 'raw' => $r];
+    }
+
+    /** Split a phone like "+254 712 345678" into [cc, number] for LogicBoxes. */
+    private function lbPhone(string $raw): array
+    {
+        $digits = preg_replace('/\D/', '', $raw);
+        if ($digits === '') return ['254', '700000000'];
+        if (strlen($digits) > 10) {
+            return [substr($digits, 0, strlen($digits) - 9), substr($digits, -9)];
+        }
+        return ['254', ltrim($digits, '0') ?: '700000000'];
+    }
+
+    private function lbPassword(): string
+    {
+        return 'Or' . bin2hex(random_bytes(5)) . '!7a'; // meets LogicBoxes complexity rules
     }
 
     // ══════════════════════════════════════════════════════════
