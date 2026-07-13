@@ -629,6 +629,18 @@ class DomainClient
                      . 'only be editable by the parent account/support, and (4) allow a few minutes for a newly '
                      . 'added IP to propagate, then also confirm you are not mixing sandbox/demo credentials '
                      . 'with the live endpoint (or vice versa).';
+            } elseif (in_array($this->provider, ['resellerclub', 'netearthone'], true)
+                && (stripos($msg, 'invalid credentials') !== false || stripos($msg, 'inactive or suspended') !== false)) {
+                $redacted = preg_replace('/([?&]api-key=)[^&]*/i', '$1***REDACTED***', $url);
+                $msg .= ' — this is LogicBoxes\' auth-layer rejection (different from the IP-whitelist "access '
+                     . 'denied" message), meaning this exact request reached a real endpoint and its '
+                     . 'auth-userid/api-key were rejected outright. The final URL actually requested (after any '
+                     . 'redirects, key redacted) was: ' . $redacted . ' — check that auth-userid and api-key both '
+                     . 'appear intact in that URL. If they do, and Test Connection on this same saved config '
+                     . 'succeeds while this specific call fails, it likely means this reseller account has API '
+                     . 'access enabled for domain lookups but NOT for the Products/Pricing API — ask NetEarthOne '
+                     . 'support to confirm the Products/Reseller-Pricing API is enabled for reseller ID '
+                     . ($this->config['auth_userid'] ?? '') . '.';
             }
             throw new RuntimeException('Registrar error: ' . $msg);
         }
