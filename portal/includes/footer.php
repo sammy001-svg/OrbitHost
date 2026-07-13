@@ -5,7 +5,7 @@
     <div class="pf-inner">
       <span>© <?php echo date('Y'); ?> OrbitHost. All rights reserved.</span>
       <div class="pf-links">
-        <a href="../index.html">Main Website</a>
+        <a href="<?php echo preg_replace('#/portal/?$#', '', PORTAL_URL); ?>/index.html">Main Website</a>
         <a href="<?php echo PORTAL_URL; ?>/domains.php">My Domains</a>
         <a href="<?php echo PORTAL_URL; ?>/tickets/add.php">Get Support</a>
       </div>

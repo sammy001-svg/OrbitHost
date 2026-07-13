@@ -111,6 +111,10 @@ function render_field(array $f, array $cfg): string
             return '<div class="form-group"><label class="form-label">' . $label . $req . '</label>'
                  . '<input type="number" class="form-control" name="' . $name . '" value="' . h((string)$val) . '" placeholder="' . $ph . '" />' . $hint . '</div>';
 
+        case 'textarea':
+            return '<div class="form-group"><label class="form-label">' . $label . $req . '</label>'
+                 . '<textarea class="form-control" name="' . $name . '" rows="3" placeholder="' . $ph . '">' . h((string)$val) . '</textarea>' . $hint . '</div>';
+
         default:
             return '<div class="form-group"><label class="form-label">' . $label . $req . '</label>'
                  . '<input type="text" class="form-control" name="' . $name . '" value="' . h((string)$val) . '" placeholder="' . $ph . '" />' . $hint . '</div>';

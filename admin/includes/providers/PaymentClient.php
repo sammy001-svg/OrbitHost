@@ -2,14 +2,19 @@
 /**
  * OrbitHost — Unified Payment Gateway client
  *
- * One interface over Stripe, PayPal, M-Pesa (Daraja) and Flutterwave so
- * invoices can be paid online regardless of gateway.
+ * One interface over Stripe, PayPal, M-Pesa STK (Kopo Kopo), Flutterwave
+ * and the offline methods (bank transfer, manual M-Pesa, cheque) so
+ * invoices can be paid regardless of method.
  *
  *   createCheckout(amount, currency, reference, customer, urls) →
- *       ['success'=>bool, 'mode'=>'redirect'|'push', 'redirect_url'=>?,
- *        'ref'=>string, 'message'=>string]
+ *       ['success'=>bool, 'mode'=>'redirect'|'push'|'instructions',
+ *        'redirect_url'=>?, 'ref'=>string, 'message'=>string]
  *
  *   verify(ref) → ['success'=>bool, 'status'=>string, 'amount'=>float]
+ *
+ * 'instructions' mode: nothing was charged — the message contains payment
+ * instructions for the client, and verify() stays 'pending' until an admin
+ * confirms receipt in Billing.
  */
 final class PaymentClient
 {
@@ -41,9 +46,12 @@ final class PaymentClient
         return $this->dispatch('verify', [$ref]);
     }
 
+    /** Offline (instruction-based) methods share one implementation. */
+    private const OFFLINE = ['bank_transfer', 'mpesa_manual', 'cheque'];
+
     private function dispatch(string $method, array $args): array
     {
-        $impl = $this->provider . ucfirst($method);
+        $impl = (in_array($this->provider, self::OFFLINE, true) ? 'offline' : $this->provider) . ucfirst($method);
         if (!method_exists($this, $impl)) {
             throw new RuntimeException("Gateway '{$this->provider}' does not support {$method}().");
         }
@@ -57,6 +65,7 @@ final class PaymentClient
     // ── Small HTTP helper ─────────────────────────────────────
     private function http(string $url, string $method, array $headers, $body = null, bool $json = true): array
     {
+        $resHeaders = [];
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -64,6 +73,13 @@ final class PaymentClient
             CURLOPT_TIMEOUT        => 30,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_HEADERFUNCTION => function ($ch, $line) use (&$resHeaders) {
+                if (str_contains($line, ':')) {
+                    [$k, $v] = explode(':', $line, 2);
+                    $resHeaders[strtolower(trim($k))] = trim($v);
+                }
+                return strlen($line);
+            },
         ]);
         if ($body !== null) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, is_string($body) ? $body : ($json ? json_encode($body) : http_build_query($body)));
@@ -73,7 +89,7 @@ final class PaymentClient
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
         if ($err) throw new RuntimeException('Connection error: ' . $err);
-        return ['code' => $code, 'body' => $res, 'data' => json_decode($res, true) ?? []];
+        return ['code' => $code, 'body' => $res, 'data' => json_decode($res, true) ?? [], 'headers' => $resHeaders];
     }
 
     // ══════════════════════════════════════════════════════════
@@ -164,86 +180,136 @@ final class PaymentClient
     }
 
     // ══════════════════════════════════════════════════════════
-    // M-PESA — Daraja STK Push
+    // KOPO KOPO — M-Pesa STK Push (api-docs.kopokopo.com)
+    // The 201 response carries the payment-request resource URL in its
+    // Location header; that URL is our verify() reference.
     // ══════════════════════════════════════════════════════════
-    private function mpesaBase(): string
+    private function kopokopoBase(): string
     {
-        return ($this->cfg['sandbox'] ?? true) ? 'https://sandbox.safaricom.co.ke' : 'https://api.safaricom.co.ke';
+        return ($this->cfg['sandbox'] ?? true) ? 'https://sandbox.kopokopo.com' : 'https://api.kopokopo.com';
     }
-    private function mpesaToken(): string
+    private function kopokopoToken(): string
     {
-        $auth = base64_encode(($this->cfg['consumer_key'] ?? '') . ':' . ($this->cfg['consumer_secret'] ?? ''));
-        $r = $this->http($this->mpesaBase() . '/oauth/v1/generate?grant_type=client_credentials', 'GET',
-            ['Authorization: Basic ' . $auth]);
-        if (empty($r['data']['access_token'])) throw new RuntimeException('M-Pesa auth failed. Check consumer key/secret.');
+        $r = $this->http($this->kopokopoBase() . '/oauth/token', 'POST',
+            ['Content-Type: application/x-www-form-urlencoded'],
+            ['grant_type' => 'client_credentials', 'client_id' => $this->cfg['client_id'] ?? '', 'client_secret' => $this->cfg['client_secret'] ?? ''],
+            false);
+        if (empty($r['data']['access_token'])) {
+            throw new RuntimeException('Kopo Kopo auth failed — check Client ID/Secret' . (($this->cfg['sandbox'] ?? true) ? ' (sandbox mode is ON — sandbox and live credentials are separate)' : '') . '.');
+        }
         return $r['data']['access_token'];
     }
-    private function mpesaTestConnection(): array
+    private function kopokopoTestConnection(): array
     {
-        $this->mpesaToken();
-        return ['success' => true, 'message' => 'M-Pesa Daraja credentials valid'];
+        $this->kopokopoToken();
+        return ['success' => true, 'message' => 'Kopo Kopo credentials valid'];
     }
-    private function mpesaCreateCheckout(float $amount, string $currency, string $ref, array $c, array $urls): array
+    private function kopokopoCreateCheckout(float $amount, string $currency, string $ref, array $c, array $urls): array
     {
         $phone = preg_replace('/\D/', '', $c['phone'] ?? '');
         if (!$phone) return ['success' => false, 'message' => 'A phone number is required for M-Pesa STK Push.'];
-        // Normalise to 2547XXXXXXXX
-        if (str_starts_with($phone, '0'))      $phone = '254' . substr($phone, 1);
-        elseif (str_starts_with($phone, '7'))  $phone = '254' . $phone;
+        // Normalise to +2547XXXXXXXX (Kopo Kopo wants E.164)
+        if (str_starts_with($phone, '0'))     $phone = '254' . substr($phone, 1);
+        elseif (str_starts_with($phone, '7')) $phone = '254' . $phone;
+        $phone = '+' . $phone;
 
-        $token     = $this->mpesaToken();
-        $timestamp = date('YmdHis');
-        $shortcode = $this->cfg['shortcode'] ?? '';
-        $password  = base64_encode($shortcode . ($this->cfg['passkey'] ?? '') . $timestamp);
+        $name  = trim($c['name'] ?? '');
+        $first = $name !== '' ? explode(' ', $name)[0] : 'Customer';
+        $last  = trim(substr($name, strlen($first))) ?: $first;
 
-        $r = $this->http($this->mpesaBase() . '/mpesa/stkpush/v1/processrequest', 'POST',
-            ['Authorization: Bearer ' . $token, 'Content-Type: application/json'],
+        $token = $this->kopokopoToken();
+        $r = $this->http($this->kopokopoBase() . '/api/v1/incoming_payments', 'POST',
+            ['Authorization: Bearer ' . $token, 'Content-Type: application/json', 'Accept: application/json'],
             [
-                'BusinessShortCode' => $shortcode,
-                'Password'          => $password,
-                'Timestamp'         => $timestamp,
-                'TransactionType'   => 'CustomerPayBillOnline',
-                'Amount'            => (int) ceil($amount),
-                'PartyA'            => $phone,
-                'PartyB'            => $shortcode,
-                'PhoneNumber'       => $phone,
-                'CallBackURL'       => $urls['callback'] ?? ($urls['return'] ?? ''),
-                'AccountReference'  => substr($ref, 0, 12),
-                'TransactionDesc'   => 'Payment ' . $ref,
+                'payment_channel' => 'M-PESA STK Push',
+                'till_number'     => $this->cfg['till_number'] ?? '',
+                'subscriber'      => ['first_name' => $first, 'last_name' => $last, 'phone_number' => $phone, 'email' => $c['email'] ?? ''],
+                // Kopo Kopo STK charges are KES-only; M-Pesa amounts are whole shillings.
+                'amount'          => ['currency' => 'KES', 'value' => (int) ceil($amount)],
+                'metadata'        => ['reference' => $ref],
+                '_links'          => ['callback_url' => $urls['callback'] ?? ($urls['return'] ?? '')],
             ]);
-        if (($r['data']['ResponseCode'] ?? '1') !== '0') {
-            return ['success' => false, 'message' => $r['data']['errorMessage'] ?? ($r['data']['ResponseDescription'] ?? 'STK push failed')];
-        }
-        return ['success' => true, 'mode' => 'push', 'ref' => $r['data']['CheckoutRequestID'] ?? '',
-                'message' => 'STK push sent to ' . $phone . '. Ask the customer to enter their M-Pesa PIN.'];
-    }
-    private function mpesaVerify(string $ref): array
-    {
-        $token     = $this->mpesaToken();
-        $timestamp = date('YmdHis');
-        $shortcode = $this->cfg['shortcode'] ?? '';
-        $password  = base64_encode($shortcode . ($this->cfg['passkey'] ?? '') . $timestamp);
-        $r = $this->http($this->mpesaBase() . '/mpesa/stkpushquery/v1/query', 'POST',
-            ['Authorization: Bearer ' . $token, 'Content-Type: application/json'],
-            ['BusinessShortCode' => $shortcode, 'Password' => $password, 'Timestamp' => $timestamp, 'CheckoutRequestID' => $ref]);
 
-        // Safaricom omits ResultCode entirely (returning a top-level
-        // errorCode/errorMessage instead) while the STK push is still
-        // awaiting the customer's PIN — that is NOT a failure. Only a
-        // present ResultCode is a final, definitive result: "0" = paid,
-        // anything else = genuinely failed (cancelled, wrong PIN, timed
-        // out, insufficient funds, etc).
-        if (!array_key_exists('ResultCode', $r['data'] ?? [])) {
-            return ['success' => false, 'status' => 'pending', 'amount' => 0,
-                    'message' => $r['data']['errorMessage'] ?? 'Payment not confirmed yet — waiting for the customer to complete it on their phone.'];
+        $resource = $r['headers']['location'] ?? '';
+        if ($r['code'] !== 201 || $resource === '') {
+            $msg = $r['data']['error_message'] ?? ($r['data']['error_description'] ?? null);
+            if (!$msg && !empty($r['data']['errors'])) $msg = json_encode($r['data']['errors']);
+            return ['success' => false, 'message' => 'Kopo Kopo rejected the STK push: ' . ($msg ?: 'HTTP ' . $r['code'])];
         }
-        $paid = (string) $r['data']['ResultCode'] === '0';
-        return [
-            'success' => $paid,
-            'status'  => $paid ? 'completed' : 'failed',
-            'amount'  => 0,
-            'message' => $r['data']['ResultDesc'] ?? ($paid ? 'Payment completed.' : 'Payment was not completed.'),
-        ];
+        return ['success' => true, 'mode' => 'push', 'ref' => $resource,
+                'message' => 'STK push sent to ' . $phone . ' — enter the M-Pesa PIN on the phone to approve, then verify below.'];
+    }
+    private function kopokopoVerify(string $ref): array
+    {
+        // ref is the payment-request URL Kopo Kopo gave us; never fetch anything else.
+        if (!str_starts_with($ref, $this->kopokopoBase() . '/')) {
+            return ['success' => false, 'status' => 'failed', 'amount' => 0, 'message' => 'Invalid Kopo Kopo payment reference.'];
+        }
+        $token = $this->kopokopoToken();
+        $r = $this->http($ref, 'GET', ['Authorization: Bearer ' . $token, 'Accept: application/json']);
+        $attr   = $r['data']['data']['attributes'] ?? [];
+        $status = $attr['status'] ?? 'unknown';
+
+        if (strcasecmp($status, 'Success') === 0) {
+            return ['success' => true, 'status' => 'completed',
+                    'amount' => (float) ($attr['event']['resource']['amount'] ?? 0),
+                    'message' => 'Payment completed.'];
+        }
+        if (strcasecmp($status, 'Failed') === 0) {
+            return ['success' => false, 'status' => 'failed', 'amount' => 0,
+                    'message' => $attr['event']['errors'] ?? 'Payment was not completed (cancelled, timed out or insufficient funds).'];
+        }
+        return ['success' => false, 'status' => 'pending', 'amount' => 0,
+                'message' => 'Payment not confirmed yet — waiting for the customer to complete it on their phone.'];
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // OFFLINE METHODS — bank transfer / manual M-Pesa / cheque.
+    // No API: createCheckout() hands back payment instructions and
+    // verify() stays pending until an admin confirms receipt.
+    // ══════════════════════════════════════════════════════════
+    private function offlineTestConnection(): array
+    {
+        return ['success' => true, 'message' => 'Offline method — no API to test. Clients will see your payment instructions; confirm each payment manually in Billing.'];
+    }
+    private function offlineCreateCheckout(float $amount, string $currency, string $ref, array $c, array $urls): array
+    {
+        $money = $currency . ' ' . number_format($amount, 2);
+        $parts = match ($this->provider) {
+            'bank_transfer' => array_filter([
+                'Pay ' . $money . ' by bank transfer to:',
+                'Bank: ' . ($this->cfg['bank_name'] ?? ''),
+                'Account name: ' . ($this->cfg['account_name'] ?? ''),
+                'Account number: ' . ($this->cfg['account_number'] ?? ''),
+                ($this->cfg['branch'] ?? '') !== '' ? 'Branch: ' . $this->cfg['branch'] : null,
+                ($this->cfg['swift_code'] ?? '') !== '' ? 'SWIFT/Sort code: ' . $this->cfg['swift_code'] : null,
+                'Payment reference: ' . $ref,
+            ]),
+            'mpesa_manual' => array_filter([
+                'Pay ' . $money . ' via M-Pesa:',
+                'Paybill / Till: ' . ($this->cfg['paybill'] ?? ''),
+                ($this->cfg['account_name'] ?? '') !== '' ? 'Registered name: ' . $this->cfg['account_name'] : null,
+                'Account / reference: ' . $ref,
+            ]),
+            'cheque' => array_filter([
+                'Pay ' . $money . ' by cheque:',
+                'Payable to: ' . ($this->cfg['payee_name'] ?? ''),
+                ($this->cfg['delivery'] ?? '') !== '' ? 'Deliver to: ' . $this->cfg['delivery'] : null,
+                'Write reference ' . $ref . ' on the back.',
+            ]),
+            default => ['Contact us to complete payment of ' . $money . ' (reference ' . $ref . ').'],
+        };
+        if (($this->cfg['instructions'] ?? '') !== '') $parts[] = trim($this->cfg['instructions']);
+        $parts[] = 'Your order will be activated as soon as our team confirms the payment.';
+
+        return ['success' => true, 'mode' => 'instructions',
+                'ref'     => 'OFF-' . strtoupper(bin2hex(random_bytes(4))),
+                'message' => implode("\n", $parts)];
+    }
+    private function offlineVerify(string $ref): array
+    {
+        return ['success' => false, 'status' => 'pending', 'amount' => 0,
+                'message' => 'This payment is confirmed manually by our billing team once received — you will be notified when it clears.'];
     }
 
     // ══════════════════════════════════════════════════════════

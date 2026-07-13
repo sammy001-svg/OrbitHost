@@ -114,7 +114,7 @@ require_once '../includes/header.php';
     <h1 class="content-title">Site Settings</h1>
     <p class="page-subtitle">Manage your logo, favicon, header, footer and contact page — changes apply across the public website automatically.</p>
   </div>
-  <a href="../index.html" target="_blank" rel="noopener" class="btn btn-ghost"><i class="fas fa-arrow-up-right-from-square"></i> View Website</a>
+  <a href="<?php echo preg_replace('#/admin/?$#', '', APP_URL); ?>/index.html" target="_blank" rel="noopener" class="btn btn-ghost"><i class="fas fa-arrow-up-right-from-square"></i> View Website</a>
 </div>
 
 <?php if (!$table_ok): ?>
