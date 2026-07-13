@@ -378,8 +378,8 @@
   }
 
   function poll() {
-    if (!store.conv) return;
-    fetch(API + '?action=poll&conversation=' + encodeURIComponent(store.conv) +
+    if (!store.conv) return Promise.resolve();
+    return fetch(API + '?action=poll&conversation=' + encodeURIComponent(store.conv) +
           '&token=' + encodeURIComponent(store.token) + '&after=' + lastId)
       .then(r => r.json())
       .then(d => {
@@ -406,11 +406,29 @@
       .catch(() => {});
   }
 
+  // Adaptive polling: near-instant while the chat is open, relaxed in the
+  // background, and an immediate check when the tab regains focus — so
+  // replies appear without any refresh.
+  function schedule() {
+    clearTimeout(timer);
+    const delay = document.hidden ? 15000 : (panel.classList.contains('open') ? 2500 : 8000);
+    timer = setTimeout(loop, delay);
+  }
+  function loop() {
+    poll().then(schedule, schedule);
+  }
+  function pollNow() {
+    if (!store.conv) return;
+    clearTimeout(timer);
+    loop();
+  }
   function startPolling() {
     if (timer) return;
-    poll();
-    timer = setInterval(poll, 4000);
+    loop();
   }
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && timer) pollNow();
+  });
 
   function doSend() {
     const msg = text.value.trim();
@@ -435,7 +453,7 @@
       .then(r => r.json())
       .then(d => {
         if (d.ok && d.conversation) { store.save(d.conversation, d.token); }
-        if (d.ok) startPolling();
+        if (d.ok) { timer ? pollNow() : startPolling(); }
         else bubble(d.error || 'Message could not be sent. Please try again.', false, 'System');
       })
       .catch(() => bubble('Connection problem — please try again.', false, 'System'));
@@ -449,7 +467,7 @@
     panel.classList.toggle('open', opening);
     if (opening) {
       if (badge) badge.style.display = 'none';
-      if (store.conv) { if (lead) lead.style.display = 'none'; startPolling(); }
+      if (store.conv) { if (lead) lead.style.display = 'none'; timer ? pollNow() : startPolling(); }
       text.focus();
     }
   });

@@ -52,8 +52,8 @@
     body.scrollTop = body.scrollHeight;
   }
   function poll() {
-    if (!conv) return;
-    fetch(API + '?action=poll&conversation=' + conv + '&token=' + encodeURIComponent(token) + '&after=' + lastId)
+    if (!conv) return Promise.resolve();
+    return fetch(API + '?action=poll&conversation=' + conv + '&token=' + encodeURIComponent(token) + '&after=' + lastId)
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (!d.ok) return;
@@ -63,7 +63,19 @@
         });
       }).catch(function () {});
   }
-  function startPolling() { if (!timer) { poll(); timer = setInterval(poll, 4000); } }
+  // Adaptive polling: fast while the chat panel is open, relaxed otherwise,
+  // instant re-check when the tab regains focus.
+  function schedule() {
+    clearTimeout(timer);
+    var delay = document.hidden ? 15000 : (panel.classList.contains('open') ? 2500 : 8000);
+    timer = setTimeout(loop, delay);
+  }
+  function loop() { poll().then(schedule, schedule); }
+  function pollNow() { if (conv) { clearTimeout(timer); loop(); } }
+  function startPolling() { if (!timer) loop(); }
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && timer) pollNow();
+  });
   function send() {
     var msg = text.value.trim();
     if (!msg) return;
@@ -85,14 +97,14 @@
           localStorage.setItem('oh_chat_conv', conv);
           localStorage.setItem('oh_chat_token', token);
         }
-        if (d.ok) startPolling();
+        if (d.ok) { timer ? pollNow() : startPolling(); }
         else bubble(d.error || 'Could not send — try again.', false, 'System');
       })
       .catch(function () { bubble('Connection problem — try again.', false, 'System'); });
   }
   document.getElementById('pchatBtn').addEventListener('click', function () {
     panel.classList.toggle('open');
-    if (panel.classList.contains('open')) { if (conv) startPolling(); text.focus(); }
+    if (panel.classList.contains('open')) { if (conv) { timer ? pollNow() : startPolling(); } text.focus(); }
   });
   document.getElementById('pchatClose').addEventListener('click', function () { panel.classList.remove('open'); });
   document.getElementById('pchatSend').addEventListener('click', send);

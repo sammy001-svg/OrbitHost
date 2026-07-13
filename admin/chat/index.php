@@ -17,6 +17,27 @@ try {
 
 $sel = (int)($_GET['id'] ?? 0);
 
+// ── AJAX: live conversation list (inbox refresh without reload) ──
+if ($chat_ready && (($_GET['ajax'] ?? '') === 'list')) {
+    header('Content-Type: application/json');
+    $rows = db()->query(
+        'SELECT c.id, c.name, c.status, c.updated_at,
+                (SELECT COUNT(*) FROM chat_messages m WHERE m.conversation_id = c.id AND m.sender = "visitor" AND m.admin_read = 0) unread,
+                (SELECT message FROM chat_messages m WHERE m.conversation_id = c.id ORDER BY id DESC LIMIT 1) last_msg
+         FROM chat_conversations c
+         ORDER BY (c.status = "open") DESC, c.updated_at DESC LIMIT 100'
+    )->fetchAll();
+    $unread_total = 0;
+    $out = array_map(function ($c) use (&$unread_total) {
+        $unread_total += (int) $c['unread'];
+        return ['id' => (int) $c['id'], 'name' => $c['name'] ?: ('Visitor #' . $c['id']),
+                'unread' => (int) $c['unread'], 'status' => $c['status'],
+                'last' => mb_strimwidth($c['last_msg'] ?? '', 0, 46, '…'), 'time' => time_ago($c['updated_at'])];
+    }, $rows);
+    echo json_encode(['ok' => true, 'unread' => $unread_total, 'conversations' => $out]);
+    exit;
+}
+
 // ── AJAX: poll new messages for the open thread ──
 if ($chat_ready && isset($_GET['ajax']) && $sel) {
     header('Content-Type: application/json');
@@ -99,8 +120,8 @@ require_once '../includes/header.php';
 
 <div style="display:grid;grid-template-columns:320px 1fr;gap:18px;align-items:start;min-height:60vh">
 
-  <!-- Conversation list -->
-  <div class="card card-flush" style="max-height:75vh;overflow-y:auto">
+  <!-- Conversation list (auto-refreshes) -->
+  <div class="card card-flush" style="max-height:75vh;overflow-y:auto" id="convList" data-sel="<?php echo $sel; ?>">
     <?php if (!$conversations): ?>
       <div class="empty-state" style="padding:40px 16px"><i class="fas fa-comments"></i><p>No conversations yet.</p></div>
     <?php else: foreach ($conversations as $c): ?>
@@ -188,7 +209,11 @@ require_once '../includes/header.php';
         thread.scrollTop = thread.scrollHeight;
       }
 
-      setInterval(function () {
+      // Adaptive polling: quick while the tab is visible, relaxed when
+      // hidden, and an immediate check the moment the tab regains focus —
+      // replies show up without any refresh.
+      var pollTimer = null;
+      function pollThread() {
         fetch('?id=<?php echo $thread['id']; ?>&ajax=1&after=' + lastId)
           .then(function (r) { return r.json(); })
           .then(function (d) {
@@ -197,8 +222,17 @@ require_once '../includes/header.php';
               lastId = Math.max(lastId, Number(m.id));
               if (m.sender === 'visitor') addMsg(m);
             });
-          }).catch(function () {});
-      }, 4000);
+          }).catch(function () {})
+          .finally(scheduleThread);
+      }
+      function scheduleThread() {
+        clearTimeout(pollTimer);
+        pollTimer = setTimeout(pollThread, document.hidden ? 12000 : 2500);
+      }
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) { clearTimeout(pollTimer); pollThread(); }
+      });
+      scheduleThread();
 
       document.getElementById('replyForm').addEventListener('submit', function (e) {
         e.preventDefault();
@@ -209,12 +243,84 @@ require_once '../includes/header.php';
         addMsg({ sender: 'admin', sender_name: adminName, message: msg, t: '' });
         var fd = new FormData(e.target);
         fd.set('message', msg);
-        fetch('?id=<?php echo $thread['id']; ?>', { method: 'POST', body: fd }).catch(function () {});
+        fetch('?id=<?php echo $thread['id']; ?>', { method: 'POST', body: fd })
+          .then(function () { clearTimeout(pollTimer); pollThread(); })
+          .catch(function () {});
       });
     })();
     </script>
   <?php endif; ?>
 </div>
+
+<script>
+// ── Live inbox: refresh the conversation list + unread count without reload ──
+(function () {
+  var list = document.getElementById('convList');
+  if (!list) return;
+  var selId = Number(list.getAttribute('data-sel')) || 0;
+  var baseTitle = document.title.replace(/^\(\d+\)\s*/, '');
+  var timer = null;
+
+  function render(convs) {
+    if (!convs.length) return;
+    list.innerHTML = '';
+    convs.forEach(function (c) {
+      var a = document.createElement('a');
+      a.href = '?id=' + c.id;
+      a.style.cssText = 'display:block;padding:13px 16px;border-bottom:1px solid var(--surface-3);text-decoration:none;' +
+        (selId === c.id ? 'background:var(--green-light)' : '');
+      var top = document.createElement('div');
+      top.className = 'flex-between';
+      var nm = document.createElement('span');
+      nm.className = 'fw-700';
+      nm.style.cssText = 'font-size:13.5px;color:var(--navy)';
+      nm.textContent = c.name;
+      if (c.unread) {
+        var b = document.createElement('span');
+        b.className = 'badge badge-danger';
+        b.style.marginLeft = '6px';
+        b.textContent = c.unread;
+        nm.appendChild(b);
+      }
+      var tm = document.createElement('span');
+      tm.style.cssText = 'font-size:11px;color:var(--text-muted)';
+      tm.textContent = c.time;
+      top.appendChild(nm); top.appendChild(tm);
+      var sub = document.createElement('div');
+      sub.style.cssText = 'font-size:12px;color:var(--text-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      if (c.status === 'closed') {
+        var cl = document.createElement('span');
+        cl.className = 'badge badge-secondary';
+        cl.style.marginRight = '5px';
+        cl.textContent = 'closed';
+        sub.appendChild(cl);
+      }
+      sub.appendChild(document.createTextNode(c.last));
+      a.appendChild(top); a.appendChild(sub);
+      list.appendChild(a);
+    });
+  }
+
+  function refresh() {
+    fetch('?ajax=list')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) return;
+        render(d.conversations);
+        document.title = (d.unread > 0 ? '(' + d.unread + ') ' : '') + baseTitle;
+      })
+      .catch(function () {})
+      .finally(function () {
+        clearTimeout(timer);
+        timer = setTimeout(refresh, document.hidden ? 20000 : 5000);
+      });
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) { clearTimeout(timer); refresh(); }
+  });
+  timer = setTimeout(refresh, 5000);
+})();
+</script>
 
 <?php endif; ?>
 
