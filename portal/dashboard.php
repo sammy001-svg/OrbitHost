@@ -9,7 +9,23 @@ $c   = current_client();
 $cid = $c['id'];
 $db  = db();
 
-$active_orders   = (int) $db->prepare('SELECT COUNT(*) FROM orders WHERE client_id=? AND status="active"')->execute([$cid]) ? $db->query("SELECT COUNT(*) FROM orders WHERE client_id=$cid AND status='active'")->fetchColumn() : 0;
+$cid = (int) $cid;
+
+// Active services = legacy orders + provisioned services (client_services)
+$active_orders = (int) $db->query("SELECT COUNT(*) FROM orders WHERE client_id=$cid AND status='active'")->fetchColumn();
+$provisioned = [];
+try {
+    $stmt = $db->prepare('SELECT * FROM client_services WHERE client_id = ? ORDER BY status = "active" DESC, created_at DESC LIMIT 6');
+    $stmt->execute([$cid]);
+    $provisioned = $stmt->fetchAll();
+    $active_orders += (int) $db->query("SELECT COUNT(*) FROM client_services WHERE client_id=$cid AND status='active'")->fetchColumn();
+} catch (\Throwable $e) { /* client_services not migrated yet */ }
+
+$domains_count = 0;
+try {
+    $domains_count = (int) $db->query("SELECT COUNT(*) FROM domain_registrations WHERE client_id=$cid AND status IN ('active','pending')")->fetchColumn();
+} catch (\Throwable $e) { /* table missing */ }
+
 $open_tickets    = (int) $db->query("SELECT COUNT(*) FROM tickets WHERE client_id=$cid AND status IN ('open','pending')")->fetchColumn();
 $unpaid_invoices = (int) $db->query("SELECT COUNT(*) FROM invoices WHERE client_id=$cid AND status IN ('sent','overdue')")->fetchColumn();
 $total_spent     = (float)$db->query("SELECT COALESCE(SUM(total),0) FROM invoices WHERE client_id=$cid AND status='paid'")->fetchColumn();
@@ -80,10 +96,10 @@ require_once __DIR__ . '/includes/header.php';
       <div class="p-stat-icon <?php echo $open_tickets ? 'orange' : 'navy'; ?>"><i class="fas fa-comments"></i></div>
       <div><div class="p-stat-label">Open Tickets</div><div class="p-stat-value"><?php echo $open_tickets; ?></div></div>
     </a>
-    <div class="p-stat">
-      <div class="p-stat-icon green"><i class="fas fa-dollar-sign"></i></div>
-      <div><div class="p-stat-label">Total Spent</div><div class="p-stat-value"><?php echo format_money($total_spent); ?></div></div>
-    </div>
+    <a href="<?php echo PORTAL_URL; ?>/domains.php" class="p-stat">
+      <div class="p-stat-icon navy"><i class="fas fa-globe"></i></div>
+      <div><div class="p-stat-label">Domains</div><div class="p-stat-value"><?php echo $domains_count; ?></div></div>
+    </a>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
@@ -95,16 +111,30 @@ require_once __DIR__ . '/includes/header.php';
         <a href="<?php echo PORTAL_URL; ?>/services.php" class="btn btn-ghost btn-sm">View All</a>
       </div>
       <table>
-        <thead><tr><th>Service</th><th>Domain</th><th>Next Due</th><th>Status</th></tr></thead>
+        <thead><tr><th>Service</th><th>Domain</th><th>Status</th><th></th></tr></thead>
         <tbody>
+        <?php foreach ($provisioned as $svc):
+            $cp = ($svc['provider_key'] ?? '') === 'whm' ? ($svc['username'] ?: $svc['remote_id']) : null; ?>
+          <tr>
+            <td><strong><?php echo htmlspecialchars($svc['label']); ?></strong></td>
+            <td style="font-size:12.5px"><?php echo htmlspecialchars($svc['domain'] ?: '—'); ?></td>
+            <td><?php echo badge($svc['status']); ?></td>
+            <td style="text-align:right">
+              <?php if ($cp && $svc['status'] === 'active'): ?>
+                <a href="<?php echo PORTAL_URL; ?>/cpanel-sso.php?user=<?php echo urlencode($cp); ?>" class="btn btn-primary btn-sm" target="_blank" rel="noopener"><i class="fas fa-right-to-bracket"></i> cPanel</a>
+              <?php endif; ?>
+            </td>
+          </tr>
+        <?php endforeach; ?>
         <?php if ($recent_orders): foreach ($recent_orders as $o): ?>
           <tr>
             <td><strong><?php echo htmlspecialchars($o['svc_name'] ?? $o['service_name'] ?? '—'); ?></strong></td>
-            <td><?php echo htmlspecialchars($o['domain'] ?: '—'); ?></td>
-            <td><?php echo format_date($o['next_due']); ?></td>
+            <td style="font-size:12.5px"><?php echo htmlspecialchars($o['domain_name'] ?? $o['domain'] ?? '—'); ?></td>
             <td><?php echo badge($o['status']); ?></td>
+            <td style="text-align:right;font-size:12px;color:var(--text-muted)"><?php echo format_date($o['next_due']); ?></td>
           </tr>
-        <?php endforeach; else: ?>
+        <?php endforeach; endif; ?>
+        <?php if (!$provisioned && !$recent_orders): ?>
           <tr><td colspan="4"><div class="empty-state"><i class="fas fa-box"></i><p>No active services yet.</p></div></td></tr>
         <?php endif; ?>
         </tbody>

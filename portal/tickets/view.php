@@ -1,7 +1,7 @@
 <?php
 require_once '../../includes/config.php';
 require_once '../../includes/auth.php';
-require_once dirname(dirname(dirname(__DIR__))) . '/admin/includes/functions.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
 
 portal_check();
 $cid = current_client()['id'];

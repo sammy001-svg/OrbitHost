@@ -58,8 +58,8 @@ require_once __DIR__ . '/includes/header.php';
         </div>
         <div>
           <div style="font-size:16px;font-weight:700;color:var(--navy)"><?php echo htmlspecialchars($o['svc_name'] ?? $o['service_name'] ?? 'Custom Service'); ?></div>
-          <?php if ($o['domain']): ?>
-            <div style="font-size:13px;color:var(--text-muted);margin-top:2px"><i class="fas fa-globe" style="font-size:11px"></i> <?php echo htmlspecialchars($o['domain']); ?></div>
+          <?php $odom = $o['domain_name'] ?? $o['domain'] ?? ''; if ($odom): ?>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:2px"><i class="fas fa-globe" style="font-size:11px"></i> <?php echo htmlspecialchars($odom); ?></div>
           <?php endif; ?>
         </div>
       </div>

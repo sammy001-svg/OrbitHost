@@ -49,6 +49,13 @@ try {
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
+// Quick diagnostic: /api/chat.php?action=health
+if ($action === 'health') {
+    $convs = (int) db()->query('SELECT COUNT(*) FROM chat_conversations')->fetchColumn();
+    $msgs  = (int) db()->query('SELECT COUNT(*) FROM chat_messages')->fetchColumn();
+    jout(['ok' => true, 'tables' => 'ready', 'conversations' => $convs, 'messages' => $msgs]);
+}
+
 // Resolve + authorize an existing conversation by id + token
 function conv_auth(): array
 {

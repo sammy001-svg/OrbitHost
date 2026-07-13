@@ -18,7 +18,7 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title><?php echo isset($page_title) ? htmlspecialchars($page_title, ENT_QUOTES) . ' — ' : ''; ?>OrbitHost Client Portal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
-  <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css" />
+  <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css?v=<?php echo @filemtime(__DIR__ . '/../css/portal.css') ?: time(); ?>" />
 </head>
 <body>
 

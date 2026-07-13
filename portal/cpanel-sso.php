@@ -51,13 +51,18 @@ if (empty($cfg['host']) || empty($cfg['token'])) {
 
 try {
     $whm = new WHMClient($cfg['host'], $cfg['user'] ?? 'root', $cfg['token'], (bool)($cfg['ssl_verify'] ?? false));
-    $session = $whm->createUserSession($user);
-    $url = $session['url'] ?? '';
+    $resp = $whm->createUserSession($user);
+    // v1 envelope may arrive unwrapped ({url}) or wrapped ({data:{url},metadata})
+    $url  = $resp['url'] ?? $resp['data']['url'] ?? '';
     if (!$url) {
-        throw new RuntimeException($session['metadata']['reason'] ?? 'No session URL returned.');
+        $reason = $resp['metadata']['reason'] ?? $resp['reason'] ?? 'The server did not return a login URL.';
+        if (stripos((string)$reason, 'access') !== false || stripos((string)$reason, 'permission') !== false || stripos((string)$reason, 'token') !== false) {
+            $reason .= ' (The WHM API token may be missing the "create-user-session" privilege — ask support to update it.)';
+        }
+        throw new RuntimeException($reason);
     }
     header('Location: ' . $url);
     exit;
 } catch (\Throwable $e) {
-    sso_fail('Could not open cPanel: ' . $e->getMessage());
+    sso_fail('Could not open cPanel automatically: ' . $e->getMessage());
 }
