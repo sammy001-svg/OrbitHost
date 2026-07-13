@@ -1,6 +1,6 @@
 <?php
-require_once '../../includes/config.php';
-require_once '../../includes/auth.php';
+require_once '../includes/config.php';
+require_once '../includes/auth.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
 
 portal_check();
@@ -13,7 +13,7 @@ if ($status) $where .= " AND status = " . db()->quote($status);
 
 $tickets = db()->query("SELECT * FROM tickets WHERE $where ORDER BY updated_at DESC")->fetchAll();
 
-require_once '../../includes/header.php';
+require_once '../includes/header.php';
 ?>
 
 <div class="page-hero">
@@ -63,4 +63,4 @@ require_once '../../includes/header.php';
 </div>
 </div>
 
-<?php require_once '../../includes/footer.php'; ?>
+<?php require_once '../includes/footer.php'; ?>

@@ -1,6 +1,6 @@
 <?php
-require_once '../../includes/config.php';
-require_once '../../includes/auth.php';
+require_once '../includes/config.php';
+require_once '../includes/auth.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
 
 portal_check();
@@ -16,7 +16,7 @@ if ($status) $where .= " AND status = " . db()->quote($status);
 $total    = (int) db()->query("SELECT COUNT(*) FROM invoices WHERE $where")->fetchColumn();
 $invoices = db()->query("SELECT * FROM invoices WHERE $where ORDER BY created_at DESC LIMIT $offset," . PER_PAGE)->fetchAll();
 
-require_once '../../includes/header.php';
+require_once '../includes/header.php';
 ?>
 
 <div class="page-hero">
@@ -89,4 +89,4 @@ require_once '../../includes/header.php';
 </div>
 </div>
 
-<?php require_once '../../includes/footer.php'; ?>
+<?php require_once '../includes/footer.php'; ?>
