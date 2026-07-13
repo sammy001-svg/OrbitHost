@@ -576,7 +576,16 @@ class DomainClient
         $url = $this->rcBase() . '/' . ltrim($path, '/') . '?' . $q;
 
         $ch = curl_init($url);
-        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 40, CURLOPT_SSL_VERIFYPEER => true]);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 40,
+            CURLOPT_SSL_VERIFYPEER => true,
+            // Some endpoints 301 behind Cloudflare (e.g. products/reseller-cost-price.json) —
+            // all params live in the query string either way, so following is safe even if a
+            // redirect downgrades POST to GET.
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 3,
+        ]);
         if ($method === 'POST') {
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, ''); // LogicBoxes POST APIs take params in the query string
