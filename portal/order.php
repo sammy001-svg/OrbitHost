@@ -67,6 +67,17 @@ function order_fulfil(array $pay, int $cid, array $client): string
     $raw['context'] = $ctx;
     db()->prepare('UPDATE payments SET raw = ? WHERE id = ?')->execute([json_encode($raw), (int) $pay['id']]);
 
+    // Link the invoice to this order (renewal billing follows it from here),
+    // then try to provision the hosting account immediately.
+    try {
+        require_once dirname(__DIR__) . '/admin/includes/Automation.php';
+        Automation::ensureSchema();
+        if ($pay['invoice_id']) {
+            db()->prepare('UPDATE invoices SET order_id = ? WHERE id = ?')->execute([(int) $order_id, (int) $pay['invoice_id']]);
+        }
+        Automation::provisionOrder((int) $order_id);
+    } catch (\Throwable $e) { /* provisioning failure never blocks the order */ }
+
     $client_name = trim($client['first_name'] . ' ' . $client['last_name']);
     Notifier::send('order_new', $cid, [
         'client_name' => $client_name, 'item' => $name,

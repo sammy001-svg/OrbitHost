@@ -115,6 +115,12 @@ function dp_verify(int $payment_id, int $client_id): array
     if ($pay['invoice_id']) {
         db()->prepare("UPDATE invoices SET status = 'paid', paid_date = CURDATE(), payment_method = ? WHERE id = ?")
             ->execute([$pay['gateway'], $pay['invoice_id']]);
+        // Lifecycle hook: provisions a first order / advances renewal dates /
+        // reactivates a suspended service tied to this invoice.
+        try {
+            require_once dirname(__DIR__, 2) . '/admin/includes/Automation.php';
+            Automation::invoicePaid((int) $pay['invoice_id']);
+        } catch (\Throwable $e) { /* never block payment confirmation */ }
     }
     return ['ok' => true, 'payment' => $pay];
 }

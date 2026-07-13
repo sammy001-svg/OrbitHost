@@ -5,6 +5,7 @@ require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 require_once '../includes/providers/Provider.php';
 require_once '../includes/Notifier.php';
+require_once '../includes/Automation.php';
 
 auth_check();
 $page_title = 'Collect Payment';
@@ -55,7 +56,9 @@ if (isset($_GET['paid']) && $inv['status'] !== 'paid') {
                 db()->prepare("UPDATE invoices SET status = 'paid', paid_date = CURDATE(), payment_method = ? WHERE id = ?")
                     ->execute([$pending['gateway'], $invoice_id]);
                 notify_invoice_paid_admin($inv, $invoice_id, $pending['gateway']);
-                flash_set('success', 'Payment confirmed — invoice marked as paid.');
+                $auto = Automation::invoicePaid($invoice_id);
+                flash_set('success', 'Payment confirmed — invoice marked as paid.'
+                    . (in_array($auto['status'], ['provisioned', 'reactivated', 'renewed'], true) ? ' ' . $auto['message'] : ''));
             } elseif (($v['status'] ?? '') === 'failed') {
                 db()->prepare("UPDATE payments SET status = 'failed' WHERE id = ?")->execute([$pending['id']]);
                 $reason = $v['message'] ?? 'Payment failed.';
@@ -101,7 +104,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute([trim($_POST['method'] ?? 'Manual'), $invoice_id]);
         notify_invoice_paid_admin($inv, $invoice_id, trim($_POST['method'] ?? 'Manual'));
         log_activity('payment_manual', 'invoice', $invoice_id, $pending_id ? 'Offline payment confirmed received' : 'Manual payment recorded');
-        flash_set('success', $pending_id ? 'Offline payment confirmed — invoice marked as paid.' : 'Payment recorded and invoice marked as paid.');
+        $auto = Automation::invoicePaid($invoice_id);
+        flash_set('success', ($pending_id ? 'Offline payment confirmed — invoice marked as paid.' : 'Payment recorded and invoice marked as paid.')
+            . (in_array($auto['status'], ['provisioned', 'reactivated', 'renewed'], true) ? ' ' . $auto['message'] : ''));
         header('Location: ' . APP_URL . '/billing/');
         exit;
     }

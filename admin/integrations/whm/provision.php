@@ -57,9 +57,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         try {
-            $result = $whm->createAccount($domain, $username, $password, $email, $package);
+            $result = $whm->createAccount($username, $domain, $password, $package, $email, $email);
 
-            if ($result['result'][0]['status'] ?? false) {
+            if ((int)($result['metadata']['result'] ?? 0) === 1) {
                 db()->prepare('INSERT INTO whm_accounts (order_id, cpanel_user, domain) VALUES (?,?,?)')
                     ->execute([$order_id ?: null, $username, $domain]);
 
@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'domain'   => $domain,
                 ];
             } else {
-                $errors[] = 'WHM error: ' . htmlspecialchars($result['result'][0]['statusmsg'] ?? 'Unknown error');
+                $errors[] = 'WHM error: ' . htmlspecialchars($result['metadata']['reason'] ?? ($result['result'][0]['statusmsg'] ?? 'Unknown error'));
             }
         } catch (\Throwable $e) {
             $errors[] = 'Connection error: ' . $e->getMessage();
