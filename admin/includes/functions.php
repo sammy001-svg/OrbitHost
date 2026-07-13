@@ -131,3 +131,20 @@ function get_payment_methods(): array
 {
     return ['M-Pesa','Airtel Money','Credit Card','PayPal','Bank Transfer','Crypto','Other'];
 }
+
+/**
+ * The client portal's base URL, computed from admin context (admin has
+ * no PORTAL_URL constant of its own — that's only defined inside
+ * portal/includes/config.php). Used when admin-side code needs to link
+ * a client notification/email back to their portal.
+ *
+ * Derived from APP_URL (site root + /admin) rather than $_SERVER
+ * directly, so it degrades gracefully in a CLI cron context too — as
+ * long as APP_URL is set explicitly in .env (there is no HTTP request
+ * to auto-detect it from when cron runs "php reminders.php" on the
+ * command line).
+ */
+function portal_base_url(): string
+{
+    return preg_replace('#/admin/?$#i', '', rtrim(APP_URL, '/')) . '/portal';
+}

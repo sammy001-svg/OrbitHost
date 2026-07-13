@@ -93,7 +93,7 @@ final class Notifier
 
         try {
             require_once __DIR__ . '/Mailer.php';
-            Mailer::fromConfig()->send($to, $subject, self::emailShell($subject, $body));
+            Mailer::fromConfig()->send($to, $subject, self::emailShell($body));
         } catch (\Throwable $e) { /* email is best-effort — never fatal the caller */ }
     }
 
@@ -110,6 +110,28 @@ final class Notifier
         }
     }
 
+    /**
+     * Build the HTML credential rows for the one-time "your service is
+     * ready" email ({account_rows} in the service_ready template). The
+     * password is only ever used here, inside a transient email body —
+     * it is never written to the notifications table (which stores
+     * only the generic in-app title/message) — matching how every
+     * hosting provider hands over new account credentials once by email.
+     */
+    public static function serviceAccountRows(string $domain, string $username, ?string $password, string $server, string $package): string
+    {
+        $rows = [['Domain', $domain], ['Username', $username]];
+        if ($password) $rows[] = ['Password', $password];
+        $rows[] = ['Server', $server ?: '—'];
+        $rows[] = ['Package', $package ?: 'default'];
+        $html = '';
+        foreach ($rows as [$k, $v]) {
+            $html .= '<tr><td style="padding:6px 0;color:#64748b">' . htmlspecialchars($k, ENT_QUOTES) . '</td>'
+                   . '<td style="padding:6px 0;text-align:right;font-weight:700;font-family:monospace">' . htmlspecialchars((string) $v, ENT_QUOTES) . '</td></tr>';
+        }
+        return $html;
+    }
+
     private static function render(string $tpl, array $vars): string
     {
         return preg_replace_callback('/\{(\w+)\}/', function ($m) use ($vars) {
@@ -117,7 +139,7 @@ final class Notifier
         }, $tpl);
     }
 
-    private static function emailShell(string $title, string $bodyHtml): string
+    private static function emailShell(string $bodyHtml): string
     {
         return '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:auto">'
              . '<div style="background:#0B1E3D;color:#fff;padding:20px 24px;border-radius:12px 12px 0 0">'

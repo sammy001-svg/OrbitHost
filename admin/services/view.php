@@ -4,6 +4,7 @@ require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 require_once '../includes/providers/Provider.php';
+require_once '../includes/Notifier.php';
 
 auth_check();
 
@@ -50,17 +51,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 db()->prepare('UPDATE client_services SET status="provisioning" WHERE id=?')->execute([$id]);
                 $r  = $panel->createAccount(['username'=>$u,'domain'=>$svc['domain'],'password'=>$p,'package'=>$pkg,'email'=>$svc['email']]);
                 $ok = !empty($r['success']);
+                $server_host = Provider::config($svc['provider_key'])['host'] ?? $svc['server_host'];
                 db()->prepare('UPDATE client_services SET status=?, username=?, remote_id=?, package=?, server_host=? WHERE id=?')
-                    ->execute([$ok ? 'active' : 'failed', $u, $r['username'] ?? $u, $pkg, Provider::config($svc['provider_key'])['host'] ?? $svc['server_host'], $id]);
+                    ->execute([$ok ? 'active' : 'failed', $u, $r['username'] ?? $u, $pkg, $server_host, $id]);
                 record_action($id, 'provision', $ok, $r['message'] ?? '');
                 flash_set($ok ? 'success' : 'error', $ok ? 'Account provisioned.' : 'Provisioning failed: ' . ($r['message'] ?? ''));
+                if ($ok && $svc['client_id']) {
+                    Notifier::send('service_ready', (int) $svc['client_id'], [
+                        'client_name'   => trim($svc['first_name'] . ' ' . $svc['last_name']),
+                        'service_label' => $svc['label'],
+                        'account_rows'  => Notifier::serviceAccountRows($svc['domain'] ?? '', $u, $p, (string) $server_host, $pkg),
+                        'email'         => $svc['email'],
+                        'link'          => portal_base_url() . '/services.php',
+                    ]);
+                }
                 break;
 
             case 'suspend':
-                $r = $panel->suspend($acct_user, trim($_POST['reason'] ?? 'Suspended by admin'));
+                $reason = trim($_POST['reason'] ?? 'Suspended by admin');
+                $r = $panel->suspend($acct_user, $reason);
                 if (!empty($r['success'])) db()->prepare('UPDATE client_services SET status="suspended" WHERE id=?')->execute([$id]);
                 record_action($id, 'suspend', !empty($r['success']), $r['message'] ?? '');
                 flash_set(!empty($r['success']) ? 'success' : 'error', $r['message'] ?? 'Done.');
+                if (!empty($r['success']) && $svc['client_id']) {
+                    Notifier::send('service_suspended', (int) $svc['client_id'], [
+                        'client_name' => trim($svc['first_name'] . ' ' . $svc['last_name']),
+                        'service_label' => $svc['label'], 'reason' => $reason,
+                        'email' => $svc['email'], 'link' => portal_base_url() . '/services.php',
+                    ]);
+                }
                 break;
 
             case 'unsuspend':
@@ -68,6 +87,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!empty($r['success'])) db()->prepare('UPDATE client_services SET status="active" WHERE id=?')->execute([$id]);
                 record_action($id, 'unsuspend', !empty($r['success']), $r['message'] ?? '');
                 flash_set(!empty($r['success']) ? 'success' : 'error', $r['message'] ?? 'Done.');
+                if (!empty($r['success']) && $svc['client_id']) {
+                    Notifier::send('service_unsuspended', (int) $svc['client_id'], [
+                        'client_name' => trim($svc['first_name'] . ' ' . $svc['last_name']),
+                        'service_label' => $svc['label'],
+                        'email' => $svc['email'], 'link' => portal_base_url() . '/services.php',
+                    ]);
+                }
                 break;
 
             case 'terminate':

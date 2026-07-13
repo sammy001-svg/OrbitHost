@@ -4,6 +4,7 @@ require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 require_once '../includes/providers/Provider.php';
+require_once '../includes/Notifier.php';
 
 auth_check();
 $page_title = 'Create Service';
@@ -92,6 +93,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash_set($ok ? 'success' : 'error',
                     $ok ? 'Service created and provisioned on ' . $panels[$provider] . '.'
                         : 'Service created, but provisioning failed: ' . ($result['message'] ?? 'unknown error'));
+                if ($ok) {
+                    $cstmt = db()->prepare('SELECT first_name, last_name, email FROM clients WHERE id = ?');
+                    $cstmt->execute([$client_id]);
+                    if ($crow = $cstmt->fetch()) {
+                        Notifier::send('service_ready', $client_id, [
+                            'client_name'   => trim($crow['first_name'] . ' ' . $crow['last_name']),
+                            'service_label' => $label,
+                            'account_rows'  => Notifier::serviceAccountRows($domain, $username, $password, (string) $server_host, $package ?: 'default'),
+                            'email'         => $crow['email'],
+                            'link'          => portal_base_url() . '/services.php',
+                        ]);
+                    }
+                }
             } catch (\Throwable $e) {
                 db()->prepare('UPDATE client_services SET status = "failed" WHERE id = ?')->execute([$svc_id]);
                 db()->prepare('INSERT INTO service_actions (service_id, admin_id, action, status, message) VALUES (?,?,?,?,?)')

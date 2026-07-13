@@ -2,6 +2,7 @@
 require_once '../includes/config.php';
 require_once '../includes/auth.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/Notifier.php';
 
 portal_check();
 $page_title = 'New Support Ticket';
@@ -33,6 +34,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = current_client()['name'];
         db()->prepare('INSERT INTO ticket_replies (ticket_id,sender_type,sender_name,message) VALUES (?,?,?,?)')
             ->execute([$tid, 'client', $name, $data['message']]);
+
+        Notifier::sendToAllAdmins('ticket_opened_admin', [
+            'client_name'    => $name,
+            'subject'        => $data['subject'],
+            'ticket_number'  => $num,
+            'priority'       => ucfirst($data['priority']),
+            'link'           => APP_URL . '/tickets/view.php?id=' . $tid,
+        ]);
 
         portal_flash_set('success', "Ticket $num submitted. We'll respond within 24 hours.");
         header('Location: ' . PORTAL_URL . '/tickets/view.php?id=' . $tid);

@@ -2,6 +2,7 @@
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once dirname(__DIR__) . '/admin/includes/functions.php';
+require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
 
 portal_start();
 if (!empty($_SESSION['client_id'])) { header('Location: ' . PORTAL_URL . '/dashboard.php'); exit; }
@@ -75,6 +76,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['client_name']  = $data['first_name'] . ' ' . $data['last_name'];
             $_SESSION['client_email'] = $data['email'];
             $_SESSION['last_active']  = time();
+
+            Notifier::send('account_welcome', (int) $cid, [
+                'client_name' => $data['first_name'],
+                'email'       => $data['email'],
+                'link'        => PORTAL_URL . '/dashboard.php',
+            ]);
+
             $to = $_SESSION['post_login_redirect'] ?? 'dashboard.php';
             unset($_SESSION['post_login_redirect']);
             if (!in_array($to, ['checkout.php', 'cart.php', 'dashboard.php', 'domains.php'], true)) $to = 'dashboard.php';

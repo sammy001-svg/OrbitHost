@@ -3,6 +3,7 @@ require_once '../includes/config.php';
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
+require_once '../includes/Notifier.php';
 
 auth_check();
 $page_title = 'New Invoice';
@@ -70,6 +71,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ins = db()->prepare('INSERT INTO invoice_items (invoice_id,description,quantity,unit_price,total) VALUES (?,?,?,?,?)');
             foreach ($items as $item) {
                 $ins->execute([$iid, $item['description'], $item['quantity'], $item['unit_price'], $item['total']]);
+            }
+
+            if (in_array($data['status'], ['sent', 'paid'], true)) {
+                $cstmt = db()->prepare('SELECT first_name, last_name, email FROM clients WHERE id = ?');
+                $cstmt->execute([$data['client_id']]);
+                if ($crow = $cstmt->fetch()) {
+                    $notify_vars = [
+                        'client_name'    => trim($crow['first_name'] . ' ' . $crow['last_name']),
+                        'invoice_number' => $inv_num,
+                        'amount'         => format_money((float) $data['total']),
+                        'due_date'       => format_date($data['due_date']),
+                        'gateway'        => $data['payment_method'] ?: 'Manual',
+                        'email'          => $crow['email'],
+                        'link'           => portal_base_url() . '/invoices/view.php?id=' . $iid,
+                    ];
+                    Notifier::send($data['status'] === 'paid' ? 'invoice_paid' : 'invoice_new', (int) $data['client_id'], $notify_vars);
+                }
             }
 
             log_activity('create_invoice', 'invoice', $iid, "Created invoice $inv_num");

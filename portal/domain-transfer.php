@@ -11,6 +11,7 @@ require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/domain_payment.php';
 require_once dirname(__DIR__) . '/admin/includes/DomainClient.php';
+require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
 
 portal_check();
 $client_id = (int) current_client()['id'];
@@ -55,6 +56,27 @@ if (isset($_GET['pay'])) {
             $domain = $ctx['domain'] ?? '';
             $code   = $ctx['auth_code'] ?? '';
             $years  = max(1, min(5, (int) ($ctx['years'] ?? 1)));
+
+            $inv_no = '';
+            if ($result['payment']['invoice_id']) {
+                $invstmt = db()->prepare('SELECT invoice_number FROM invoices WHERE id = ?');
+                $invstmt->execute([$result['payment']['invoice_id']]);
+                $inv_no = $invstmt->fetchColumn() ?: '';
+            }
+            $paid_amount = $result['payment']['currency'] . ' ' . number_format($result['payment']['amount'], 2);
+            Notifier::send('invoice_paid', $client_id, [
+                'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
+                'invoice_number' => $inv_no, 'amount' => $paid_amount,
+                'gateway' => ucfirst($result['payment']['gateway']), 'email' => $client['email'],
+                'link' => PORTAL_URL . '/domains.php',
+            ]);
+            Notifier::sendToAllAdmins('order_new_admin', [
+                'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
+                'item' => 'Domain transfer: ' . $domain, 'amount' => $paid_amount,
+                'gateway' => ucfirst($result['payment']['gateway']),
+                'link' => APP_URL . '/integrations/domains/',
+            ]);
+
             try {
                 $rr = Provider::registrar($reg_key)->transfer($domain, $code, [
                     'first_name' => $client['first_name'], 'last_name' => $client['last_name'],

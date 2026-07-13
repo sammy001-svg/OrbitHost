@@ -2,6 +2,7 @@
 require_once '../includes/config.php';
 require_once '../includes/auth.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/Notifier.php';
 
 portal_check();
 $cid = current_client()['id'];
@@ -29,6 +30,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute([$id, 'client', $name, $msg]);
         db()->prepare('UPDATE tickets SET status="pending", updated_at=NOW() WHERE id=?')
             ->execute([$id]);
+
+        Notifier::sendToAllAdmins('ticket_client_replied_admin', [
+            'client_name'   => $name,
+            'subject'       => $ticket['subject'],
+            'ticket_number' => $ticket['ticket_number'],
+            'link'          => APP_URL . '/tickets/view.php?id=' . $id,
+        ]);
+
         portal_flash_set('success', 'Your reply has been sent.');
         header('Location: ' . PORTAL_URL . '/tickets/view.php?id=' . $id);
         exit;

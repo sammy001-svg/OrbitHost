@@ -8,6 +8,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once dirname(__DIR__) . '/admin/includes/functions.php';
 require_once dirname(__DIR__) . '/admin/includes/providers/Provider.php';
 require_once dirname(__DIR__) . '/admin/includes/DomainClient.php';
+require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
 
 portal_start();
 
@@ -131,6 +132,34 @@ if (isset($_GET['pay'])) {
                 $_SESSION['cart_domains'] = [];
                 $view = 'success';
                 $done = $fulfilment;
+
+                $registered = array_filter($done, fn($d) => !empty($d['registered']));
+                $item_desc  = $registered ? implode(', ', array_column($registered, 'domain')) : 'domain order';
+                $inv_no = '';
+                if ($pay['invoice_id']) {
+                    $invstmt = db()->prepare('SELECT invoice_number FROM invoices WHERE id = ?');
+                    $invstmt->execute([$pay['invoice_id']]);
+                    $inv_no = $invstmt->fetchColumn() ?: '';
+                }
+
+                Notifier::send('invoice_paid', $client_id, [
+                    'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
+                    'invoice_number' => $inv_no, 'amount' => $currency . ' ' . number_format($total, 2),
+                    'gateway' => ucfirst($pay['gateway']), 'email' => $client['email'],
+                    'link' => PORTAL_URL . '/domains.php',
+                ]);
+                Notifier::send('order_new', $client_id, [
+                    'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
+                    'item' => $item_desc, 'amount' => $currency . ' ' . number_format($total, 2),
+                    'note' => 'You can manage your domains any time from the client portal.',
+                    'email' => $client['email'], 'link' => PORTAL_URL . '/domains.php',
+                ]);
+                Notifier::sendToAllAdmins('order_new_admin', [
+                    'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
+                    'item' => $item_desc, 'amount' => $currency . ' ' . number_format($total, 2),
+                    'gateway' => ucfirst($pay['gateway']),
+                    'link' => APP_URL . '/integrations/domains/',
+                ]);
             } else {
                 $view = 'pending';
                 $error = $v['message'] ?? ($v['status'] ?? 'Payment not confirmed yet.');

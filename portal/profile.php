@@ -2,6 +2,7 @@
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once dirname(__DIR__) . '/admin/includes/functions.php';
+require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
 
 portal_check();
 $page_title = 'My Profile';
@@ -49,6 +50,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
     } else {
         $hash = password_hash($new, PASSWORD_BCRYPT);
         db()->prepare('UPDATE clients SET portal_password=? WHERE id=?')->execute([$hash,$cid]);
+        Notifier::send('password_changed', (int) $cid, [
+            'client_name' => $client['first_name'],
+            'email'       => $client['email'],
+            'link'        => PORTAL_URL . '/profile.php',
+        ]);
         portal_flash_set('success', 'Password changed successfully.');
         header('Location: ' . PORTAL_URL . '/profile.php');
         exit;

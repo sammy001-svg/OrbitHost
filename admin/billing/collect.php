@@ -4,6 +4,7 @@ require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 require_once '../includes/providers/Provider.php';
+require_once '../includes/Notifier.php';
 
 auth_check();
 $page_title = 'Collect Payment';
@@ -28,6 +29,44 @@ foreach (ProviderRegistry::byCategory('payment') as $key => $def) {
 $result = null;
 $currency = defined('CURRENCY') ? CURRENCY : 'USD';
 
+function notify_invoice_paid_admin(array $inv, int $invoice_id, string $gateway): void
+{
+    if (!$inv['client_id'] || !$inv['email']) return;
+    Notifier::send('invoice_paid', (int) $inv['client_id'], [
+        'client_name'    => trim(($inv['first_name'] ?? '') . ' ' . ($inv['last_name'] ?? '')),
+        'invoice_number' => $inv['invoice_number'],
+        'amount'         => format_money((float) $inv['total']),
+        'gateway'        => ucfirst($gateway),
+        'email'          => $inv['email'],
+        'link'           => portal_base_url() . '/invoices/view.php?id=' . $invoice_id,
+    ]);
+}
+
+// ── Return from a gateway checkout: verify and confirm ──
+if (isset($_GET['paid']) && $inv['status'] !== 'paid') {
+    $p = db()->prepare('SELECT * FROM payments WHERE invoice_id = ? AND status = "pending" ORDER BY id DESC LIMIT 1');
+    $p->execute([$invoice_id]);
+    $pending = $p->fetch();
+    if ($pending) {
+        try {
+            $v = Provider::payment($pending['gateway'])->verify($pending['gateway_ref']);
+            if (!empty($v['success'])) {
+                db()->prepare("UPDATE payments SET status = 'completed' WHERE id = ?")->execute([$pending['id']]);
+                db()->prepare("UPDATE invoices SET status = 'paid', paid_date = CURDATE(), payment_method = ? WHERE id = ?")
+                    ->execute([$pending['gateway'], $invoice_id]);
+                notify_invoice_paid_admin($inv, $invoice_id, $pending['gateway']);
+                flash_set('success', 'Payment confirmed — invoice marked as paid.');
+            } else {
+                flash_set('error', $v['message'] ?? ($v['status'] ?? 'Payment not confirmed yet — try again shortly.'));
+            }
+        } catch (\Throwable $e) {
+            flash_set('error', $e->getMessage());
+        }
+    }
+    header('Location: ' . APP_URL . '/billing/collect.php?invoice_id=' . $invoice_id);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
     $action = $_POST['action'] ?? '';
@@ -37,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute([$invoice_id, $inv['client_id'], 'manual', 'MANUAL-' . strtoupper(bin2hex(random_bytes(3))), $inv['total'], $currency, 'completed']);
         db()->prepare("UPDATE invoices SET status='paid', paid_date=CURDATE(), payment_method=? WHERE id=?")
             ->execute([trim($_POST['method'] ?? 'Manual'), $invoice_id]);
+        notify_invoice_paid_admin($inv, $invoice_id, trim($_POST['method'] ?? 'Manual'));
         log_activity('payment_manual', 'invoice', $invoice_id, 'Manual payment recorded');
         flash_set('success', 'Payment recorded and invoice marked as paid.');
         header('Location: ' . APP_URL . '/billing/');

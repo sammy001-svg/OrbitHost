@@ -1,22 +1,12 @@
 <?php
-require_once '../admin/includes/config.php';
-require_once '../admin/includes/db.php';
+require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/includes/auth.php';
+require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
 
-session_name('orbit_portal');
-session_start();
-
-$PORTAL_URL = (function () {
-    $prot = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $root = rtrim(str_replace('\\', '/', dirname(__DIR__)), '/');
-    $doc  = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
-    $rel  = str_replace($doc, '', $root);
-    return $prot . '://' . $host . $rel . '/portal';
-})();
+portal_start();
 
 $token  = trim($_GET['token'] ?? $_POST['token'] ?? '');
 $errors = [];
-$done   = false;
 $invite = null;
 
 if ($token) {
@@ -44,11 +34,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $invite) {
         db()->prepare('UPDATE portal_invites SET accepted_at=NOW() WHERE id=?')
             ->execute([$invite['id']]);
 
-        $_SESSION['portal_client_id'] = $invite['client_id'];
-        $_SESSION['portal_login']     = time();
+        // Log the client straight into the portal (same session keys portal_login()
+        // sets — accept-invite previously used different keys entirely, so this
+        // "activation" never actually logged anyone in; portal_check() saw an
+        // empty session and bounced back to the login screen).
         session_regenerate_id(true);
+        $_SESSION['client_id']    = (int) $invite['client_id'];
+        $_SESSION['client_name']  = $invite['first_name'] . ' ' . $invite['last_name'];
+        $_SESSION['client_email'] = $invite['email'];
+        $_SESSION['last_active']  = time();
 
-        header('Location: ' . $PORTAL_URL . '/dashboard.php');
+        Notifier::send('account_welcome', (int) $invite['client_id'], [
+            'client_name' => $invite['first_name'],
+            'email'       => $invite['email'],
+            'link'        => PORTAL_URL . '/dashboard.php',
+        ]);
+
+        header('Location: ' . PORTAL_URL . '/dashboard.php');
         exit;
     }
 }
@@ -59,13 +61,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $invite) {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Accept Invite — OrbitHost Portal</title>
-  <link rel="stylesheet" href="<?php echo $PORTAL_URL; ?>/css/portal.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css" />
+  <style>
+    body { background: var(--navy); align-items: center; justify-content: center; display: flex; min-height: 100vh; }
+    .auth-wrap { width: 100%; max-width: 440px; padding: 20px; }
+    .auth-brand { text-align: center; margin-bottom: 24px; }
+    .auth-orb {
+      width: 56px; height: 56px; background: var(--green); border-radius: 16px;
+      display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; color: #fff;
+      margin: 0 auto 12px;
+    }
+    .auth-card { background: #fff; border-radius: 16px; padding: 34px 32px; box-shadow: 0 24px 64px rgba(0,0,0,.3); }
+    .auth-card h2 { font-size: 18px; font-weight: 700; margin-bottom: 3px; text-align: center; }
+  </style>
 </head>
 <body>
 <div class="auth-wrap">
+  <div class="auth-brand">
+    <div class="auth-orb">O</div>
+  </div>
   <div class="auth-card">
-    <div class="auth-logo">Orbit<span>Host</span></div>
 
     <?php if (!$invite): ?>
       <div style="text-align:center">

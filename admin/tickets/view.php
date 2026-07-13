@@ -3,6 +3,7 @@ require_once '../includes/config.php';
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
+require_once '../includes/Notifier.php';
 
 auth_check();
 
@@ -40,6 +41,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reply'])) {
         db()->prepare('UPDATE tickets SET status=?, updated_at=NOW() WHERE id=?')
             ->execute([$update_status, $id]);
 
+        if ($ticket['client_id']) {
+            $notify_vars = [
+                'client_name'   => trim($ticket['client_name']),
+                'admin_name'    => current_admin()['name'],
+                'subject'       => $ticket['subject'],
+                'ticket_number' => $ticket['ticket_number'],
+                'reply_excerpt' => mb_strimwidth($message, 0, 220, '…'),
+                'email'         => $ticket['client_email'],
+                'link'          => portal_base_url() . '/tickets/view.php?id=' . $id,
+            ];
+            Notifier::send($update_status === 'closed' ? 'ticket_closed' : 'ticket_replied', (int) $ticket['client_id'], $notify_vars);
+        }
+
         log_activity('reply_ticket', 'ticket', $id, "Replied to ticket {$ticket['ticket_number']}");
         flash_set('success', 'Reply sent.');
         header('Location: ' . APP_URL . '/tickets/view.php?id=' . $id);
@@ -52,7 +66,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     csrf_verify();
     $ns = $_POST['quick_status'] ?? '';
     if (in_array($ns, ['open','pending','answered','closed'])) {
+        $was_closed = $ticket['status'] === 'closed';
         db()->prepare('UPDATE tickets SET status=?, updated_at=NOW() WHERE id=?')->execute([$ns, $id]);
+        if ($ns === 'closed' && !$was_closed && $ticket['client_id']) {
+            Notifier::send('ticket_closed', (int) $ticket['client_id'], [
+                'client_name'   => trim($ticket['client_name']),
+                'subject'       => $ticket['subject'],
+                'ticket_number' => $ticket['ticket_number'],
+                'email'         => $ticket['client_email'],
+                'link'          => portal_base_url() . '/tickets/view.php?id=' . $id,
+            ]);
+        }
         flash_set('success', 'Status updated to ' . ucfirst($ns) . '.');
         header('Location: ' . APP_URL . '/tickets/view.php?id=' . $id);
         exit;
