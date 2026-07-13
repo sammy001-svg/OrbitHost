@@ -55,7 +55,7 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { font-size: 14px; scroll-behavior: smooth; -webkit-text-size-adjust: 100%; -moz-text-size-adjust: 100%; text-size-adjust: 100%; }
+html { font-size: 14px; scroll-behavior: smooth; }
 
 body {
   font-family: var(--sans);
@@ -121,8 +121,6 @@ a { color: inherit; }
   flex: 1;
   padding: 14px 0 8px;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,.12) transparent;
 }
 .sidebar-nav::-webkit-scrollbar        { width: 4px; }
 .sidebar-nav::-webkit-scrollbar-track  { background: transparent; }
