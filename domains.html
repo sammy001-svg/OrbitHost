@@ -226,16 +226,16 @@
 <div class="breadcrumb"><div class="container"><ol><li><a href="index.html">Home</a></li><li><i class="fas fa-chevron-right"></i></li><li>Domain Registration</li></ol></div></div>
 
 <!-- Domain Hero / Search -->
-<section class="domain-section" id="search" style="padding: 80px 0;">
+<section class="domain-section domain-section-lg" id="search">
   <div class="container">
     <div class="section-header animate-in">
       <span class="section-tag tag-white">Domain Registration</span>
       <h2>Find Your Perfect Domain Name</h2>
       <p>Search from 500+ domain extensions. Free WHOIS privacy protection included with every domain registration. Free domain with annual hosting plans.</p>
     </div>
-    <div class="domain-search-wrap animate-in" style="max-width:760px;margin:0 auto 28px;">
-      <form class="domain-form" autocomplete="off">
-        <input type="text" class="domain-input" placeholder="Enter your domain name..." aria-label="Domain name" style="font-size:1.0625rem;" />
+    <div class="domain-search-wrap domain-search-wrap-lg animate-in">
+      <form class="domain-form domain-form-lg" autocomplete="off">
+        <input type="text" class="domain-input" placeholder="Enter your domain name..." aria-label="Domain name" />
         <select aria-label="Extension"><option>.com</option><option>.net</option><option>.org</option><option>.co.ke</option><option>.ke</option><option>.io</option><option>.co</option><option>.biz</option></select>
         <button type="submit" class="btn btn-green btn-lg">Search <i class="fas fa-search"></i></button>
       </form>
@@ -294,12 +294,12 @@
 <!-- Domain Transfer Section -->
 <section class="section" id="transfer">
   <div class="container">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;">
+    <div class="transfer-grid">
       <div class="animate-in">
         <span class="section-tag">Domain Transfer</span>
-        <h2 style="margin-bottom:20px">Transfer Your Existing Domain</h2>
-        <p style="margin-bottom:24px">Move your domain to OrbitHost and unlock free WHOIS privacy, advanced DNS management, and seamless integration with your hosting account.</p>
-        <ul class="check-list lg" style="margin-bottom:28px">
+        <h2 class="mb-20">Transfer Your Existing Domain</h2>
+        <p class="mb-24">Move your domain to OrbitHost and unlock free WHOIS privacy, advanced DNS management, and seamless integration with your hosting account.</p>
+        <ul class="check-list lg mb-28">
           <li><i class="fas fa-check-circle"></i> Transfer extends your registration by 1 year</li>
           <li><i class="fas fa-check-circle"></i> No downtime during the transfer process</li>
           <li><i class="fas fa-check-circle"></i> Free WHOIS privacy included immediately</li>
@@ -309,24 +309,24 @@
         <a href="contact.html" class="btn btn-navy btn-lg">Start Domain Transfer <i class="fas fa-arrow-right"></i></a>
       </div>
       <div class="animate-in">
-        <div style="background:var(--navy);border-radius:var(--radius-xl);padding:36px;">
-          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:rgba(255,255,255,0.45);margin-bottom:20px;">Transfer Process</div>
-          <div style="display:flex;flex-direction:column;gap:20px;">
-            <div style="display:flex;gap:16px;align-items:flex-start;">
-              <div style="width:32px;height:32px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:0.875rem;font-weight:700;flex-shrink:0;">1</div>
-              <div><div style="color:white;font-weight:600;font-size:0.9375rem;margin-bottom:4px;">Unlock Your Domain</div><div style="color:rgba(255,255,255,0.6);font-size:0.8125rem;">Disable the registrar lock at your current registrar</div></div>
+        <div class="transfer-panel">
+          <div class="transfer-subtitle">Transfer Process</div>
+          <div class="transfer-list">
+            <div class="transfer-step">
+              <div class="transfer-step-num">1</div>
+              <div><div class="transfer-step-title">Unlock Your Domain</div><div class="transfer-step-desc">Disable the registrar lock at your current registrar</div></div>
             </div>
-            <div style="display:flex;gap:16px;align-items:flex-start;">
-              <div style="width:32px;height:32px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:0.875rem;font-weight:700;flex-shrink:0;">2</div>
-              <div><div style="color:white;font-weight:600;font-size:0.9375rem;margin-bottom:4px;">Get the EPP/Auth Code</div><div style="color:rgba(255,255,255,0.6);font-size:0.8125rem;">Obtain the transfer authorisation code from your current registrar</div></div>
+            <div class="transfer-step">
+              <div class="transfer-step-num">2</div>
+              <div><div class="transfer-step-title">Get the EPP/Auth Code</div><div class="transfer-step-desc">Obtain the transfer authorisation code from your current registrar</div></div>
             </div>
-            <div style="display:flex;gap:16px;align-items:flex-start;">
-              <div style="width:32px;height:32px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:0.875rem;font-weight:700;flex-shrink:0;">3</div>
-              <div><div style="color:white;font-weight:600;font-size:0.9375rem;margin-bottom:4px;">Initiate Transfer at OrbitHost</div><div style="color:rgba(255,255,255,0.6);font-size:0.8125rem;">Enter your domain and auth code on our transfer page</div></div>
+            <div class="transfer-step">
+              <div class="transfer-step-num">3</div>
+              <div><div class="transfer-step-title">Initiate Transfer at OrbitHost</div><div class="transfer-step-desc">Enter your domain and auth code on our transfer page</div></div>
             </div>
-            <div style="display:flex;gap:16px;align-items:flex-start;">
-              <div style="width:32px;height:32px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:0.875rem;font-weight:700;flex-shrink:0;">4</div>
-              <div><div style="color:white;font-weight:600;font-size:0.9375rem;margin-bottom:4px;">Approve &amp; Complete</div><div style="color:rgba(255,255,255,0.6);font-size:0.8125rem;">Approve the transfer email — typically complete within 5–7 days</div></div>
+            <div class="transfer-step">
+              <div class="transfer-step-num">4</div>
+              <div><div class="transfer-step-title">Approve &amp; Complete</div><div class="transfer-step-desc">Approve the transfer email — typically complete within 5–7 days</div></div>
             </div>
           </div>
         </div>
