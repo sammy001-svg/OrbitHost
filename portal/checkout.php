@@ -58,16 +58,23 @@ function iso_country(string $name): string
     return $map[$name] ?? 'KE';
 }
 
-/** After a confirmed payment: register every cart domain and record it. */
-function fulfil_domains(array $items, array $cart, array $client, int $invoice_id): array
+/**
+ * After a confirmed payment: register every cart domain and record it.
+ * With $register = false (offline/instruction payments) the domains are
+ * only recorded as pending — registration happens once an admin confirms
+ * the money actually arrived.
+ */
+function fulfil_domains(array $items, array $cart, array $client, int $invoice_id, bool $register = true): array
 {
-    $reg_key = Provider::activeFor('registrar');
+    $reg_key = $register ? Provider::activeFor('registrar') : null;
     $summary = [];
     foreach ($items as $it) {
         $domain = $it['domain'];
         $years  = (int)($cart[$domain]['years'] ?? 1);
         $ok = false; $note = '';
-        if ($reg_key) {
+        if (!$register) {
+            $note = 'Payment awaiting manual confirmation — the domain will be registered once it clears.';
+        } elseif ($reg_key) {
             try {
                 $r = Provider::registrar($reg_key)->register($domain, [
                     'first_name'   => $client['first_name'],
@@ -222,6 +229,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
                 if (empty($r['success'])) {
                     $error = $r['message'] ?? 'The payment gateway rejected the request.';
                     db()->prepare("UPDATE payments SET status='failed', raw=? WHERE id=?")->execute([json_encode($r), $pay_id]);
+                } elseif (($r['mode'] ?? '') === 'instructions') {
+                    // Offline method: nothing was charged. Record the domains as
+                    // pending, hand the client the payment instructions, and let
+                    // the team confirm receipt in admin › Billing.
+                    $fulfilment = fulfil_domains($items, $cart, $client, $invoice_id, false);
+                    db()->prepare('UPDATE payments SET gateway_ref=?, raw=? WHERE id=?')
+                        ->execute([$r['ref'] ?? '', json_encode(['checkout' => $r, 'fulfilment' => $fulfilment]), $pay_id]);
+                    $_SESSION['cart_domains'] = [];
+                    $view = 'instructions';
+                    $push_msg = $r['message'] ?? 'Follow the payment instructions to complete your order.';
+
+                    $item_desc = implode(', ', array_column($items, 'domain'));
+                    Notifier::sendToAllAdmins('order_new_admin', [
+                        'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
+                        'item' => $item_desc, 'amount' => $currency . ' ' . number_format($total, 2),
+                        'gateway' => ucfirst(str_replace('_', ' ', $gw)) . ' (offline — confirm receipt in Billing)',
+                        'link' => APP_URL . '/billing/collect.php?invoice_id=' . $invoice_id,
+                    ]);
                 } else {
                     db()->prepare('UPDATE payments SET gateway_ref=? WHERE id=?')->execute([$r['ref'] ?? '', $pay_id]);
                     if (($r['mode'] ?? '') === 'redirect' && !empty($r['redirect_url'])) {
@@ -293,6 +318,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
       <?php endforeach; ?>
       <a href="<?php echo PORTAL_URL; ?>/domains.php" class="btn btn-primary btn-pay" style="margin-top:20px"><i class="fas fa-globe"></i> View my domains</a>
 
+    <?php elseif ($view === 'instructions'): ?>
+      <div style="text-align:center;margin-bottom:16px">
+        <i class="fas fa-file-invoice-dollar" style="font-size:40px;color:var(--green)"></i>
+        <h2 style="font-size:17px;margin-top:10px">Complete your payment</h2>
+      </div>
+      <div class="co-info" style="white-space:pre-line;text-align:left"><?php echo htmlspecialchars($push_msg); ?></div>
+      <p style="font-size:12.5px;color:var(--text-muted);margin:14px 0">We've saved your order and emailed our team. Once the payment reaches us it will be confirmed and your domains registered — you'll get an email. You can check the status any time:</p>
+      <a href="<?php echo PORTAL_URL; ?>/checkout.php?pay=<?php echo $pay_id; ?>" class="btn btn-primary btn-pay"><i class="fas fa-rotate"></i> Check payment status</a>
+
     <?php elseif ($view === 'pending'): ?>
       <div class="co-info"><i class="fas fa-mobile-screen"></i> <?php echo htmlspecialchars($push_msg ?: 'Waiting for payment confirmation.'); ?></div>
       <?php if ($error): ?><div class="co-error" style="background:#fffbeb;color:#92400e"><i class="fas fa-hourglass-half"></i> <?php echo htmlspecialchars($error); ?></div><?php endif; ?>
@@ -348,7 +382,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
       <script>
         document.querySelectorAll('input[name="gateway"]').forEach(function (r) {
           r.addEventListener('change', function () {
-            document.getElementById('mpesaPhone').style.display = r.dataset.gw === 'mpesa' ? 'block' : 'none';
+            // STK push needs the phone number to send the prompt to
+            document.getElementById('mpesaPhone').style.display = r.dataset.gw === 'kopokopo' ? 'block' : 'none';
           });
         });
       </script>

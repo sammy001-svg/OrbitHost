@@ -84,13 +84,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'manual') {
-        db()->prepare('INSERT INTO payments (invoice_id, client_id, gateway, gateway_ref, amount, currency, status) VALUES (?,?,?,?,?,?,?)')
-            ->execute([$invoice_id, $inv['client_id'], 'manual', 'MANUAL-' . strtoupper(bin2hex(random_bytes(3))), $inv['total'], $currency, 'completed']);
+        // If the client already started an offline payment (bank transfer,
+        // manual M-Pesa, cheque) there's a pending row for this invoice —
+        // confirming receipt completes THAT attempt instead of logging a
+        // duplicate payment.
+        $pending = db()->prepare("SELECT id FROM payments WHERE invoice_id = ? AND status = 'pending' AND gateway IN ('bank_transfer','mpesa_manual','cheque') ORDER BY id DESC LIMIT 1");
+        $pending->execute([$invoice_id]);
+        $pending_id = (int) $pending->fetchColumn();
+        if ($pending_id) {
+            db()->prepare("UPDATE payments SET status = 'completed' WHERE id = ?")->execute([$pending_id]);
+        } else {
+            db()->prepare('INSERT INTO payments (invoice_id, client_id, gateway, gateway_ref, amount, currency, status) VALUES (?,?,?,?,?,?,?)')
+                ->execute([$invoice_id, $inv['client_id'], 'manual', 'MANUAL-' . strtoupper(bin2hex(random_bytes(3))), $inv['total'], $currency, 'completed']);
+        }
         db()->prepare("UPDATE invoices SET status='paid', paid_date=CURDATE(), payment_method=? WHERE id=?")
             ->execute([trim($_POST['method'] ?? 'Manual'), $invoice_id]);
         notify_invoice_paid_admin($inv, $invoice_id, trim($_POST['method'] ?? 'Manual'));
-        log_activity('payment_manual', 'invoice', $invoice_id, 'Manual payment recorded');
-        flash_set('success', 'Payment recorded and invoice marked as paid.');
+        log_activity('payment_manual', 'invoice', $invoice_id, $pending_id ? 'Offline payment confirmed received' : 'Manual payment recorded');
+        flash_set('success', $pending_id ? 'Offline payment confirmed — invoice marked as paid.' : 'Payment recorded and invoice marked as paid.');
         header('Location: ' . APP_URL . '/billing/');
         exit;
     }
@@ -151,6 +162,9 @@ require_once '../includes/header.php';
         <?php elseif (($result['mode'] ?? '') === 'push'): ?>
           <div class="alert alert-success"><i class="fas fa-mobile-screen"></i> <?php echo h($result['message'] ?? 'Payment request sent.'); ?></div>
           <p class="text-muted" style="font-size:13px">Reference: <span class="code-chip"><?php echo h($result['ref'] ?? ''); ?></span></p>
+        <?php elseif (($result['mode'] ?? '') === 'instructions'): ?>
+          <div class="alert alert-info" style="white-space:pre-line"><i class="fas fa-file-invoice-dollar"></i> <?php echo h($result['message'] ?? ''); ?></div>
+          <p class="text-muted" style="font-size:13px">Share these instructions with the client. Once the money arrives, use <strong>Mark as paid</strong> below to confirm receipt.</p>
         <?php endif; ?>
       <?php elseif ($result && empty($result['success'])): ?>
         <div class="alert alert-danger"><i class="fas fa-triangle-exclamation"></i> <?php echo h($result['message'] ?? 'Failed to create checkout.'); ?></div>

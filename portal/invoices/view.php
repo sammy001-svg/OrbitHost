@@ -2,6 +2,7 @@
 require_once '../includes/config.php';
 require_once '../includes/auth.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/providers/Provider.php';
 
 portal_check();
 $cid = current_client()['id'];
@@ -136,27 +137,50 @@ require_once '../includes/header.php';
       <div><?php echo badge($inv['status']); ?></div>
     </div>
     <div class="p-card-body">
+      <?php
+      // Real payment details come from the configured offline providers —
+      // never hardcoded, so what clients see always matches Providers config.
+      $offline_cards = [];
+      foreach (ProviderRegistry::byCategory('payment') as $pkey => $pdef) {
+          if (empty($pdef['offline']) || !Provider::isActive($pkey) || !Provider::isConfigured($pkey)) continue;
+          $pcfg  = Provider::config($pkey);
+          $lines = match ($pkey) {
+              'mpesa_manual'  => array_filter([
+                  'Paybill / Till: <strong>' . h($pcfg['paybill']) . '</strong>',
+                  $pcfg['account_name'] !== '' ? 'Name: ' . h($pcfg['account_name']) : null,
+                  'Account: <strong>' . h($inv['invoice_number']) . '</strong>',
+              ]),
+              'bank_transfer' => array_filter([
+                  h($pcfg['bank_name']),
+                  'Acc name: ' . h($pcfg['account_name']),
+                  'Acc no: <strong>' . h($pcfg['account_number']) . '</strong>',
+                  $pcfg['branch'] !== '' ? 'Branch: ' . h($pcfg['branch']) : null,
+                  $pcfg['swift_code'] !== '' ? 'SWIFT: ' . h($pcfg['swift_code']) : null,
+                  'Reference: <strong>' . h($inv['invoice_number']) . '</strong>',
+              ]),
+              'cheque'        => array_filter([
+                  'Payable to: <strong>' . h($pcfg['payee_name']) . '</strong>',
+                  $pcfg['delivery'] !== '' ? h($pcfg['delivery']) : null,
+                  'Reference: <strong>' . h($inv['invoice_number']) . '</strong>',
+              ]),
+              default => [],
+          };
+          if ($lines) $offline_cards[] = ['def' => $pdef, 'lines' => $lines];
+      }
+      ?>
+      <?php if ($offline_cards): ?>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px">
-
-        <div style="border:2px solid var(--border);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:.14s" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">
-          <div style="font-size:28px;margin-bottom:8px">📱</div>
-          <div style="font-weight:700;font-size:14px">M-Pesa</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Paybill: <strong>522533</strong><br />Account: INV-<?php echo htmlspecialchars($inv['invoice_number']); ?></div>
-        </div>
-
-        <div style="border:2px solid var(--border);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:.14s" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">
-          <div style="font-size:28px;margin-bottom:8px">💳</div>
-          <div style="font-weight:700;font-size:14px">Bank Transfer</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Equity Bank<br />Acc: 0123456789</div>
-        </div>
-
-        <div style="border:2px solid var(--border);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:.14s" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">
-          <div style="font-size:28px;margin-bottom:8px">🌐</div>
-          <div style="font-weight:700;font-size:14px">PayPal</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">sammyopiyo001<br />@gmail.com</div>
-        </div>
-
+        <?php foreach ($offline_cards as $card): ?>
+          <div style="border:2px solid var(--border);border-radius:10px;padding:18px;text-align:center">
+            <div style="font-size:24px;margin-bottom:8px;color:<?php echo h($card['def']['color']); ?>"><i class="fas <?php echo h($card['def']['icon']); ?>"></i></div>
+            <div style="font-weight:700;font-size:14px"><?php echo h($card['def']['name']); ?></div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.7"><?php echo implode('<br />', $card['lines']); ?></div>
+          </div>
+        <?php endforeach; ?>
       </div>
+      <?php else: ?>
+      <div class="p-alert p-alert-info" style="margin-bottom:14px"><i class="fas fa-info-circle"></i> Please contact us for payment details for this invoice.</div>
+      <?php endif; ?>
       <div class="p-alert p-alert-info">
         <i class="fas fa-info-circle"></i>
         After payment, please <a href="<?php echo PORTAL_URL; ?>/tickets/add.php?subject=Payment+confirmation+<?php echo urlencode($inv['invoice_number']); ?>" style="color:var(--navy);font-weight:600">open a support ticket</a> with your payment confirmation. We'll update your invoice within 1 business hour.

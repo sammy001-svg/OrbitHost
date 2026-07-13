@@ -198,7 +198,7 @@ $days_left = $dom['expiry_date'] ? (int) ceil((strtotime($dom['expiry_date']) - 
       <a href="<?php echo PORTAL_URL; ?>/domains.php" class="btn btn-primary btn-pay" style="margin-top:20px"><i class="fas fa-globe"></i> Back to My Domains</a>
 
     <?php elseif ($view === 'pending'): ?>
-      <div class="co-info"><i class="fas fa-mobile-screen"></i> <?php echo htmlspecialchars($push_msg ?: 'Waiting for payment confirmation.'); ?></div>
+      <div class="co-info" style="white-space:pre-line;text-align:left"><i class="fas fa-mobile-screen"></i> <?php echo htmlspecialchars($push_msg ?: 'Waiting for payment confirmation.'); ?></div>
       <?php if ($error): ?><div class="co-error" style="background:#fffbeb;color:#92400e"><i class="fas fa-hourglass-half"></i> <?php echo htmlspecialchars($error); ?></div><?php endif; ?>
       <a href="<?php echo PORTAL_URL; ?>/domain-renew.php?id=<?php echo $id; ?>&pay=<?php echo $pay_id; ?>" class="btn btn-primary btn-pay"><i class="fas fa-rotate"></i> I've paid — verify now</a>
 
@@ -255,7 +255,7 @@ $days_left = $dom['expiry_date'] ? (int) ceil((strtotime($dom['expiry_date']) - 
       </form>
       <script>
         document.querySelectorAll('input[name="gateway"]').forEach(function (r) {
-          r.addEventListener('change', function () { document.getElementById('mpesaPhone').style.display = r.dataset.gw === 'mpesa' ? 'block' : 'none'; });
+          r.addEventListener('change', function () { document.getElementById('mpesaPhone').style.display = r.dataset.gw === 'kopokopo' ? 'block' : 'none'; });
         });
       </script>
     <?php endif; ?>

@@ -129,7 +129,7 @@ function get_countries(): array
 
 function get_payment_methods(): array
 {
-    return ['M-Pesa','Airtel Money','Credit Card','PayPal','Bank Transfer','Crypto','Other'];
+    return ['M-Pesa','Airtel Money','Credit Card','PayPal','Bank Transfer','Cheque','Crypto','Other'];
 }
 
 /**
