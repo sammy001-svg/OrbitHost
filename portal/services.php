@@ -36,9 +36,14 @@ require_once __DIR__ . '/includes/header.php';
       <h1>My Services</h1>
       <p>All your hosting services and subscriptions</p>
     </div>
-    <a href="<?php echo PORTAL_URL; ?>/tickets/add.php?subject=Upgrade+my+service" class="btn btn-white">
-      <i class="fas fa-arrow-up"></i> Upgrade Service
-    </a>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a href="<?php echo PORTAL_URL; ?>/order.php" class="btn btn-white">
+        <i class="fas fa-plus"></i> Order New Service
+      </a>
+      <a href="<?php echo PORTAL_URL; ?>/tickets/add.php?subject=Upgrade+my+service" class="btn btn-white">
+        <i class="fas fa-arrow-up"></i> Upgrade Service
+      </a>
+    </div>
   </div>
 </div>
 
@@ -172,8 +177,8 @@ require_once __DIR__ . '/includes/header.php';
     <div class="empty-state" style="padding:60px">
       <i class="fas fa-box-open"></i>
       <h3>No services yet</h3>
-      <p>Browse our hosting plans to get started.</p>
-      <a href="../hosting/shared.html" class="btn btn-primary" style="margin-top:16px"><i class="fas fa-rocket"></i> View Hosting Plans</a>
+      <p>Browse our hosting plans to get started — order and pay right here in your portal.</p>
+      <a href="<?php echo PORTAL_URL; ?>/order.php" class="btn btn-primary" style="margin-top:16px"><i class="fas fa-rocket"></i> Order a Service</a>
     </div>
   </div>
 <?php endif; ?>

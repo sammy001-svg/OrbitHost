@@ -22,7 +22,7 @@ require_once __DIR__ . '/includes/header.php';
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <a href="<?php echo PORTAL_URL; ?>/domain-transfer.php" class="btn btn-ghost" style="border:1px solid rgba(255,255,255,.3);color:#fff"><i class="fas fa-right-left"></i> Transfer a Domain</a>
-      <a href="../domains.html" class="btn btn-white"><i class="fas fa-plus"></i> Register a Domain</a>
+      <a href="<?php echo PORTAL_URL; ?>/domain-search.php" class="btn btn-white"><i class="fas fa-plus"></i> Register a Domain</a>
     </div>
   </div>
 </div>
@@ -87,7 +87,7 @@ require_once __DIR__ . '/includes/header.php';
     <i class="fas fa-globe" style="font-size:42px;opacity:.2;display:block;margin-bottom:14px"></i>
     <h3 style="font-size:16px;margin-bottom:6px">No domains yet</h3>
     <p style="color:var(--text-muted);font-size:13.5px;margin-bottom:18px">Search for your perfect domain name and register it in minutes.</p>
-    <a href="../domains.html" class="btn btn-primary"><i class="fas fa-magnifying-glass"></i> Find a Domain</a>
+    <a href="<?php echo PORTAL_URL; ?>/domain-search.php" class="btn btn-primary"><i class="fas fa-magnifying-glass"></i> Find a Domain</a>
   </div>
 
 <?php endif; ?>

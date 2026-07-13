@@ -48,6 +48,12 @@ function dp_start_payment(int $client_id, int $invoice_id, float $amount, string
         ->execute([$invoice_id, $client_id, $gateway, $amount, $currency, json_encode(['context' => $context])]);
     $pay_id = (int) db()->lastInsertId();
 
+    // Redirect gateways send the client back to $return_url as-is, so it
+    // must carry the payment id or the page can't verify on return.
+    if (!str_contains($return_url, 'pay=')) {
+        $return_url .= (str_contains($return_url, '?') ? '&' : '?') . 'pay=' . $pay_id;
+    }
+
     $stmt = db()->prepare('SELECT invoice_number FROM invoices WHERE id = ?');
     $stmt->execute([$invoice_id]);
     $inv_no = (string) $stmt->fetchColumn();

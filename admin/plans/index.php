@@ -21,6 +21,19 @@ try {
     $link_ok = false; // no ALTER privilege — page still works without linking
 }
 
+// ── Plan details columns: description + feature list (auto-migration) ──
+$details_ok = true;
+try {
+    $col = db()->query("SHOW COLUMNS FROM services LIKE 'description'")->fetch();
+    if (!$col) {
+        db()->exec("ALTER TABLE services
+            ADD COLUMN description TEXT DEFAULT NULL,
+            ADD COLUMN features    TEXT DEFAULT NULL");
+    }
+} catch (\Throwable $e) {
+    $details_ok = false;
+}
+
 // ── Active hosting panel + its live package list ──
 $panel_key = null; $panel_packages = []; $panel_err = null;
 try {
@@ -42,9 +55,24 @@ try {
 $categories = ['shared','vps','dedicated','cloud','wordpress','reseller','ssl','email','domain'];
 $cycles     = ['monthly' => 'Monthly', 'annual' => 'Annual', 'one_time' => 'One-time'];
 
-// ── Save (add / edit) ──
+// ── Save (add / edit / delete) ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
+
+    if (($_POST['action'] ?? '') === 'delete') {
+        $id   = (int)($_POST['id'] ?? 0);
+        $name = (string) db()->query('SELECT name FROM services WHERE id = ' . $id)->fetchColumn();
+        if ($id && $name !== '') {
+            // orders/client_services reference plans with ON DELETE SET NULL,
+            // so existing client services keep working — the plan just leaves
+            // the catalogue.
+            db()->prepare('DELETE FROM services WHERE id = ?')->execute([$id]);
+            log_activity('plan_delete', 'service', $id, $name);
+            flash_set('success', 'Plan "' . $name . '" deleted. Existing client services on it are unaffected.');
+        }
+        header('Location: ' . APP_URL . '/plans/');
+        exit;
+    }
 
     $id       = (int)($_POST['id'] ?? 0);
     $name     = trim($_POST['name'] ?? '');
@@ -54,28 +82,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $setup    = (float)($_POST['setup_fee'] ?? 0);
     $active   = !empty($_POST['is_active']) ? 1 : 0;
     $package  = trim($_POST['panel_package'] ?? '');
+    $desc     = trim($_POST['description'] ?? '');
+    // features: one per line, cleaned
+    $features = implode("\n", array_filter(array_map('trim', explode("\n", $_POST['features'] ?? ''))));
 
     if ($name === '') {
         flash_set('error', 'Plan name is required.');
     } else {
+        $sets   = ['name=?', 'category=?', 'billing_cycle=?', 'price=?', 'setup_fee=?', 'is_active=?'];
+        $vals   = [$name, $category, $cycle, $price, $setup, $active];
+        $cols   = ['name', 'category', 'billing_cycle', 'price', 'setup_fee', 'is_active'];
         if ($link_ok) {
-            $provider = $package !== '' ? ($panel_key ?: 'whm') : null;
-            if ($id) {
-                db()->prepare('UPDATE services SET name=?, category=?, billing_cycle=?, price=?, setup_fee=?, is_active=?, panel_provider=?, panel_package=? WHERE id=?')
-                    ->execute([$name, $category, $cycle, $price, $setup, $active, $provider, $package ?: null, $id]);
-            } else {
-                db()->prepare('INSERT INTO services (name, category, billing_cycle, price, setup_fee, is_active, panel_provider, panel_package) VALUES (?,?,?,?,?,?,?,?)')
-                    ->execute([$name, $category, $cycle, $price, $setup, $active, $provider, $package ?: null]);
-                $id = (int) db()->lastInsertId();
-            }
+            $sets[] = 'panel_provider=?'; $sets[] = 'panel_package=?';
+            $cols[] = 'panel_provider';   $cols[] = 'panel_package';
+            $vals[] = $package !== '' ? ($panel_key ?: 'whm') : null;
+            $vals[] = $package ?: null;
+        }
+        if ($details_ok) {
+            $sets[] = 'description=?'; $sets[] = 'features=?';
+            $cols[] = 'description';   $cols[] = 'features';
+            $vals[] = $desc ?: null;
+            $vals[] = $features ?: null;
+        }
+        if ($id) {
+            db()->prepare('UPDATE services SET ' . implode(', ', $sets) . ' WHERE id=?')->execute([...$vals, $id]);
         } else {
-            if ($id) {
-                db()->prepare('UPDATE services SET name=?, category=?, billing_cycle=?, price=?, setup_fee=?, is_active=? WHERE id=?')
-                    ->execute([$name, $category, $cycle, $price, $setup, $active, $id]);
-            } else {
-                db()->prepare('INSERT INTO services (name, category, billing_cycle, price, setup_fee, is_active) VALUES (?,?,?,?,?,?)')
-                    ->execute([$name, $category, $cycle, $price, $setup, $active]);
-            }
+            db()->prepare('INSERT INTO services (' . implode(', ', $cols) . ') VALUES (' . rtrim(str_repeat('?,', count($cols)), ',') . ')')->execute($vals);
+            $id = (int) db()->lastInsertId();
         }
         log_activity('plan_save', 'service', $id, $name);
         flash_set('success', 'Plan "' . $name . '" saved.');
@@ -86,9 +119,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // ── Load catalogue ──
-$sel = $link_ok
-    ? 'SELECT id, name, category, billing_cycle, price, setup_fee, is_active, panel_provider, panel_package FROM services ORDER BY category, price'
-    : 'SELECT id, name, category, billing_cycle, price, setup_fee, is_active, NULL AS panel_provider, NULL AS panel_package FROM services ORDER BY category, price';
+$sel = 'SELECT id, name, category, billing_cycle, price, setup_fee, is_active'
+     . ($link_ok    ? ', panel_provider, panel_package' : ', NULL AS panel_provider, NULL AS panel_package')
+     . ($details_ok ? ', description, features'         : ', NULL AS description, NULL AS features')
+     . ' FROM services ORDER BY category, price';
 $plans = db()->query($sel)->fetchAll();
 
 $linked = count(array_filter($plans, fn($p) => !empty($p['panel_package'])));
@@ -104,7 +138,7 @@ require_once '../includes/header.php';
   <div class="page-header-actions">
     <a href="<?php echo APP_URL; ?>/integrations/whm/packages.php" class="btn btn-ghost"><i class="fas fa-cubes"></i> WHM Packages</a>
     <button class="btn btn-primary plan-open" data-drawer-open="drawer-plan"
-            data-plan='{"id":0,"name":"","category":"shared","billing_cycle":"monthly","price":"","setup_fee":"0","is_active":1,"panel_package":""}'>
+            data-plan='{"id":0,"name":"","category":"shared","billing_cycle":"monthly","price":"","setup_fee":"0","is_active":1,"panel_package":"","description":"","features":""}'>
       <i class="fas fa-plus"></i> Add Plan
     </button>
   </div>
@@ -168,6 +202,7 @@ require_once '../includes/header.php';
             'id' => (int)$p['id'], 'name' => $p['name'], 'category' => $p['category'],
             'billing_cycle' => $p['billing_cycle'], 'price' => $p['price'], 'setup_fee' => $p['setup_fee'],
             'is_active' => (int)$p['is_active'], 'panel_package' => $pkg,
+            'description' => (string)($p['description'] ?? ''), 'features' => (string)($p['features'] ?? ''),
         ], JSON_UNESCAPED_SLASHES), ENT_QUOTES);
       ?>
         <tr>
@@ -190,6 +225,12 @@ require_once '../includes/header.php';
           <td>
             <div class="actions" style="justify-content:flex-end">
               <button class="action-link edit plan-open" data-drawer-open="drawer-plan" data-plan="<?php echo $json; ?>"><i class="fas fa-pen"></i> Edit</button>
+              <form method="POST" style="margin:0">
+                <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+                <input type="hidden" name="action" value="delete" />
+                <input type="hidden" name="id" value="<?php echo (int)$p['id']; ?>" />
+                <button type="submit" class="action-link danger" data-confirm="Delete plan &quot;<?php echo h($p['name']); ?>&quot; from the catalogue? Existing client services keep running."><i class="fas fa-trash"></i></button>
+              </form>
             </div>
           </td>
         </tr>
@@ -238,6 +279,17 @@ require_once '../includes/header.php';
         </div>
       </div>
 
+      <p class="form-section-title" style="margin-top:10px">Plan details <?php echo $details_ok ? '' : '<span class="text-muted" style="font-weight:400">(unavailable — could not add columns; import schema in phpMyAdmin)</span>'; ?></p>
+      <div class="form-group">
+        <label class="form-label">Short description</label>
+        <textarea name="description" id="planDesc" class="form-control" rows="2" placeholder="One or two sentences shown to clients when ordering." <?php echo $details_ok ? '' : 'disabled'; ?>></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Features <span class="text-muted" style="font-weight:400">(one per line)</span></label>
+        <textarea name="features" id="planFeatures" class="form-control mono" rows="5" placeholder="10 GB NVMe storage&#10;Unlimited bandwidth&#10;Free SSL certificate&#10;Daily backups" <?php echo $details_ok ? '' : 'disabled'; ?>></textarea>
+        <small class="form-hint">Shown as a checklist on the client order page.</small>
+      </div>
+
       <p class="form-section-title" style="margin-top:10px">WHM package link</p>
       <div class="form-group">
         <label class="form-label">Hosting-panel package</label>
@@ -282,6 +334,8 @@ document.addEventListener('click', function (e) {
   document.getElementById('planPrice').value    = d.price || '';
   document.getElementById('planSetup').value    = d.setup_fee || 0;
   document.getElementById('planActive').checked = !!Number(d.is_active);
+  var pd = document.getElementById('planDesc');     if (pd) pd.value = d.description || '';
+  var pf = document.getElementById('planFeatures'); if (pf) pf.value = d.features || '';
 
   var pkg = document.getElementById('planPackage');
   if (pkg) {

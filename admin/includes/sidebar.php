@@ -29,7 +29,8 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <?php _nav(APP_URL . '/dashboard.php', 'fa-gauge-high', 'Dashboard', '', 'dashboard.php'); ?>
 
     <div class="nav-label">Website</div>
-    <?php _nav(APP_URL . '/settings/', 'fa-swatchbook', 'Site Settings', 'settings'); ?>
+    <?php _nav(APP_URL . '/settings/',  'fa-swatchbook', 'Site Settings', 'settings'); ?>
+    <?php _nav(APP_URL . '/marketing/', 'fa-bullhorn',   'Portal Banners', 'marketing'); ?>
 
     <div class="nav-label">Operations</div>
     <?php _nav(APP_URL . '/services/',  'fa-layer-group',  'Services',  'services'); ?>

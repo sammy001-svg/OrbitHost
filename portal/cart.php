@@ -115,7 +115,7 @@ $logged_in = !empty($_SESSION['client_id']);
       <div class="empty-cart">
         <i class="fas fa-cart-shopping"></i>
         <p>Your cart is empty.</p>
-        <a href="../domains.html" class="btn btn-primary" style="margin-top:14px;display:inline-flex"><i class="fas fa-magnifying-glass"></i> Search for a domain</a>
+        <a href="<?php echo $logged_in ? PORTAL_URL . '/domain-search.php' : '../domains.html'; ?>" class="btn btn-primary" style="margin-top:14px;display:inline-flex"><i class="fas fa-magnifying-glass"></i> Search for a domain</a>
       </div>
     <?php else: ?>
       <form method="POST">
@@ -139,7 +139,7 @@ $logged_in = !empty($_SESSION['client_id']);
       </div>
 
       <div class="cart-actions">
-        <a href="../domains.html" class="btn btn-ghost" style="border:1px solid var(--border)"><i class="fas fa-plus"></i> Add another</a>
+        <a href="<?php echo $logged_in ? PORTAL_URL . '/domain-search.php' : '../domains.html'; ?>" class="btn btn-ghost" style="border:1px solid var(--border)"><i class="fas fa-plus"></i> Add another</a>
         <a href="<?php echo PORTAL_URL; ?>/checkout.php" class="btn btn-primary btn-checkout">
           <i class="fas fa-lock"></i> <?php echo $logged_in ? 'Continue to Checkout' : 'Checkout — sign in or create account'; ?>
         </a>
