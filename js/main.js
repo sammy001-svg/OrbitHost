@@ -281,8 +281,20 @@
   reposition();
 })();
 
-// Live chat widget
+// Live chat widget — real conversations via /api/chat.php
 (function () {
+  function siteBase() {
+    const s = document.querySelector('script[src*="main"]');
+    if (s && s.src) return s.src.replace(/\/js\/main[^\/]*\.js.*$/i, '');
+    return '';
+  }
+  const API = siteBase() + '/api/chat.php';
+  const store = {
+    get conv()  { return localStorage.getItem('oh_chat_conv'); },
+    get token() { return localStorage.getItem('oh_chat_token'); },
+    save(c, t)  { localStorage.setItem('oh_chat_conv', c); localStorage.setItem('oh_chat_token', t); },
+  };
+
   const widget = document.createElement('div');
   widget.className = 'chat-widget';
   widget.style.bottom = '24px';
@@ -292,40 +304,127 @@
         '<div class="chat-ph-av"><i class="fas fa-headset"></i></div>' +
         '<div class="chat-ph-info">' +
           '<div class="chat-ph-name">OrbitHost Support</div>' +
-          '<div class="chat-ph-status"><span class="chat-status-dot"></span> Online &mdash; avg reply &lt;3 min</div>' +
+          '<div class="chat-ph-status"><span class="chat-status-dot"></span> We reply as soon as we can</div>' +
         '</div>' +
         '<button type="button" class="chat-ph-x" aria-label="Close chat"><i class="fas fa-times"></i></button>' +
       '</div>' +
-      '<div class="chat-pb">' +
+      '<div class="chat-pb" id="chatBody">' +
         '<div class="chat-bubble">&#128075; Hi there! How can we help you today?</div>' +
-        '<div class="chat-opts">' +
-          '<button type="button" class="chat-opt">&#128172; Start a live chat</button>' +
-          '<button type="button" class="chat-opt">&#128140; Send us an email</button>' +
-          '<button type="button" class="chat-opt">&#128214; Browse Knowledge Base</button>' +
+        '<div class="chat-lead" id="chatLead">' +
+          '<input type="text" class="chat-input" id="chatName" placeholder="Your name (optional)" style="margin-bottom:6px" />' +
+          '<input type="email" class="chat-input" id="chatEmail" placeholder="Email for replies (optional)" />' +
         '</div>' +
       '</div>' +
       '<div class="chat-pf">' +
-        '<input type="text" class="chat-input" placeholder="Type a message…" />' +
-        '<button type="button" class="chat-send" aria-label="Send message"><i class="fas fa-paper-plane"></i></button>' +
+        '<input type="text" class="chat-input" id="chatText" placeholder="Type a message…" maxlength="2000" />' +
+        '<button type="button" class="chat-send" id="chatSend" aria-label="Send message"><i class="fas fa-paper-plane"></i></button>' +
       '</div>' +
     '</div>' +
     '<button type="button" class="chat-btn" id="chatToggle" aria-label="Open live chat">' +
       '<i class="fas fa-comments"></i>' +
-      '<span class="chat-badge">1</span>' +
+      '<span class="chat-badge" style="display:none">1</span>' +
     '</button>';
   document.body.appendChild(widget);
 
   const panel  = widget.querySelector('#chatPanel');
   const toggle = widget.querySelector('#chatToggle');
   const badge  = widget.querySelector('.chat-badge');
-  const closeX = widget.querySelector('.chat-ph-x');
+  const body   = widget.querySelector('#chatBody');
+  const lead   = widget.querySelector('#chatLead');
+  const text   = widget.querySelector('#chatText');
+  const send   = widget.querySelector('#chatSend');
+
+  let lastId = 0, timer = null;
+
+  function bubble(msg, mine, who) {
+    const div = document.createElement('div');
+    div.className = 'chat-bubble' + (mine ? ' chat-bubble--me' : '');
+    div.textContent = msg;
+    if (!mine && who) div.setAttribute('data-who', who);
+    body.appendChild(div);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function poll() {
+    if (!store.conv) return;
+    fetch(API + '?action=poll&conversation=' + encodeURIComponent(store.conv) +
+          '&token=' + encodeURIComponent(store.token) + '&after=' + lastId)
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) return;
+        d.messages.forEach(m => {
+          lastId = Math.max(lastId, Number(m.id));
+          // our own sends are echoed by the server; only render what we haven't drawn
+          if (m.sender === 'admin') {
+            bubble(m.message, false, m.sender_name || 'Support');
+            if (!panel.classList.contains('open') && badge) badge.style.display = 'flex';
+          } else if (!m._local) {
+            // visitor messages from another tab / history reload
+            if (!body.querySelector('[data-mid="' + m.id + '"]')) {
+              const el = document.createElement('div');
+              el.className = 'chat-bubble chat-bubble--me';
+              el.textContent = m.message;
+              el.setAttribute('data-mid', m.id);
+              body.appendChild(el);
+              body.scrollTop = body.scrollHeight;
+            }
+          }
+        });
+      })
+      .catch(() => {});
+  }
+
+  function startPolling() {
+    if (timer) return;
+    poll();
+    timer = setInterval(poll, 4000);
+  }
+
+  function doSend() {
+    const msg = text.value.trim();
+    if (!msg) return;
+    text.value = '';
+    bubble(msg, true);
+    if (lead) lead.style.display = 'none';
+
+    const form = new FormData();
+    if (!store.conv) {
+      form.append('action', 'start');
+      form.append('message', msg);
+      form.append('name',  (widget.querySelector('#chatName')  || {}).value || '');
+      form.append('email', (widget.querySelector('#chatEmail') || {}).value || '');
+    } else {
+      form.append('action', 'send');
+      form.append('conversation', store.conv);
+      form.append('token', store.token);
+      form.append('message', msg);
+    }
+    fetch(API, { method: 'POST', body: form })
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok && d.conversation) { store.save(d.conversation, d.token); }
+        if (d.ok) startPolling();
+        else bubble(d.error || 'Message could not be sent. Please try again.', false, 'System');
+      })
+      .catch(() => bubble('Connection problem — please try again.', false, 'System'));
+  }
+
+  send.addEventListener('click', doSend);
+  text.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSend(); } });
 
   toggle.addEventListener('click', () => {
     const opening = !panel.classList.contains('open');
     panel.classList.toggle('open', opening);
-    if (opening && badge) badge.style.display = 'none';
+    if (opening) {
+      if (badge) badge.style.display = 'none';
+      if (store.conv) { if (lead) lead.style.display = 'none'; startPolling(); }
+      text.focus();
+    }
   });
-  if (closeX) closeX.addEventListener('click', () => panel.classList.remove('open'));
+  widget.querySelector('.chat-ph-x').addEventListener('click', () => panel.classList.remove('open'));
+
+  // resume an existing conversation quietly (badge on admin reply)
+  if (store.conv) startPolling();
 })();
 
 // Contact form validation
