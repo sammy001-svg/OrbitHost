@@ -31,14 +31,18 @@ final class NotificationRegistry
                 'email_body'    => '<p>Hi {client_name},</p><p>Your support ticket <strong>{ticket_number}</strong> — "{subject}" — has been closed.</p><p>If you need further help, just reply to reopen it or open a new ticket any time from the client portal.</p>',
             ],
             'ticket_opened_admin' => [
-                'audience' => 'admin', 'icon' => 'fa-ticket', 'color' => '#2563eb', 'email' => false,
+                'audience' => 'admin', 'icon' => 'fa-ticket', 'color' => '#2563eb', 'email' => true,
                 'title'   => 'New ticket: {ticket_number}',
                 'message' => '{client_name} opened "{subject}" ({priority}).',
+                'email_subject' => 'New ticket [{ticket_number}]: {subject}',
+                'email_body'    => '<p><strong>{client_name}</strong> opened a new support ticket.</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:6px 0;color:#64748b">Ticket</td><td style="padding:6px 0;text-align:right;font-weight:700">{ticket_number}</td></tr><tr><td style="padding:6px 0;color:#64748b">Subject</td><td style="padding:6px 0;text-align:right;font-weight:700">{subject}</td></tr><tr><td style="padding:6px 0;color:#64748b">Priority</td><td style="padding:6px 0;text-align:right;font-weight:700">{priority}</td></tr></table><p>Log in to the admin panel to reply.</p>',
             ],
             'ticket_client_replied_admin' => [
-                'audience' => 'admin', 'icon' => 'fa-comment-dots', 'color' => '#2563eb', 'email' => false,
+                'audience' => 'admin', 'icon' => 'fa-comment-dots', 'color' => '#2563eb', 'email' => true,
                 'title'   => '{client_name} replied to {ticket_number}',
                 'message' => 'New reply on "{subject}".',
+                'email_subject' => 'Client reply on ticket [{ticket_number}]: {subject}',
+                'email_body'    => '<p><strong>{client_name}</strong> replied to ticket <strong>{ticket_number}</strong> — "{subject}".</p><p>Log in to the admin panel to view and respond.</p>',
             ],
 
             /* ══════════════ BILLING ══════════════ */
@@ -80,9 +84,11 @@ final class NotificationRegistry
                 'email_body'    => '<p>Hi {client_name},</p><p>Thanks for your purchase! Here\'s a summary:</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:6px 0;color:#64748b">Item</td><td style="padding:6px 0;text-align:right;font-weight:700">{item}</td></tr><tr><td style="padding:6px 0;color:#64748b">Amount</td><td style="padding:6px 0;text-align:right;font-weight:700">{amount}</td></tr></table><p>{note}</p>',
             ],
             'order_new_admin' => [
-                'audience' => 'admin', 'icon' => 'fa-cash-register', 'color' => '#1A8A45', 'email' => false,
+                'audience' => 'admin', 'icon' => 'fa-cash-register', 'color' => '#1A8A45', 'email' => true,
                 'title'   => 'New order: {item}',
                 'message' => '{client_name} — {amount} via {gateway}.',
+                'email_subject' => 'New order: {item} — {amount}',
+                'email_body'    => '<p>New order received.</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:6px 0;color:#64748b">Client</td><td style="padding:6px 0;text-align:right;font-weight:700">{client_name}</td></tr><tr><td style="padding:6px 0;color:#64748b">Item</td><td style="padding:6px 0;text-align:right;font-weight:700">{item}</td></tr><tr><td style="padding:6px 0;color:#64748b">Amount</td><td style="padding:6px 0;text-align:right;font-weight:700">{amount}</td></tr><tr><td style="padding:6px 0;color:#64748b">Gateway</td><td style="padding:6px 0;text-align:right;font-weight:700">{gateway}</td></tr></table>',
             ],
 
             /* ══════════════ ACCOUNT / SERVICES ══════════════ */
