@@ -1,0 +1,7 @@
+# Uploaded branding images only — never execute scripts from here.
+<FilesMatch "\.(php|phtml|php\d|pl|py|cgi|asp|aspx|sh|exe)$">
+  Require all denied
+</FilesMatch>
+php_flag engine off
+Options -ExecCGI -Indexes
+AddType text/plain .php .phtml .php3 .php4 .php5 .php7 .phar

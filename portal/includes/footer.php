@@ -103,5 +103,6 @@
 <?php endif; ?>
 
 <script src="<?php echo PORTAL_URL; ?>/js/portal.js?v=<?php echo @filemtime(__DIR__ . '/../js/portal.js') ?: time(); ?>"></script>
+<script src="<?php echo preg_replace('#/portal/?$#', '', PORTAL_URL); ?>/js/site-settings.js?v=1" defer></script>
 </body>
 </html>
