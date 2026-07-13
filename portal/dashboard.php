@@ -53,6 +53,19 @@ $due_soon = $db->query("
     ORDER BY o.next_due ASC LIMIT 3
 ")->fetchAll();
 
+// Marketing banners (admin-managed; table may not exist yet)
+$hero_banners = $side_banners = [];
+try {
+    foreach ($db->query("SELECT * FROM portal_banners WHERE is_active = 1 ORDER BY sort_order, id")->fetchAll() as $b) {
+        if ($b['placement'] === 'side') $side_banners[] = $b; else $hero_banners[] = $b;
+    }
+} catch (\Throwable $e) { /* none configured */ }
+$site_base = preg_replace('#/portal/?$#', '', PORTAL_URL);
+$banner_img = function (?string $u) use ($site_base): string {
+    if (!$u) return '';
+    return preg_match('#^https?://#i', $u) ? $u : $site_base . '/' . ltrim($u, '/');
+};
+
 require_once __DIR__ . '/includes/header.php';
 ?>
 
