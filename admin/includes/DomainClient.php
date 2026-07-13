@@ -664,6 +664,18 @@ class DomainClient
                     . 'for reseller ID ' . ($this->config['auth_userid'] ?? '') . ', then sync again.'
                 );
             }
+            if (array_keys($cost) === ['value']) {
+                // rcCall()'s fallback wrapper — the raw HTTP body wasn't valid JSON at all.
+                $raw = $cost['value'];
+                $raw = is_scalar($raw) ? (string)$raw : json_encode($raw);
+                $raw = trim($raw);
+                throw new RuntimeException(
+                    'NetEarthOne\'s response to products/reseller-cost-price.json was not valid JSON, so it '
+                    . 'could not be read as a product list (this is different from the empty-list case — the '
+                    . 'server sent something back, it just wasn\'t parseable). Raw response received: '
+                    . ($raw === '' ? '(empty response body)' : '"' . substr($raw, 0, 400) . '"' . (strlen($raw) > 400 ? '…' : ''))
+                );
+            }
             $sample = array_slice(array_keys($cost), 0, 10);
             throw new RuntimeException(
                 'NetEarthOne returned ' . count($cost) . ' product entries, but none matched the expected TLD/price '
