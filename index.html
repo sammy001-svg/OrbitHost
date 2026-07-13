@@ -21,7 +21,6 @@
   <meta name="robots" content="index, follow" />
   <meta name="author" content="OrbitHost" />
   <meta name="keywords" content="web hosting, domain registration, VPS hosting, dedicated servers, cloud hosting, WordPress hosting, Kenya hosting, cheap hosting" />
-  <meta name="theme-color" content="#0B1E3D" />
   <link rel="canonical" href="https://sammy001-svg.github.io/OrbitHost/" />
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
@@ -132,7 +131,7 @@
         <ul class="nav-list">
           <!-- Hosting -->
           <li class="nav-item">
-            <a href="#" class="nav-link active">Hosting <i class="fas fa-chevron-down chevron"></i></a>
+            <a href="hosting/shared.html" class="nav-link">Hosting <i class="fas fa-chevron-down chevron"></i></a>
             <div class="mega-menu">
               <div>
                 <div class="mega-col-title">Web Hosting</div>
@@ -187,35 +186,25 @@
             <div class="dropdown">
               <a href="domains.html"><i class="fas fa-search"></i> Register Domain</a>
               <a href="domains.html#transfer"><i class="fas fa-exchange-alt"></i> Transfer Domain</a>
-              <a href="domains.html#bulk"><i class="fas fa-layer-group"></i> Bulk Registration</a>
-              <div class="dropdown-divider"></div>
-              <a href="domains.html#tools"><i class="fas fa-tools"></i> Domain Tools</a>
-              <a href="domains.html#whois"><i class="fas fa-info-circle"></i> WHOIS Lookup</a>
+              <a href="#" data-whmcs-action="cart"><i class="fas fa-cart-shopping"></i> Domain Cart</a>
             </div>
           </li>
           <!-- Services -->
           <li class="nav-item">
-            <a href="#" class="nav-link">Services <i class="fas fa-chevron-down chevron"></i></a>
+            <a href="ssl.html" class="nav-link">Services <i class="fas fa-chevron-down chevron"></i></a>
             <div class="dropdown">
               <a href="ssl.html"><i class="fas fa-lock"></i> SSL Certificates</a>
               <a href="email-hosting.html"><i class="fas fa-envelope"></i> Email Hosting</a>
-              <a href="#"><i class="fas fa-shield-alt"></i> Website Security</a>
-              <a href="#"><i class="fas fa-tachometer-alt"></i> CDN &amp; Speed</a>
-              <a href="#"><i class="fas fa-hdd"></i> Cloud Backup</a>
-              <div class="dropdown-divider"></div>
-              <a href="#"><i class="fas fa-paint-brush"></i> Website Builder</a>
+              <a href="domains.html"><i class="fas fa-globe"></i> Domain Names</a>
             </div>
           </li>
-          <!-- About -->
+          <!-- Company -->
           <li class="nav-item">
-            <a href="about.html" class="nav-link">About <i class="fas fa-chevron-down chevron"></i></a>
+            <a href="about.html" class="nav-link">Company <i class="fas fa-chevron-down chevron"></i></a>
             <div class="dropdown">
               <a href="about.html"><i class="fas fa-building"></i> About OrbitHost</a>
               <a href="about.html#team"><i class="fas fa-users"></i> Our Team</a>
-              <a href="#"><i class="fas fa-newspaper"></i> News &amp; Blog</a>
-              <a href="#"><i class="fas fa-handshake"></i> Partner Program</a>
-              <div class="dropdown-divider"></div>
-              <a href="#" data-whmcs-action="status"><i class="fas fa-heartbeat"></i> System Status</a>
+              <a href="legal.html"><i class="fas fa-file-shield"></i> Legal &amp; Policies</a>
             </div>
           </li>
           <!-- Support -->
@@ -223,11 +212,8 @@
             <a href="contact.html" class="nav-link">Support <i class="fas fa-chevron-down chevron"></i></a>
             <div class="dropdown">
               <a href="contact.html"><i class="fas fa-headset"></i> Contact Support</a>
-              <a href="#" data-whmcs-action="kb"><i class="fas fa-book"></i> Knowledge Base</a>
-              <a href="#"><i class="fas fa-comments"></i> Live Chat</a>
-              <a href="#" data-whmcs-action="ticket"><i class="fas fa-ticket-alt"></i> Submit Ticket</a>
-              <div class="dropdown-divider"></div>
-              <a href="#" data-whmcs-action="status"><i class="fas fa-server"></i> Server Status</a>
+              <a href="#" data-whmcs-action="ticket"><i class="fas fa-ticket-alt"></i> Submit a Ticket</a>
+              <a href="#" data-whmcs-action="login"><i class="fas fa-right-to-bracket"></i> Client Portal</a>
             </div>
           </li>
         </ul>
@@ -235,8 +221,9 @@
 
       <!-- Header CTA -->
       <div class="header-right">
+        <a href="#" class="header-cart" data-whmcs-action="cart" aria-label="Cart" title="Domain cart"><i class="fas fa-cart-shopping"></i></a>
         <a href="#" class="btn btn-outline-white btn-sm" data-whmcs-action="login">Log In</a>
-        <a href="hosting/shared.html" class="btn btn-green btn-sm">Get Started</a>
+        <a href="#" class="btn btn-green btn-sm" data-whmcs-action="register">Get Started</a>
       </div>
 
       <!-- Mobile Toggle -->
@@ -269,20 +256,19 @@
       <div class="mobile-sub">
         <a href="ssl.html"><i class="fas fa-lock"></i> SSL Certificates</a>
         <a href="email-hosting.html"><i class="fas fa-envelope"></i> Email Hosting</a>
-        <a href="#"><i class="fas fa-shield-alt"></i> Website Security</a>
-        <a href="#"><i class="fas fa-paint-brush"></i> Website Builder</a>
+        <a href="domains.html"><i class="fas fa-globe"></i> Domain Names</a>
       </div>
     </li>
     <li class="mobile-nav-item">
-      <a href="about.html" class="mobile-nav-link">About</a>
+      <a href="about.html" class="mobile-nav-link">Company</a>
     </li>
     <li class="mobile-nav-item">
       <a href="contact.html" class="mobile-nav-link">Support</a>
     </li>
   </ul>
   <div class="mobile-nav-btns">
-    <a href="#" class="btn btn-outline-white">Log In</a>
-    <a href="hosting/shared.html" class="btn btn-green">Get Started</a>
+    <a href="#" class="btn btn-outline-white" data-whmcs-action="login">Log In</a>
+    <a href="#" class="btn btn-green" data-whmcs-action="register">Get Started</a>
   </div>
 </nav>
 
@@ -821,7 +807,7 @@
         <a href="hosting/shared.html" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="shared-pro">Get Started</a>
       </div>
     </div>
-    <p class="pricing-note">All plans include a <a href="#">30-day money-back guarantee</a>. Prices shown with annual billing discount applied.</p>
+    <p class="pricing-note">All plans include a <a href="legal.html#terms">30-day money-back guarantee</a>. Prices shown with annual billing discount applied.</p>
   </div>
 </section>
 
@@ -918,13 +904,13 @@
         <div class="ic-icon"><i class="fas fa-shield-alt"></i></div>
         <h4>Website Security</h4>
         <p>SiteLock malware scanning, removal, and firewall protection. DDOS mitigation and real-time threat monitoring.</p>
-        <a href="#" class="card-cta card-cta--centered">Learn More <i class="fas fa-arrow-right"></i></a>
+        <a href="contact.html" class="card-cta card-cta--centered">Learn More <i class="fas fa-arrow-right"></i></a>
       </div>
       <div class="info-card animate-in">
         <div class="ic-icon"><i class="fas fa-tachometer-alt"></i></div>
         <h4>CDN &amp; Performance</h4>
         <p>Cloudflare CDN integration with our hosting plans. Accelerate global content delivery and reduce load times by up to 70%.</p>
-        <a href="#" class="card-cta card-cta--centered">Learn More <i class="fas fa-arrow-right"></i></a>
+        <a href="contact.html" class="card-cta card-cta--centered">Learn More <i class="fas fa-arrow-right"></i></a>
       </div>
     </div>
   </div>
@@ -1000,7 +986,7 @@
         <div class="newsletter-success" id="nl-success" hidden>
           <i class="fas fa-check-circle"></i> You're subscribed! Check your inbox for a confirmation email.
         </div>
-        <p class="newsletter-note">No spam, ever. Read our <a href="#">Privacy Policy</a>.</p>
+        <p class="newsletter-note">No spam, ever. Read our <a href="legal.html#privacy">Privacy Policy</a>.</p>
       </form>
     </div>
   </div>
@@ -1045,27 +1031,21 @@
           <div class="logo-icon"><i class="fas fa-satellite"></i></div>
           <span class="logo-text">Orbit<span>Host</span></span>
         </a>
-        <p>OrbitHost is a leading web hosting provider delivering enterprise-grade infrastructure, 99.9% uptime, and expert 24/7 support to businesses worldwide since 2014.</p>
+        <p>OrbitHost delivers enterprise-grade hosting infrastructure, 99.9% uptime, and expert 24/7 support to businesses across Africa and beyond.</p>
         <div class="footer-contacts">
           <div class="footer-contact"><i class="fas fa-phone"></i> +254 700 000 000</div>
-          <div class="footer-contact"><i class="fas fa-envelope"></i> support@orbithost.com</div>
-          <div class="footer-contact"><i class="fas fa-map-marker-alt"></i> Nairobi, Kenya &amp; London, UK</div>
-        </div>
-        <div class="socials">
-          <a href="#" class="social-btn" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
-          <a href="#" class="social-btn" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
-          <a href="#" class="social-btn" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
-          <a href="#" class="social-btn" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+          <div class="footer-contact"><i class="fas fa-envelope"></i> support@orbitcloud.co.ke</div>
+          <div class="footer-contact"><i class="fas fa-map-marker-alt"></i> Nairobi, Kenya</div>
         </div>
       </div>
       <div class="footer-col">
         <h4>Hosting</h4>
         <div class="footer-links">
           <a href="hosting/shared.html"><i class="fas fa-chevron-right"></i> Shared Hosting</a>
-          <a href="hosting/vps.html"><i class="fas fa-chevron-right"></i> VPS Hosting</a>
-          <a href="hosting/dedicated.html"><i class="fas fa-chevron-right"></i> Dedicated Servers</a>
-          <a href="hosting/cloud.html"><i class="fas fa-chevron-right"></i> Cloud Hosting</a>
           <a href="hosting/wordpress.html"><i class="fas fa-chevron-right"></i> WordPress Hosting</a>
+          <a href="hosting/vps.html"><i class="fas fa-chevron-right"></i> VPS Hosting</a>
+          <a href="hosting/cloud.html"><i class="fas fa-chevron-right"></i> Cloud Hosting</a>
+          <a href="hosting/dedicated.html"><i class="fas fa-chevron-right"></i> Dedicated Servers</a>
           <a href="hosting/reseller.html"><i class="fas fa-chevron-right"></i> Reseller Hosting</a>
         </div>
       </div>
@@ -1073,38 +1053,39 @@
         <h4>Services</h4>
         <div class="footer-links">
           <a href="domains.html"><i class="fas fa-chevron-right"></i> Domain Registration</a>
+          <a href="domains.html#transfer"><i class="fas fa-chevron-right"></i> Domain Transfer</a>
           <a href="ssl.html"><i class="fas fa-chevron-right"></i> SSL Certificates</a>
           <a href="email-hosting.html"><i class="fas fa-chevron-right"></i> Email Hosting</a>
-          <a href="#"><i class="fas fa-chevron-right"></i> Website Security</a>
-          <a href="#"><i class="fas fa-chevron-right"></i> CDN &amp; Performance</a>
-          <a href="#"><i class="fas fa-chevron-right"></i> Website Builder</a>
         </div>
-      </div>
-      <div class="footer-col">
-        <h4>Company</h4>
+        <h4 class="mt-24">Company</h4>
         <div class="footer-links">
           <a href="about.html"><i class="fas fa-chevron-right"></i> About OrbitHost</a>
           <a href="contact.html"><i class="fas fa-chevron-right"></i> Contact Us</a>
-          <a href="#"><i class="fas fa-chevron-right"></i> Blog &amp; News</a>
-          <a href="#"><i class="fas fa-chevron-right"></i> Partner Program</a>
-          <a href="#"><i class="fas fa-chevron-right"></i> System Status</a>
-          <a href="#"><i class="fas fa-chevron-right"></i> Careers</a>
+          <a href="legal.html"><i class="fas fa-chevron-right"></i> Legal &amp; Policies</a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Client Area</h4>
+        <div class="footer-links">
+          <a href="#" data-whmcs-action="login"><i class="fas fa-chevron-right"></i> Client Portal Login</a>
+          <a href="#" data-whmcs-action="register"><i class="fas fa-chevron-right"></i> Create an Account</a>
+          <a href="#" data-whmcs-action="cart"><i class="fas fa-chevron-right"></i> Domain Cart</a>
+          <a href="#" data-whmcs-action="ticket"><i class="fas fa-chevron-right"></i> Submit a Ticket</a>
         </div>
         <h4 class="mt-24">Support</h4>
         <div class="footer-links">
-          <a href="#"><i class="fas fa-chevron-right"></i> Knowledge Base</a>
-          <a href="#"><i class="fas fa-chevron-right"></i> Submit a Ticket</a>
-          <a href="#"><i class="fas fa-chevron-right"></i> Live Chat</a>
+          <a href="contact.html"><i class="fas fa-chevron-right"></i> Contact Support</a>
+          <a href="contact.html"><i class="fas fa-chevron-right"></i> Knowledge Base</a>
         </div>
       </div>
     </div>
     <div class="footer-bottom">
       <span>&copy; 2026 OrbitHost Ltd. All rights reserved.</span>
       <div class="footer-bottom-links">
-        <a href="#">Privacy Policy</a>
-        <a href="#">Terms of Service</a>
-        <a href="#">Acceptable Use Policy</a>
-        <a href="#">Cookie Policy</a>
+        <a href="legal.html#privacy">Privacy Policy</a>
+        <a href="legal.html#terms">Terms of Service</a>
+        <a href="legal.html#aup">Acceptable Use</a>
+        <a href="legal.html#cookies">Cookie Policy</a>
       </div>
     </div>
   </div>
@@ -1123,6 +1104,6 @@
   </div>
 </div>
 
-<script src="js/whmcs.js" defer></script><script src="js/main.min.js" defer></script>
+<script src="js/whmcs.js?v=4" defer></script><script src="js/main.min.js?v=4" defer></script>
 </body>
 </html>

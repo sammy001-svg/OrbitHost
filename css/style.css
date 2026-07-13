@@ -1206,3 +1206,8 @@ p  { color: var(--text-sub); line-height: 1.75; }
   .chat-panel { width: calc(100vw - 32px); right: 0; }
   .cookie-inner { flex-direction: column; align-items: flex-start; }
 }
+
+/* Header cart icon (site-wide) */
+.header-cart{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;color:rgba(255,255,255,.75);font-size:15px;text-decoration:none;transition:background .15s,color .15s}
+.header-cart:hover{background:rgba(255,255,255,.1);color:#fff}
+@media (max-width:992px){.header-cart{display:none}}
