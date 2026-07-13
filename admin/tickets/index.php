@@ -141,6 +141,8 @@ require_once '../includes/header.php';
             <a href="<?php echo APP_URL; ?>/clients/view.php?id=<?php echo $t['client_id']; ?>" style="color:var(--navy);text-decoration:none">
               <?php echo h(trim($t['client_name'])); ?>
             </a>
+          <?php elseif (!empty($t['guest_name'])): ?>
+            <span><?php echo h($t['guest_name']); ?></span> <span class="text-muted" style="font-size:11px">(guest)</span>
           <?php else: ?>
             <span class="text-muted">Guest</span>
           <?php endif; ?>

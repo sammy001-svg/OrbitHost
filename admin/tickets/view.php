@@ -25,7 +25,32 @@ if (!$ticket) {
     exit;
 }
 
+// Guest contact-form tickets have no client_id — fall back to the
+// guest_* columns captured at submission time (columns are absent
+// until schema_v9 runs, hence the ?? '' guards).
+$display_name  = trim($ticket['client_name']) ?: ($ticket['guest_name'] ?? '');
+$display_email = $ticket['client_email'] ?: ($ticket['guest_email'] ?? '');
+$display_phone = $ticket['client_phone'] ?: ($ticket['guest_phone'] ?? '');
+$is_guest      = empty($ticket['client_id']);
+
 $page_title = $ticket['ticket_number'] . ' — ' . mb_strimwidth($ticket['subject'], 0, 40, '…');
+
+/**
+ * Guest (client_id NULL) tickets have no portal account to notify
+ * in-app, so a reply is emailed directly with the message included —
+ * there's nowhere else for them to go read it.
+ */
+function email_guest_reply(string $email, string $name, string $ticketNumber, string $subject, string $message, bool $closed): void
+{
+    if (!$email) return;
+    require_once '../includes/Mailer.php';
+    $heading = $closed ? 'Your enquiry has been resolved' : 'Reply to your enquiry';
+    $body = '<p>Hi ' . h($name ?: 'there') . ',</p>'
+          . '<p>' . ($closed ? 'Our team has replied and marked your enquiry as resolved:' : 'Our team has replied to your enquiry:') . '</p>'
+          . '<blockquote style="margin:16px 0;padding:12px 16px;background:#f7f9fc;border-left:3px solid #1A8A45;border-radius:6px;color:#334155">' . nl2br(h($message)) . '</blockquote>'
+          . '<p style="color:#94a3b8;font-size:12px">Reference: ' . h($ticketNumber) . ' — ' . h($subject) . '. Reply to this email if you have more questions.</p>';
+    Mailer::fromConfig()->send($email, $heading . ' [' . $ticketNumber . ']', $body);
+}
 
 // Handle reply
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reply'])) {
@@ -43,15 +68,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reply'])) {
 
         if ($ticket['client_id']) {
             $notify_vars = [
-                'client_name'   => trim($ticket['client_name']),
+                'client_name'   => $display_name,
                 'admin_name'    => current_admin()['name'],
                 'subject'       => $ticket['subject'],
                 'ticket_number' => $ticket['ticket_number'],
                 'reply_excerpt' => mb_strimwidth($message, 0, 220, '…'),
-                'email'         => $ticket['client_email'],
+                'email'         => $display_email,
                 'link'          => portal_base_url() . '/tickets/view.php?id=' . $id,
             ];
             Notifier::send($update_status === 'closed' ? 'ticket_closed' : 'ticket_replied', (int) $ticket['client_id'], $notify_vars);
+        } elseif ($display_email) {
+            email_guest_reply($display_email, $display_name, $ticket['ticket_number'], $ticket['subject'], $message, $update_status === 'closed');
         }
 
         log_activity('reply_ticket', 'ticket', $id, "Replied to ticket {$ticket['ticket_number']}");
@@ -199,18 +226,22 @@ require_once '../includes/header.php';
       </div>
     </div>
 
-    <!-- Client -->
-    <?php if ($ticket['client_id']): ?>
+    <!-- Client / Guest -->
+    <?php if ($display_name || $display_email): ?>
     <div class="card" style="margin-bottom:14px">
       <div class="card-header">
-        <div class="card-title">Client</div>
-        <a href="<?php echo APP_URL; ?>/clients/view.php?id=<?php echo $ticket['client_id']; ?>" class="btn btn-ghost btn-xs">View</a>
+        <div class="card-title"><?php echo $is_guest ? 'Guest (no account)' : 'Client'; ?></div>
+        <?php if (!$is_guest): ?>
+          <a href="<?php echo APP_URL; ?>/clients/view.php?id=<?php echo $ticket['client_id']; ?>" class="btn btn-ghost btn-xs">View</a>
+        <?php else: ?>
+          <span class="badge badge-secondary">Website contact form</span>
+        <?php endif; ?>
       </div>
       <div class="card-body">
-        <div style="font-weight:600"><?php echo h(trim($ticket['client_name'])); ?></div>
-        <div style="font-size:12.5px;color:var(--text-muted);margin-top:3px"><?php echo h($ticket['client_email']); ?></div>
-        <?php if ($ticket['client_phone']): ?>
-          <div style="font-size:12.5px;color:var(--text-muted)"><?php echo h($ticket['client_phone']); ?></div>
+        <div style="font-weight:600"><?php echo h($display_name); ?></div>
+        <div style="font-size:12.5px;color:var(--text-muted);margin-top:3px"><?php echo h($display_email); ?></div>
+        <?php if ($display_phone): ?>
+          <div style="font-size:12.5px;color:var(--text-muted)"><?php echo h($display_phone); ?></div>
         <?php endif; ?>
       </div>
     </div>

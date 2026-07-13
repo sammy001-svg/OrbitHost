@@ -212,6 +212,38 @@
   });
 })();
 
+// Live TLD pricing table (domains.html "Popular Domain Extensions")
+(function () {
+  const tbody = document.querySelector('#pricing .comp-table tbody');
+  if (!tbody) return;
+
+  function siteBase() {
+    const s = document.querySelector('script[src*="main"]');
+    if (s && s.src) return s.src.replace(/\/js\/main[^\/]*\.js.*$/i, '');
+    return '';
+  }
+
+  fetch(siteBase() + '/api/tld-pricing.php')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok || !data.tlds.length) return; // keep the static fallback rows
+      tbody.innerHTML = data.tlds.map(t => {
+        const cur = t.currency || 'USD';
+        const fmt = n => `${cur} ${Number(n).toFixed(2)}/yr`;
+        return `
+          <tr>
+            <td>.${t.tld}</td>
+            <td>${fmt(t.register_price)}</td>
+            <td>${fmt(t.renew_price)}</td>
+            <td>${fmt(t.transfer_price)}</td>
+            <td><i class="fas fa-check"></i> Free</td>
+            <td><a href="#search" class="btn btn-green btn-sm">Register</a></td>
+          </tr>`;
+      }).join('');
+    })
+    .catch(() => {}); // network hiccup — static rows stay as-is
+})();
+
 // Scroll animations
 (function () {
   const io = new IntersectionObserver(entries => {
@@ -472,6 +504,17 @@
     el.addEventListener('input', () => { if (el.classList.contains('is-invalid')) validateField(id); });
   });
 
+  function siteBase() {
+    const s = document.querySelector('script[src*="main"]');
+    if (s && s.src) return s.src.replace(/\/js\/main[^\/]*\.js.*$/i, '');
+    return '';
+  }
+
+  function fieldErr(id, msg) {
+    const errEl = document.getElementById(id + '-err');
+    if (errEl) errEl.textContent = msg;
+  }
+
   form.addEventListener('submit', e => {
     e.preventDefault();
     const allValid = REQUIRED.map(validateField).every(Boolean);
@@ -483,15 +526,38 @@
     const btn = document.getElementById('cf-submit');
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
-    setTimeout(() => {
-      const success = document.getElementById('cf-success');
-      if (success) { success.hidden = false; success.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-      btn.hidden = true;
-      REQUIRED.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) { el.value = ''; el.classList.remove('is-valid', 'is-invalid'); }
+
+    const fd = new FormData();
+    fd.append('first_name', val('cf-first'));
+    fd.append('last_name', val('cf-last'));
+    fd.append('email', val('cf-email'));
+    fd.append('phone', val('cf-phone'));
+    fd.append('subject', val('cf-subject'));
+    fd.append('message', val('cf-message'));
+    fd.append('website', val('cf-website')); // honeypot — stays empty for real visitors
+
+    fetch(siteBase() + '/api/contact.php', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.ok) {
+          btn.disabled = false;
+          btn.innerHTML = 'Send Message <i class="fas fa-paper-plane"></i>';
+          fieldErr('cf-message', data.error || 'Something went wrong — please try again.');
+          return;
+        }
+        const success = document.getElementById('cf-success');
+        if (success) { success.hidden = false; success.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        btn.hidden = true;
+        REQUIRED.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) { el.value = ''; el.classList.remove('is-valid', 'is-invalid'); }
+        });
+      })
+      .catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = 'Send Message <i class="fas fa-paper-plane"></i>';
+        fieldErr('cf-message', 'Network error — please check your connection and try again.');
       });
-    }, 1600);
   });
 })();
 
