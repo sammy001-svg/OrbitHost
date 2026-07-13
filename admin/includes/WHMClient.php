@@ -101,7 +101,7 @@ class WHMClient
     public function ping(): bool
     {
         try {
-            $r = $this->call('version');
+            $r = $this->getServerVersion();
             return isset($r['version']);
         } catch (Exception $e) {
             return false;
@@ -134,8 +134,8 @@ class WHMClient
         if ($search)     $params['search']     = $search;
         if ($searchType) $params['searchtype']  = $searchType; // domain|owner|user|ip|package
         $resp = $this->call('listaccts', $params);
-        // WHM v1 wraps the list as { data: { acct: [ … ] } }
-        return $resp['data']['acct'] ?? [];
+        // v1 wraps the list as { data: { acct: [ … ] } }; legacy v0 puts acct at top level
+        return $resp['data']['acct'] ?? $resp['acct'] ?? [];
     }
 
     public function getAccountSummary(string $username): array
@@ -179,7 +179,7 @@ class WHMClient
     {
         $resp = $this->call('showbw', ['search' => $username, 'searchtype' => 'user']);
         // showbw returns data.acct[0].totalbytes (bytes)
-        $acct = $resp['data']['acct'][0] ?? [];
+        $acct = $resp['data']['acct'][0] ?? $resp['acct'][0] ?? [];
         return ['bw_used' => isset($acct['totalbytes']) ? (int) round($acct['totalbytes'] / 1048576) : 0];
     }
 
@@ -187,7 +187,28 @@ class WHMClient
     public function listPackages(): array
     {
         $resp = $this->call('listpkgs');
-        return $resp['data']['pkg'] ?? [];
+        return $resp['data']['pkg'] ?? $resp['pkg'] ?? [];
+    }
+
+    /**
+     * Create a hosting package. $opts keys: name (required) plus quota,
+     * bwlimit, maxftp, maxsql, maxpop, maxsub, maxpark, maxaddon —
+     * numeric values in MB, or the string "unlimited".
+     */
+    public function addPackage(array $opts): array
+    {
+        return $this->call('addpkg', $opts, 'POST');
+    }
+
+    /** Edit an existing package; same $opts as addPackage, name identifies it. */
+    public function editPackage(array $opts): array
+    {
+        return $this->call('editpkg', $opts, 'POST');
+    }
+
+    public function deletePackage(string $name): array
+    {
+        return $this->call('killpkg', ['pkg' => $name], 'POST');
     }
 
     // ── DNS & domains ─────────────────────────────────────────
@@ -199,7 +220,8 @@ class WHMClient
     // ── Server info ───────────────────────────────────────────
     public function getServerVersion(): array
     {
-        return $this->call('version');
+        $resp = $this->call('version');
+        return $resp['data'] ?? $resp; // { version: "11.…" }
     }
 
     public function getServerLoad(): array
