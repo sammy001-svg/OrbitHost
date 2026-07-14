@@ -115,11 +115,7 @@ $overdue = db()->query(
 foreach ($overdue as $inv) {
     db()->prepare("UPDATE invoices SET status = 'overdue' WHERE id = ? AND status = 'sent'")->execute([$inv['id']]);
     if (!claim_milestone('invoice', (int) $inv['id'], 'overdue')) continue;
-    Notifier::send('invoice_overdue', (int) $inv['client_id'], [
-        'client_name' => $inv['first_name'], 'invoice_number' => $inv['invoice_number'],
-        'amount' => format_money((float) $inv['total']), 'due_date' => format_date($inv['due_date']),
-        'email' => $inv['email'], 'link' => portal_base_url() . '/invoices/',
-    ]);
+    Notifier::sendInvoiceEmail((int) $inv['id'], 'invoice_overdue');
     $counts['overdue']++;
 }
 

@@ -241,3 +241,51 @@ function format_bytes(int $bytes): string
     while ($size >= 1024 && $i < count($units) - 1) { $size /= 1024; $i++; }
     return round($size, 1) . ' ' . $units[$i];
 }
+
+/**
+ * Client-facing invoice status label — the one word an "invoice copy"
+ * email needs to actually answer "do I still owe this?": Paid, Pending
+ * Confirmation (a client submitted an M-Pesa/bank/cheque reference that's
+ * awaiting admin review — see portal/invoices/view.php), Overdue, or Unpaid.
+ */
+function invoice_status_label(array $inv): string
+{
+    if (($inv['status'] ?? '') === 'paid') return 'Paid';
+    try {
+        $stmt = db()->prepare("SELECT COUNT(*) FROM payments WHERE invoice_id = ? AND status = 'pending' AND gateway IN ('mpesa_manual','bank_transfer','cheque')");
+        $stmt->execute([(int) ($inv['id'] ?? 0)]);
+        if ((int) $stmt->fetchColumn() > 0) return 'Pending Confirmation';
+    } catch (\Throwable $e) { /* payments table always exists — defensive only */ }
+    return ($inv['status'] ?? '') === 'overdue' ? 'Overdue' : 'Unpaid';
+}
+
+function invoice_status_color(string $label): string
+{
+    return match ($label) {
+        'Paid' => '#16a34a', 'Pending Confirmation' => '#d97706', 'Overdue' => '#dc2626', default => '#64748b',
+    };
+}
+
+/** HTML line-items table — the actual "copy" of the invoice, embedded in emails. */
+function invoice_items_email_table(int $invoiceId, string $currency): string
+{
+    $rows = '';
+    try {
+        $stmt = db()->prepare('SELECT description, quantity, unit_price, total FROM invoice_items WHERE invoice_id = ? ORDER BY id');
+        $stmt->execute([$invoiceId]);
+        foreach ($stmt->fetchAll() as $it) {
+            $rows .= '<tr>'
+                   . '<td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:13px">' . htmlspecialchars($it['description']) . '</td>'
+                   . '<td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center">' . (int) $it['quantity'] . '</td>'
+                   . '<td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right">' . format_money((float) $it['total'], $currency) . '</td>'
+                   . '</tr>';
+        }
+    } catch (\Throwable $e) { /* defensive only */ }
+
+    return '<table style="width:100%;border-collapse:collapse;margin:14px 0">'
+         . '<thead><tr>'
+         . '<th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;border-bottom:2px solid #e5e7eb">Description</th>'
+         . '<th style="padding:8px 10px;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;border-bottom:2px solid #e5e7eb">Qty</th>'
+         . '<th style="padding:8px 10px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;border-bottom:2px solid #e5e7eb">Total</th>'
+         . '</tr></thead><tbody>' . $rows . '</tbody></table>';
+}

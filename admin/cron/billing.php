@@ -59,9 +59,9 @@ $due = db()->query(
 foreach ($due as $o) {
     try {
         $inv_no = generate_invoice_number();
-        db()->prepare("INSERT INTO invoices (invoice_number, client_id, order_id, subtotal, tax_rate, tax_amount, total, status, due_date)
-                       VALUES (?,?,?,?,0,0,?, 'sent', ?)")
-            ->execute([$inv_no, $o['client_id'], $o['id'], $o['amount'], $o['amount'], $o['next_due']]);
+        db()->prepare("INSERT INTO invoices (invoice_number, client_id, order_id, subtotal, tax_rate, tax_amount, total, status, due_date, currency)
+                       VALUES (?,?,?,?,0,0,?, 'sent', ?,?)")
+            ->execute([$inv_no, $o['client_id'], $o['id'], $o['amount'], $o['amount'], $o['next_due'], $o['currency'] ?? 'USD']);
         $invoice_id = (int) db()->lastInsertId();
 
         $desc = 'Renewal: ' . ($o['service_name'] ?: 'Service')
@@ -70,14 +70,7 @@ foreach ($due as $o) {
         db()->prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (?,?,1,?,?)')
             ->execute([$invoice_id, $desc, $o['amount'], $o['amount']]);
 
-        Notifier::send('invoice_new', (int) $o['client_id'], [
-            'client_name'    => $o['first_name'],
-            'invoice_number' => $inv_no,
-            'amount'         => format_money((float) $o['amount']),
-            'due_date'       => format_date($o['next_due']),
-            'email'          => $o['email'],
-            'link'           => portal_base_url() . '/invoices/view.php?id=' . $invoice_id,
-        ]);
+        Notifier::sendInvoiceEmail($invoice_id, 'invoice_new');
         $made++;
     } catch (\Throwable $e) {
         $errors[] = 'invoice order#' . $o['id'] . ': ' . $e->getMessage();
@@ -127,9 +120,9 @@ try {
 foreach ($due_cs as $cs) {
     try {
         $inv_no = generate_invoice_number();
-        db()->prepare("INSERT INTO invoices (invoice_number, client_id, client_service_id, subtotal, tax_rate, tax_amount, total, status, due_date)
-                       VALUES (?,?,?,?,0,0,?, 'sent', ?)")
-            ->execute([$inv_no, $cs['client_id'], $cs['id'], $cs['amount'], $cs['amount'], $cs['next_due_date']]);
+        db()->prepare("INSERT INTO invoices (invoice_number, client_id, client_service_id, subtotal, tax_rate, tax_amount, total, status, due_date, currency)
+                       VALUES (?,?,?,?,0,0,?, 'sent', ?,?)")
+            ->execute([$inv_no, $cs['client_id'], $cs['id'], $cs['amount'], $cs['amount'], $cs['next_due_date'], $cs['currency'] ?? 'USD']);
         $invoice_id = (int) db()->lastInsertId();
 
         $desc = 'Renewal: ' . ($cs['label'] ?: 'Service')
@@ -138,14 +131,7 @@ foreach ($due_cs as $cs) {
         db()->prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (?,?,1,?,?)')
             ->execute([$invoice_id, $desc, $cs['amount'], $cs['amount']]);
 
-        Notifier::send('invoice_new', (int) $cs['client_id'], [
-            'client_name'    => $cs['first_name'],
-            'invoice_number' => $inv_no,
-            'amount'         => format_money((float) $cs['amount']),
-            'due_date'       => format_date($cs['next_due_date']),
-            'email'          => $cs['email'],
-            'link'           => portal_base_url() . '/invoices/view.php?id=' . $invoice_id,
-        ]);
+        Notifier::sendInvoiceEmail($invoice_id, 'invoice_new');
         $made++;
     } catch (\Throwable $e) {
         $errors[] = 'invoice service#' . $cs['id'] . ': ' . $e->getMessage();

@@ -13,6 +13,7 @@
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/NotificationRegistry.php';
 require_once __DIR__ . '/SiteSettings.php';
+require_once __DIR__ . '/functions.php';
 
 final class Notifier
 {
@@ -40,10 +41,24 @@ final class Notifier
                 sent_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE KEY uniq_reminder (entity_type, entity_id, milestone)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-            return true;
         } catch (\Throwable $e) {
             return false;
         }
+        // email_sent/email_error: Mailer already computes a specific reason for
+        // every failure (bad credentials, blocked port, DNS failure, etc.) but
+        // it was being thrown away — every email failed silently with nothing
+        // to show for it. These columns give every notification a durable,
+        // queryable delivery record. NULL = this type has no email; 1 = sent;
+        // 0 = attempted and failed (see email_error).
+        try {
+            $col = db()->query("SHOW COLUMNS FROM notifications LIKE 'email_sent'")->fetch();
+            if (!$col) {
+                db()->exec("ALTER TABLE notifications
+                    ADD COLUMN email_sent TINYINT(1) DEFAULT NULL,
+                    ADD COLUMN email_error TEXT DEFAULT NULL");
+            }
+        } catch (\Throwable $e) { /* no ALTER privilege — email still sends, just without a delivery record */ }
+        return true;
     }
 
     /**
@@ -61,14 +76,64 @@ final class Notifier
         $message = self::render($def['message'], $vars);
         $link    = $vars['link'] ?? null;
 
-        try {
-            db()->prepare('INSERT INTO notifications (audience, recipient_id, type, title, message, link) VALUES (?,?,?,?,?,?)')
-                ->execute([$def['audience'], $recipientId, $type, $title, $message, $link]);
-        } catch (\Throwable $e) { /* in-app is best-effort too — never fatal the caller */ }
-
+        // Email first (if this type sends one) so its actual outcome — Mailer
+        // already computes a specific reason on failure — rides along with
+        // the in-app row instead of vanishing.
+        $emailSent = null; $emailError = null;
         if (!empty($def['email'])) {
-            self::sendEmail($def, $recipientId, $vars);
+            $result = self::sendEmail($def, $recipientId, $vars);
+            if ($result !== null) {
+                $emailSent  = !empty($result['success']) ? 1 : 0;
+                $emailError = !empty($result['success']) ? null : ($result['message'] ?? 'Unknown error');
+                if (!$emailSent) {
+                    error_log("Notifier: email failed for type={$type} recipient={$recipientId}: {$emailError}");
+                }
+            }
         }
+
+        try {
+            db()->prepare('INSERT INTO notifications (audience, recipient_id, type, title, message, link, email_sent, email_error) VALUES (?,?,?,?,?,?,?,?)')
+                ->execute([$def['audience'], $recipientId, $type, $title, $message, $link, $emailSent, $emailError]);
+        } catch (\Throwable $e) {
+            // Older schema without the email_ columns (ALTER privilege missing) — fall back once.
+            try {
+                db()->prepare('INSERT INTO notifications (audience, recipient_id, type, title, message, link) VALUES (?,?,?,?,?,?)')
+                    ->execute([$def['audience'], $recipientId, $type, $title, $message, $link]);
+            } catch (\Throwable $e2) { /* in-app is best-effort too — never fatal the caller */ }
+        }
+    }
+
+    /**
+     * Send a client-facing invoice email (new / paid / overdue) that's an
+     * actual copy of the invoice — status (Paid / Unpaid / Pending
+     * Confirmation / Overdue) and every line item — instead of a bare
+     * "you have an invoice" link. Centralized so every call site (billing
+     * cron, manual invoice creation, payment confirmation, offline
+     * reference flows) sends the same complete email; loads everything
+     * it needs from just the invoice id so callers don't have to
+     * assemble the vars themselves.
+     */
+    public static function sendInvoiceEmail(int $invoiceId, string $type, array $extra = []): void
+    {
+        $stmt = db()->prepare('SELECT i.*, c.first_name, c.last_name, c.email FROM invoices i JOIN clients c ON c.id = i.client_id WHERE i.id = ?');
+        $stmt->execute([$invoiceId]);
+        $inv = $stmt->fetch();
+        if (!$inv || !$inv['client_id']) return;
+
+        $currency = $inv['currency'] ?: 'USD';
+        $status   = invoice_status_label($inv);
+
+        self::send($type, (int) $inv['client_id'], array_merge([
+            'client_name'    => trim($inv['first_name'] . ' ' . $inv['last_name']),
+            'invoice_number' => $inv['invoice_number'],
+            'amount'         => format_money((float) $inv['total'], $currency),
+            'due_date'       => format_date($inv['due_date']),
+            'status'         => $status,
+            'status_color'   => invoice_status_color($status),
+            'items_table'    => invoice_items_email_table($invoiceId, $currency),
+            'email'          => $inv['email'],
+            'link'           => portal_base_url() . '/invoices/view.php?id=' . $invoiceId,
+        ], $extra));
     }
 
     /** Broadcast an admin-audience notification to every active admin user. */
@@ -84,18 +149,25 @@ final class Notifier
         }
     }
 
-    private static function sendEmail(array $def, int $recipientId, array $vars): void
+    /** @return array{success:bool,message:string}|null null = no recipient address to even try */
+    private static function sendEmail(array $def, int $recipientId, array $vars): ?array
     {
         $to = $vars['email'] ?? self::resolveEmail($def['audience'], $recipientId);
-        if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) return;
+        if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            return ['success' => false, 'message' => 'No valid recipient email address on file.'];
+        }
 
         $subject = self::render($def['email_subject'] ?? $def['title'], $vars);
         $body    = self::render($def['email_body'] ?? $def['message'], $vars);
 
         try {
             require_once __DIR__ . '/Mailer.php';
-            Mailer::fromConfig()->send($to, $subject, self::emailShell($body));
-        } catch (\Throwable $e) { /* email is best-effort — never fatal the caller */ }
+            return Mailer::fromConfig()->send($to, $subject, self::emailShell($body));
+        } catch (\Throwable $e) {
+            // email is best-effort — never fatal the caller — but the reason
+            // is still worth keeping, not discarding.
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
     }
 
     private static function resolveEmail(string $audience, int $recipientId): ?string

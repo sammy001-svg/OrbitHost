@@ -44,14 +44,7 @@ $currency = defined('CURRENCY') ? CURRENCY : 'USD';
 function notify_invoice_paid_admin(array $inv, int $invoice_id, string $gateway): void
 {
     if (!$inv['client_id'] || !$inv['email']) return;
-    Notifier::send('invoice_paid', (int) $inv['client_id'], [
-        'client_name'    => trim(($inv['first_name'] ?? '') . ' ' . ($inv['last_name'] ?? '')),
-        'invoice_number' => $inv['invoice_number'],
-        'amount'         => format_money((float) $inv['total']),
-        'gateway'        => ucfirst($gateway),
-        'email'          => $inv['email'],
-        'link'           => portal_base_url() . '/invoices/view.php?id=' . $invoice_id,
-    ]);
+    Notifier::sendInvoiceEmail($invoice_id, 'invoice_paid', ['gateway' => ucfirst($gateway)]);
 }
 
 function notify_reference_rejected(array $inv, int $invoice_id, string $reason): void

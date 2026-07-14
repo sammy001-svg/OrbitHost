@@ -50,6 +50,7 @@ $pending_services   = (int) dq('SELECT COUNT(*) FROM client_services WHERE statu
 $failed_services    = (int) dq('SELECT COUNT(*) FROM client_services WHERE status="failed"');
 $overdue_invoices   = (int) $db->query('SELECT COUNT(*) FROM invoices WHERE status="overdue"')->fetchColumn();
 $suspended_services = (int) dq('SELECT COUNT(*) FROM client_services WHERE status="suspended"');
+$failed_emails_7d   = (int) dq("SELECT COUNT(*) FROM notifications WHERE email_sent = 0 AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)");
 
 // Services by status
 $svc_status = dqa('SELECT status, COUNT(*) n FROM client_services GROUP BY status');
@@ -154,7 +155,7 @@ require_once __DIR__ . '/includes/header.php';
   </div>
 </div>
 
-<?php if ($pending_services || $failed_services || $overdue_invoices || $suspended_services): ?>
+<?php if ($pending_services || $failed_services || $overdue_invoices || $suspended_services || $failed_emails_7d): ?>
 <div class="alert alert-warning" style="margin-bottom:20px; flex-wrap: wrap">
   <i class="fas fa-triangle-exclamation"></i>
   <span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
@@ -162,6 +163,7 @@ require_once __DIR__ . '/includes/header.php';
     <?php if ($failed_services): ?><span>&nbsp;·&nbsp;</span><a href="<?php echo APP_URL; ?>/services/?status=failed" style="color:inherit;font-weight:700;text-decoration:underline"><?php echo $failed_services; ?> failed provisioning</a><?php endif; ?>
     <?php if ($suspended_services): ?><span>&nbsp;·&nbsp;</span><a href="<?php echo APP_URL; ?>/services/?status=suspended" style="color:inherit;font-weight:700;text-decoration:underline"><?php echo $suspended_services; ?> suspended service(s)</a><?php endif; ?>
     <?php if ($overdue_invoices): ?><span>&nbsp;·&nbsp;</span><a href="<?php echo APP_URL; ?>/invoices/?status=overdue" style="color:inherit;font-weight:700;text-decoration:underline"><?php echo $overdue_invoices; ?> overdue invoice(s)</a><?php endif; ?>
+    <?php if ($failed_emails_7d): ?><span>&nbsp;·&nbsp;</span><a href="<?php echo APP_URL; ?>/notifications/#delivery" style="color:inherit;font-weight:700;text-decoration:underline"><?php echo $failed_emails_7d; ?> email(s) failed to send (7d)</a><?php endif; ?>
   </span>
 </div>
 <?php endif; ?>

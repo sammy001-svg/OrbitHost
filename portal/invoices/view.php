@@ -74,12 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay_c
             ->execute([$id, $cid, 'credit', 'CREDIT-' . strtoupper(bin2hex(random_bytes(4))), $inv['total'], $inv_currency]);
         db()->prepare("UPDATE invoices SET status='paid', paid_date=CURDATE(), payment_method='Account Credit' WHERE id=?")->execute([$id]);
         Automation::invoicePaid($id);
-        Notifier::send('invoice_paid', $cid, [
-            'client_name' => trim($inv['first_name'] . ' ' . $inv['last_name']),
-            'invoice_number' => $inv['invoice_number'], 'amount' => format_money((float) $inv['total'], $inv_currency),
-            'gateway' => 'Account Credit', 'email' => $inv['client_email'],
-            'link' => PORTAL_URL . '/invoices/view.php?id=' . $id,
-        ]);
+        Notifier::sendInvoiceEmail($id, 'invoice_paid', ['gateway' => 'Account Credit']);
         portal_flash_set('success', 'Paid with account credit — invoice settled.');
     } else {
         portal_flash_set('error', 'Insufficient account credit to cover this invoice.');

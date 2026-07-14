@@ -367,20 +367,13 @@ final class Automation
         $currency   = $pay['currency'] ?: (defined('CURRENCY') ? CURRENCY : 'USD');
         $registered = array_filter($summary, fn($d) => !empty($d['registered']));
         $item_desc  = $registered ? implode(', ', array_column($registered, 'domain')) : 'domain order';
-        $inv_no = '';
-        if ($pay['invoice_id']) {
-            $invstmt = db()->prepare('SELECT invoice_number FROM invoices WHERE id = ?');
-            $invstmt->execute([$pay['invoice_id']]);
-            $inv_no = $invstmt->fetchColumn() ?: '';
-        }
         $client_name = trim(($client['first_name'] ?? '') . ' ' . ($client['last_name'] ?? ''));
 
-        Notifier::send('invoice_paid', (int) $pay['client_id'], [
-            'client_name' => $client_name, 'invoice_number' => $inv_no,
-            'amount' => $currency . ' ' . number_format((float) $pay['amount'], 2),
-            'gateway' => ucfirst($pay['gateway']), 'email' => $client['email'] ?? '',
-            'link' => portal_base_url() . '/domains.php',
-        ]);
+        if ($pay['invoice_id']) {
+            Notifier::sendInvoiceEmail((int) $pay['invoice_id'], 'invoice_paid', [
+                'gateway' => ucfirst($pay['gateway']), 'link' => portal_base_url() . '/domains.php',
+            ]);
+        }
         Notifier::send('order_new', (int) $pay['client_id'], [
             'client_name' => $client_name, 'item' => $item_desc,
             'amount' => $currency . ' ' . number_format((float) $pay['amount'], 2),
@@ -562,18 +555,9 @@ final class Automation
     /** Shared "invoice_paid" client email for renewal/transfer (both bill through a plain invoice, no order). */
     private static function notifyDomainPaymentReceived(array $pay, array $client, string $domainLabel): void
     {
-        $inv_no = '';
-        if ($pay['invoice_id']) {
-            $stmt = db()->prepare('SELECT invoice_number FROM invoices WHERE id = ?');
-            $stmt->execute([$pay['invoice_id']]);
-            $inv_no = $stmt->fetchColumn() ?: '';
-        }
-        Notifier::send('invoice_paid', (int) $pay['client_id'], [
-            'client_name' => trim(($client['first_name'] ?? '') . ' ' . ($client['last_name'] ?? '')),
-            'invoice_number' => $inv_no,
-            'amount' => ($pay['currency'] ?: 'USD') . ' ' . number_format((float) $pay['amount'], 2),
-            'gateway' => ucfirst($pay['gateway']), 'email' => $client['email'] ?? '',
-            'link' => portal_base_url() . '/domains.php',
+        if (!$pay['invoice_id']) return;
+        Notifier::sendInvoiceEmail((int) $pay['invoice_id'], 'invoice_paid', [
+            'gateway' => ucfirst($pay['gateway']), 'link' => portal_base_url() . '/domains.php',
         ]);
     }
 

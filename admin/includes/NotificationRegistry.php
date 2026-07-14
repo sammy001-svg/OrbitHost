@@ -51,21 +51,34 @@ final class NotificationRegistry
                 'title'   => 'New invoice {invoice_number}',
                 'message' => '{amount} due {due_date}.',
                 'email_subject' => 'Invoice {invoice_number} — {amount} due {due_date}',
-                'email_body'    => '<p>Hi {client_name},</p><p>A new invoice has been generated on your account.</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:6px 0;color:#64748b">Invoice</td><td style="padding:6px 0;text-align:right;font-weight:700">{invoice_number}</td></tr><tr><td style="padding:6px 0;color:#64748b">Amount due</td><td style="padding:6px 0;text-align:right;font-weight:700">{amount}</td></tr><tr><td style="padding:6px 0;color:#64748b">Due date</td><td style="padding:6px 0;text-align:right;font-weight:700">{due_date}</td></tr></table><p>Log in to the client portal to view and pay this invoice online.</p>',
+                'email_body'    => '<p>Hi {client_name},</p><p>A new invoice has been generated on your account.</p>'
+                    . '<table style="width:100%;border-collapse:collapse;margin:16px 0">'
+                    . '<tr><td style="padding:6px 0;color:#64748b">Invoice</td><td style="padding:6px 0;text-align:right;font-weight:700">{invoice_number}</td></tr>'
+                    . '<tr><td style="padding:6px 0;color:#64748b">Status</td><td style="padding:6px 0;text-align:right"><span style="background:{status_color};color:#fff;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">{status}</span></td></tr>'
+                    . '<tr><td style="padding:6px 0;color:#64748b">Amount due</td><td style="padding:6px 0;text-align:right;font-weight:700">{amount}</td></tr>'
+                    . '<tr><td style="padding:6px 0;color:#64748b">Due date</td><td style="padding:6px 0;text-align:right;font-weight:700">{due_date}</td></tr></table>'
+                    . '{items_table}'
+                    . '<p>Log in to the client portal to view and pay this invoice online.</p>',
             ],
             'invoice_overdue' => [
                 'audience' => 'client', 'icon' => 'fa-triangle-exclamation', 'color' => '#dc2626', 'email' => true,
                 'title'   => 'Invoice {invoice_number} is overdue',
                 'message' => '{amount} was due {due_date}. Please pay to avoid service interruption.',
                 'email_subject' => 'Overdue: Invoice {invoice_number} — please pay {amount}',
-                'email_body'    => '<p>Hi {client_name},</p><p>Invoice <strong>{invoice_number}</strong> for <strong>{amount}</strong> was due on {due_date} and is now overdue.</p><p>Please log in to the client portal to settle this invoice as soon as possible to avoid service suspension.</p>',
+                'email_body'    => '<p>Hi {client_name},</p><p>Invoice <strong>{invoice_number}</strong> for <strong>{amount}</strong> was due on {due_date} and is now'
+                    . ' <span style="background:{status_color};color:#fff;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">{status}</span>.</p>'
+                    . '{items_table}'
+                    . '<p>Please log in to the client portal to settle this invoice as soon as possible to avoid service suspension.</p>',
             ],
             'invoice_paid' => [
                 'audience' => 'client', 'icon' => 'fa-circle-check', 'color' => '#1A8A45', 'email' => true,
                 'title'   => 'Payment received — {invoice_number}',
                 'message' => 'Thank you! {amount} received via {gateway}.',
                 'email_subject' => 'Payment receipt — {invoice_number}',
-                'email_body'    => '<p>Hi {client_name},</p><p>We\'ve received your payment of <strong>{amount}</strong> for invoice <strong>{invoice_number}</strong> via {gateway}. Thank you!</p><p>You can view your full billing history any time in the client portal.</p>',
+                'email_body'    => '<p>Hi {client_name},</p><p>We\'ve received your payment of <strong>{amount}</strong> for invoice <strong>{invoice_number}</strong> via {gateway}. Thank you!</p>'
+                    . '<p><span style="background:{status_color};color:#fff;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">{status}</span></p>'
+                    . '{items_table}'
+                    . '<p>You can view your full billing history any time in the client portal.</p>',
             ],
             'payment_failed' => [
                 'audience' => 'client', 'icon' => 'fa-circle-xmark', 'color' => '#dc2626', 'email' => true,
