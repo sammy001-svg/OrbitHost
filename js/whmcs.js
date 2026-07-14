@@ -6,9 +6,25 @@
  * every action now routes to the in-house client portal at /portal.
  * No third-party system is contacted.
  *
- * The site markup is unchanged: buttons are still wired by their
- * data-attributes, and the window.WHMCS global name is kept so the
- * domain-search widget in main.js keeps working without edits.
+ * Most nav/header/footer CTAs across the site now carry their real
+ * portal href directly in the static HTML (no JS dependency for core
+ * navigation). This file still does two things:
+ *   1. Keeps window.WHMCS.domainUrl() available — main.js's live
+ *      domain-search results still call it to build each "Add to Cart"
+ *      link, so this can't be removed even though most of its own
+ *      auto-wiring below now has nothing left to do.
+ *   2. Auto-wires any leftover placeholder ([href="#"]) tagged with a
+ *      data-whmcs-* attribute, for any future button added without a
+ *      real href yet.
+ *
+ * IMPORTANT: every selector below is scoped to [href="#"] specifically
+ * so this never touches a link that already points somewhere real —
+ * e.g. hosting/dedicated.html's "Order Server" and ssl.html's "Order
+ * EV/OV SSL" buttons deliberately route to contact.html (sales-assisted,
+ * not self-service) despite still carrying data-whmcs-product for
+ * bookkeeping. An earlier version of this file wired unconditionally
+ * and silently overwrote those to the self-service signup link on every
+ * page load — this guard is what prevents that regression.
  *
  *   data-whmcs-action="login"   → portal login        (/portal/login.php)
  *   data-whmcs-product="slug"   → portal signup        (/portal/register.php?plan=slug)
@@ -62,34 +78,35 @@
       el.removeAttribute('rel');
     }
 
-    // Plan "Get Started" buttons: [data-whmcs-product="slug"]
-    document.querySelectorAll('[data-whmcs-product]').forEach(function (el) {
+    // Plan "Get Started" buttons: [data-whmcs-product="slug"] — only
+    // when still a placeholder; never touch an already-real href.
+    document.querySelectorAll('[data-whmcs-product][href="#"]').forEach(function (el) {
       var slug = el.getAttribute('data-whmcs-product');
       wire(el, window.WHMCS.orderUrl(slug));
     });
 
     // Log In / Client Area
-    document.querySelectorAll('[data-whmcs-action="login"]').forEach(function (el) {
+    document.querySelectorAll('[data-whmcs-action="login"][href="#"]').forEach(function (el) {
       wire(el, window.WHMCS.clientArea);
     });
 
     // Create Account / Get Started
-    document.querySelectorAll('[data-whmcs-action="register"]').forEach(function (el) {
+    document.querySelectorAll('[data-whmcs-action="register"][href="#"]').forEach(function (el) {
       wire(el, window.WHMCS.register);
     });
 
     // Cart
-    document.querySelectorAll('[data-whmcs-action="cart"]').forEach(function (el) {
+    document.querySelectorAll('[data-whmcs-action="cart"][href="#"]').forEach(function (el) {
       wire(el, window.WHMCS.cart);
     });
 
     // Submit Ticket → portal login (support tickets live in the portal)
-    document.querySelectorAll('[data-whmcs-action="ticket"]').forEach(function (el) {
+    document.querySelectorAll('[data-whmcs-action="ticket"][href="#"]').forEach(function (el) {
       wire(el, window.WHMCS.submitTicket);
     });
 
     // Knowledge Base / Server Status → contact page (no separate internal pages)
-    document.querySelectorAll('[data-whmcs-action="kb"], [data-whmcs-action="status"]').forEach(function (el) {
+    document.querySelectorAll('[data-whmcs-action="kb"][href="#"], [data-whmcs-action="status"][href="#"]').forEach(function (el) {
       wire(el, window.WHMCS.knowledgeBase);
     });
 
