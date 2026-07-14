@@ -183,3 +183,43 @@ function payment_webhook_url(int $payment_id, string $gateway = 'kopokopo'): str
     $site_root = preg_replace('#/admin/?$#i', '', rtrim(APP_URL, '/'));
     return $site_root . '/api/webhooks/' . $gateway . '.php?pay=' . $payment_id;
 }
+
+/**
+ * Server-side password policy — the client-side strength meter (portal.js)
+ * is a visual hint only and was never enforced past a bare 8-character
+ * minimum, so any password met the requirement. Returns a list of
+ * problems (empty = acceptable). $context values (e.g. email, name) are
+ * rejected if the password trivially contains them.
+ */
+function password_policy_errors(string $password, array $context = []): array
+{
+    $errors = [];
+    if (strlen($password) < 10) {
+        $errors[] = 'Password must be at least 10 characters.';
+    }
+    $classes = 0;
+    if (preg_match('/[a-z]/', $password)) $classes++;
+    if (preg_match('/[A-Z]/', $password)) $classes++;
+    if (preg_match('/[0-9]/', $password)) $classes++;
+    if (preg_match('/[^A-Za-z0-9]/', $password)) $classes++;
+    if ($classes < 3) {
+        $errors[] = 'Password must include at least 3 of: lowercase, uppercase, numbers, symbols.';
+    }
+    // A short deny-list of the most common trivial passwords, checked in
+    // addition to (not instead of) the composition rule above, since
+    // composition rules alone don't stop "Passw0rd!" or "Welcome123!".
+    $commonWeak = ['password', 'password1', 'password123', '12345678', '123456789', '1234567890',
+        'qwerty123', 'qwertyuiop', 'letmein123', 'welcome123', 'admin1234', 'iloveyou1',
+        'football1', 'baseball1', 'trustno1', 'abc123456', 'passw0rd', 'p@ssw0rd'];
+    if (in_array(strtolower($password), $commonWeak, true)) {
+        $errors[] = 'That password is too common — please choose something less guessable.';
+    }
+    foreach ($context as $value) {
+        $value = trim((string) $value);
+        if ($value !== '' && strlen($value) >= 4 && stripos($password, $value) !== false) {
+            $errors[] = 'Password should not contain your name or email address.';
+            break;
+        }
+    }
+    return $errors;
+}

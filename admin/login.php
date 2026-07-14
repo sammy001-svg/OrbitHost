@@ -9,6 +9,10 @@ if (!empty($_SESSION['admin_id'])) {
     header('Location: ' . APP_URL . '/dashboard.php');
     exit;
 }
+if (!empty($_SESSION['admin_2fa_pending_id'])) {
+    header('Location: ' . APP_URL . '/verify-2fa.php');
+    exit;
+}
 
 $error   = '';
 $timeout = isset($_GET['timeout']);
@@ -19,11 +23,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$email || !$password) {
         $error = 'Please enter your email and password.';
-    } elseif (auth_login($email, $password)) {
-        header('Location: ' . APP_URL . '/dashboard.php');
-        exit;
     } else {
-        $error = 'Invalid credentials. Please check your email and password.';
+        $r = auth_login($email, $password);
+        if (!empty($r['needs_2fa'])) {
+            header('Location: ' . APP_URL . '/verify-2fa.php');
+            exit;
+        } elseif (!empty($r['ok'])) {
+            header('Location: ' . APP_URL . '/dashboard.php');
+            exit;
+        } else {
+            $error = $r['message'] ?? 'Invalid credentials. Please check your email and password.';
+        }
     }
 }
 ?>
