@@ -28,14 +28,17 @@
 
   // ── Branding: logo + favicon ──
   // An uploaded logo overrides the text brand name entirely — big and
-  // visible, not squeezed into the small icon square — on every ".logo"
-  // link (used for both the header and footer logo on every page).
+  // visible, not squeezed into the small icon square — on the public
+  // site's ".logo" link (used for both the header and footer logo on
+  // every page). The portal and admin panel render this server-side
+  // (see portal/includes/header.php, admin/includes/sidebar.php) —
+  // NOT handled here, or the logo would be inserted twice.
   function applyBranding(b) {
     var logoUrl = fileUrl(b.logo_image);
     if (logoUrl) {
-      document.querySelectorAll('.logo, .portal-logo').forEach(function (wrap) {
-        var icon = wrap.querySelector('.logo-icon, .logo-orb, .brand-orb');
-        var text = wrap.querySelector('.logo-text, .portal-logo > span:last-child, .brand-text');
+      document.querySelectorAll('.logo').forEach(function (wrap) {
+        var icon = wrap.querySelector('.logo-icon');
+        var text = wrap.querySelector('.logo-text');
         var img = document.createElement('img');
         img.src = logoUrl;
         img.alt = (b.site_name_primary || 'Orbit') + ' ' + (b.site_name_accent || 'Cloud');
@@ -44,6 +47,9 @@
         if (text) text.remove();
       });
     } else if (b.site_name_primary || b.site_name_accent) {
+      // Text-only swap is safe to also apply to the portal's fallback
+      // span (unlike the image branch above, this never inserts a new
+      // node, so it can't create a duplicate).
       document.querySelectorAll('.logo-text, .portal-logo span:last-child').forEach(function (el) {
         el.textContent = b.site_name_primary || 'Orbit';
         var span = document.createElement('span');

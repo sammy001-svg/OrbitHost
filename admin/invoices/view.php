@@ -6,7 +6,7 @@ require_once '../includes/functions.php';
 require_once '../includes/SiteSettings.php';
 
 auth_check();
-$_invoice_logo = SiteSettings::logoImgTag(60, 240);
+$_invoice_logo = SiteSettings::logoOnNavy(60, 240);
 
 $id = (int)($_GET['id'] ?? 0);
 $stmt = db()->prepare('

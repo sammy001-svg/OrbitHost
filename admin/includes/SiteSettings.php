@@ -172,6 +172,20 @@ final class SiteSettings
              . 'style="display:block;height:auto;width:auto;max-height:' . $maxHeight . 'px;max-width:' . $maxWidth . 'px;object-fit:contain" />';
     }
 
+    /**
+     * The logo wrapped in a navy background card — for documents (invoices,
+     * receipts) and other white/light-background contexts where a logo
+     * with white or light elements would otherwise vanish. Same
+     * null-when-no-logo contract as logoImgTag(), so callers fall back to
+     * their existing text logo untouched.
+     */
+    public static function logoOnNavy(int $maxHeight = 40, int $maxWidth = 200, string $padding = '10px 14px'): ?string
+    {
+        $img = self::logoImgTag($maxHeight, $maxWidth);
+        if (!$img) return null;
+        return '<div style="display:inline-block;background:#0B1E3D;padding:' . htmlspecialchars($padding) . ';border-radius:8px;line-height:0">' . $img . '</div>';
+    }
+
     public static function save(string $section, array $data): void
     {
         $json = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

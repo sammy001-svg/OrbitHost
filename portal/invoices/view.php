@@ -4,7 +4,7 @@ require_once '../includes/auth.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/providers/Provider.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/SiteSettings.php';
-$_invoice_logo = SiteSettings::logoImgTag(60, 240);
+$_invoice_logo = SiteSettings::logoOnNavy(60, 240);
 
 portal_check();
 $cid = current_client()['id'];

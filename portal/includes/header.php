@@ -63,7 +63,7 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
         <div class="notif-dropdown" id="notifDropdown">
           <div class="notif-dd-head">
             <span style="display:flex;align-items:center;gap:8px">
-              <?php $_notif_logo = SiteSettings::logoImgTag(18, 80); if ($_notif_logo) echo $_notif_logo; ?>
+              <?php $_notif_logo = SiteSettings::logoOnNavy(16, 70, '3px 6px'); if ($_notif_logo) echo $_notif_logo; ?>
               Notifications
             </span>
             <?php if ($_unread): ?>
