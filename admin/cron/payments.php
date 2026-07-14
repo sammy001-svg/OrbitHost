@@ -79,7 +79,7 @@ if ($stale > 0) {
     Notifier::sendToAllAdmins('order_new_admin', [
         'client_name' => 'System', 'item' => $stale . ' payment(s) still pending after ' . $max_age_hours . 'h — likely abandoned',
         'amount' => '—', 'gateway' => 'reconciliation',
-        'link' => APP_URL . '/billing/',
+        'link' => APP_URL . '/billing/index.php',
     ]);
 }
 

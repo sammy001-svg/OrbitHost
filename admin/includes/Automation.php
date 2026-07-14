@@ -384,7 +384,7 @@ final class Automation
             'client_name' => $client_name, 'item' => $item_desc,
             'amount' => $currency . ' ' . number_format((float) $pay['amount'], 2),
             'gateway' => ucfirst($pay['gateway']),
-            'link' => APP_URL . '/integrations/domains/',
+            'link' => APP_URL . '/integrations/domains/index.php',
         ]);
         return $summary;
     }
@@ -448,7 +448,7 @@ final class Automation
             'client_name' => $client_name, 'item' => $name,
             'amount' => $currency . ' ' . number_format((float) $pay['amount'], 2),
             'gateway' => ucfirst(str_replace('_', ' ', $pay['gateway'])),
-            'link' => APP_URL . '/orders/',
+            'link' => APP_URL . '/orders/index.php',
         ]);
         return ['order_id' => $order_id, 'status' => 'created', 'provision' => $provision];
     }
@@ -547,7 +547,7 @@ final class Automation
             'item' => 'Domain transfer: ' . $domain,
             'amount' => ($pay['currency'] ?: 'USD') . ' ' . number_format((float) $pay['amount'], 2),
             'gateway' => ucfirst($pay['gateway']),
-            'link' => APP_URL . '/integrations/domains/',
+            'link' => APP_URL . '/integrations/domains/index.php',
         ]);
         return $result;
     }

@@ -27,7 +27,19 @@ if (isset($_GET['open'])) {
     $stmt = db()->prepare('SELECT link FROM notifications WHERE id = ? AND audience = "admin" AND recipient_id = ?');
     $stmt->execute([$id, $admin_id]);
     $link = $stmt->fetchColumn();
-    if ($link) { header('Location: ' . $link); exit; }
+    if ($link) {
+        // Older notifications (or a bare-directory link that depended on
+        // Apache's DirectoryIndex resolving it) may point at a directory
+        // with no filename — normalize to its index.php so the redirect
+        // always lands on a real page instead of risking a 404. None of
+        // this app's directory-style links ever carry a query string, so
+        // checking the raw string is enough (no need to parse the URL).
+        if (substr($link, -1) === '/') {
+            $link = rtrim($link, '/') . '/index.php';
+        }
+        header('Location: ' . $link);
+        exit;
+    }
     header('Location: ' . APP_URL . '/notifications/');
     exit;
 }
