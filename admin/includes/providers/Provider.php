@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Provider factory & config accessor
+ * Orbit Cloud — Provider factory & config accessor
  *
  * Bridges the registry (metadata) with saved config (integration_settings)
  * and the concrete category clients. Everything else in the app goes through

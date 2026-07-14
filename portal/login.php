@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Client Portal — OrbitHost</title>
+  <title>Client Portal — Orbit Cloud</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css" />
   <style>
@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div class="auth-wrap">
   <div class="auth-brand">
     <div class="auth-orb">O</div>
-    <h1>OrbitHost</h1>
+    <h1>Orbit Cloud</h1>
     <p>Client Portal</p>
   </div>
   <div class="auth-card">

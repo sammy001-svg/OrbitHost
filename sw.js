@@ -1,4 +1,4 @@
-const CACHE = 'orbithost-v1';
+const CACHE = 'orbitcloud-v1';
 
 const STATIC = [
   '/',

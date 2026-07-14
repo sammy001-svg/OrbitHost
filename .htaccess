@@ -1,4 +1,4 @@
-# OrbitHost — Project root Apache config
+# Orbit Cloud — Project root Apache config
 
 Options -Indexes
 ServerSignature Off

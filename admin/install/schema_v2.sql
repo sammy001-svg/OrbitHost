@@ -1,5 +1,5 @@
 -- ============================================================
---  OrbitHost — Schema v2 Migration
+--  Orbit Cloud — Schema v2 Migration
 --  Run AFTER schema.sql
 --
 --  phpMyAdmin: select your database in the left panel first,
@@ -30,7 +30,7 @@ INSERT IGNORE INTO integration_settings (provider, settings, is_active) VALUES
 ('whm',      '{"host":"","user":"root","token":"","ssl_verify":false}', 0),
 ('namecheap','{"api_user":"","api_key":"","sandbox":true}', 0),
 ('godaddy',  '{"api_key":"","api_secret":"","sandbox":true}', 0),
-('smtp',     '{"host":"smtp.gmail.com","port":587,"user":"","pass":"","from_name":"OrbitHost","from_email":"noreply@orbithost.com"}', 0);
+('smtp',     '{"host":"smtp.gmail.com","port":587,"user":"","pass":"","from_name":"Orbit Cloud","from_email":"noreply@orbitcloud.com"}', 0);
 
 -- ── WHM provisioned cPanel accounts ──────────────────────────
 CREATE TABLE IF NOT EXISTS whm_accounts (

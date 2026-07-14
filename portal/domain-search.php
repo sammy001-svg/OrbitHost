@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Domain search inside the client portal.
+ * Orbit Cloud — Domain search inside the client portal.
  * Uses the same live availability API as the public site; results add
  * straight to the domain cart so checkout never leaves the portal.
  */
@@ -41,7 +41,7 @@ require_once __DIR__ . '/includes/header.php';
   </div>
 
   <p style="text-align:center;font-size:12.5px;color:var(--text-muted);margin-top:16px">
-    Already own a domain elsewhere? <a href="<?php echo PORTAL_URL; ?>/domain-transfer.php" style="color:var(--green);font-weight:600">Transfer it to OrbitHost</a>
+    Already own a domain elsewhere? <a href="<?php echo PORTAL_URL; ?>/domain-transfer.php" style="color:var(--green);font-weight:600">Transfer it to Orbit Cloud</a>
   </p>
 </div>
 </div>

@@ -1,5 +1,5 @@
 -- ============================================================
---  OrbitHost — Schema v7 Migration
+--  Orbit Cloud — Schema v7 Migration
 --  Site Settings (branding, header, business info, footer, contact page)
 --
 --  NOTE: admin/settings/index.php creates this table automatically on

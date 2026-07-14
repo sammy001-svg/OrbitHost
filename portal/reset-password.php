@@ -55,14 +55,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $client) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Reset Password — OrbitHost Portal</title>
+  <title>Reset Password — Orbit Cloud Portal</title>
   <link rel="stylesheet" href="<?php echo $PORTAL_URL; ?>/css/portal.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
 </head>
 <body>
 <div class="auth-wrap">
   <div class="auth-card">
-    <a href="<?php echo $PORTAL_URL; ?>/login.php" class="auth-logo">Orbit<span>Host</span></a>
+    <a href="<?php echo $PORTAL_URL; ?>/login.php" class="auth-logo">Orbit<span>Cloud</span></a>
 
     <?php if ($done): ?>
       <div style="text-align:center">

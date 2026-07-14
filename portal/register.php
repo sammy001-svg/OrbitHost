@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Create Account — OrbitHost</title>
+  <title>Create Account — Orbit Cloud</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css" />
   <style>
@@ -120,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div class="auth-wrap">
   <div class="auth-brand">
     <div class="auth-orb">O</div>
-    <h1>OrbitHost</h1>
+    <h1>Orbit Cloud</h1>
     <p>Client Portal — Create Account</p>
   </div>
   <div class="auth-card">
@@ -193,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <div class="login-link">Already have an account? <a href="<?php echo PORTAL_URL; ?>/login.php">Sign in →</a></div>
   </div>
-  <a href="../index.html" class="back-link">← Back to OrbitHost website</a>
+  <a href="../index.html" class="back-link">← Back to Orbit Cloud website</a>
 </div>
 <script src="<?php echo PORTAL_URL; ?>/js/portal.js"></script>
 </body>

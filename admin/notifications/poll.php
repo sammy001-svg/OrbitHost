@@ -1,5 +1,5 @@
 <?php
-/** OrbitHost — admin notification bell polling endpoint. */
+/** Orbit Cloud — admin notification bell polling endpoint. */
 require_once '../includes/config.php';
 require_once '../includes/db.php';
 require_once '../includes/auth.php';

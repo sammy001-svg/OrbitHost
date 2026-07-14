@@ -3,7 +3,7 @@
 <footer class="portal-footer">
   <div class="container">
     <div class="pf-inner">
-      <span>© <?php echo date('Y'); ?> OrbitHost. All rights reserved.</span>
+      <span>© <?php echo date('Y'); ?> Orbit Cloud. All rights reserved.</span>
       <div class="pf-links">
         <a href="<?php echo preg_replace('#/portal/?$#', '', PORTAL_URL); ?>/index.html">Main Website</a>
         <a href="<?php echo PORTAL_URL; ?>/domains.php">My Domains</a>
@@ -20,7 +20,7 @@
   <div class="pchat-head">
     <i class="fas fa-headset"></i>
     <div style="flex:1">
-      <div class="t">OrbitHost Support</div>
+      <div class="t">Orbit Cloud Support</div>
       <div class="s">We reply as soon as we can</div>
     </div>
     <button type="button" id="pchatClose" aria-label="Close">&times;</button>

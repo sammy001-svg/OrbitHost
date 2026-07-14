@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — shared hero banner carousel for the client portal.
+ * Orbit Cloud — shared hero banner carousel for the client portal.
  * Admin manages banners under Marketing › Portal Banners (placement 'hero').
  * Call portal_render_banners() at the top of a page's .container — it
  * renders nothing when no active hero banners exist, outputs its own

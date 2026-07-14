@@ -1,4 +1,4 @@
-/* OrbitHost Client Portal — JS */
+/* Orbit Cloud Client Portal — JS */
 document.addEventListener('DOMContentLoaded', function () {
 
   // Mobile nav toggle

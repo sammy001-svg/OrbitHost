@@ -40,9 +40,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $reset_link = $PORTAL_URL . '/reset-password.php?token=' . $token;
 
             // Send email via PHP mail() — production should use SMTP
-            $subject = 'Password Reset — OrbitHost';
-            $body    = "Hi {$client['first_name']},\n\nYou requested a password reset for your OrbitHost portal account.\n\nClick the link below to reset your password (valid for 1 hour):\n{$reset_link}\n\nIf you did not request this, please ignore this email.\n\n— The OrbitHost Team";
-            $headers = "From: noreply@orbithost.co.ke\r\nX-Mailer: PHP";
+            $subject = 'Password Reset — Orbit Cloud';
+            $body    = "Hi {$client['first_name']},\n\nYou requested a password reset for your Orbit Cloud portal account.\n\nClick the link below to reset your password (valid for 1 hour):\n{$reset_link}\n\nIf you did not request this, please ignore this email.\n\n— The Orbit Cloud Team";
+            $headers = "From: noreply@orbitcloud.co.ke\r\nX-Mailer: PHP";
             @mail($email, $subject, $body, $headers);
         }
 
@@ -56,14 +56,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Forgot Password — OrbitHost Portal</title>
+  <title>Forgot Password — Orbit Cloud Portal</title>
   <link rel="stylesheet" href="<?php echo $PORTAL_URL; ?>/css/portal.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
 </head>
 <body>
 <div class="auth-wrap">
   <div class="auth-card">
-    <a href="<?php echo $PORTAL_URL; ?>/login.php" class="auth-logo">Orbit<span>Host</span></a>
+    <a href="<?php echo $PORTAL_URL; ?>/login.php" class="auth-logo">Orbit<span>Cloud</span></a>
 
     <?php if ($sent): ?>
       <div class="auth-icon-wrap"><i class="fas fa-envelope-circle-check" style="font-size:42px;color:var(--green)"></i></div>

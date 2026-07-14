@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Notification dispatcher
+ * Orbit Cloud — Notification dispatcher
  *
  * Single entry point for every in-app + email notification in the
  * platform. Reads type definitions from NotificationRegistry, inserts
@@ -146,7 +146,7 @@ final class Notifier
              . '<span style="font-size:18px;font-weight:800">Orbit<span style="color:#1A8A45">Host</span></span></div>'
              . '<div style="border:1px solid #e3e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px;color:#334155;font-size:14px;line-height:1.6">'
              . $bodyHtml
-             . '<p style="color:#94a3b8;font-size:11.5px;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:14px">This is an automated notification from OrbitHost. If you have questions, just reply or open a support ticket from the client portal.</p>'
+             . '<p style="color:#94a3b8;font-size:11.5px;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:14px">This is an automated notification from Orbit Cloud. If you have questions, just reply or open a support ticket from the client portal.</p>'
              . '</div></div>';
     }
 

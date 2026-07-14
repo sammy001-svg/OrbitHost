@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div class="login-page">
   <div class="login-brand">
     <div class="login-orb">O</div>
-    <h1>OrbitHost</h1>
+    <h1>Orbit Cloud</h1>
     <p>Admin Control Panel</p>
   </div>
 
@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label class="form-label" for="email">Email Address</label>
         <input type="email" id="email" name="email" class="form-control"
                value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>"
-               placeholder="admin@orbithost.com"
+               placeholder="admin@orbitcloud.com"
                required autofocus autocomplete="email" />
       </div>
       <div class="form-group">
@@ -115,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
   </div>
 
-  <a href="../index.html" class="back-link">← Back to OrbitHost website</a>
+  <a href="../index.html" class="back-link">← Back to Orbit Cloud website</a>
 </div>
 </body>
 </html>

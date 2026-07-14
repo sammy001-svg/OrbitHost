@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Mailer
+ * Orbit Cloud — Mailer
  *
  * Native SMTP client (no external dependencies) that actually exercises
  * the saved SMTP configuration, so "Send test email" verifies the real
@@ -31,11 +31,11 @@ final class Mailer
               . '<span style="font-size:18px;font-weight:800">Orbit<span style="color:#1A8A45">Host</span></span></div>'
               . '<div style="border:1px solid #e3e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px">'
               . '<h2 style="margin:0 0 10px;font-size:17px;color:#0B1E3D">✅ Email configuration works</h2>'
-              . '<p style="color:#475569;font-size:14px;line-height:1.6">If you are reading this, your OrbitHost admin console '
+              . '<p style="color:#475569;font-size:14px;line-height:1.6">If you are reading this, your Orbit Cloud admin console '
               . 'successfully delivered an email through <strong>' . htmlspecialchars($this->cfg['host'] ?: 'PHP mail()') . '</strong>.</p>'
               . '<p style="color:#94a3b8;font-size:12px">Sent ' . $when . '</p></div></div>';
 
-        return $this->send($to, 'OrbitHost — SMTP test email', $html);
+        return $this->send($to, 'Orbit Cloud — SMTP test email', $html);
     }
 
     /** Send an email. Uses SMTP when a host is configured, else PHP mail(). */
@@ -51,7 +51,7 @@ final class Mailer
     private function phpMailSend(string $to, string $subject, string $html): array
     {
         $fromEmail = $this->cfg['from_email'] ?: ('noreply@' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
-        $fromName  = $this->cfg['from_name'] ?: 'OrbitHost';
+        $fromName  = $this->cfg['from_name'] ?: 'Orbit Cloud';
         $headers   = 'From: ' . $this->encodeName($fromName) . " <{$fromEmail}>\r\n"
                    . "MIME-Version: 1.0\r\n"
                    . "Content-Type: text/html; charset=UTF-8\r\n";
@@ -70,7 +70,7 @@ final class Mailer
         $user = $this->cfg['username'] ?? '';
         $pass = $this->cfg['password'] ?? '';
         $fromEmail = $this->cfg['from_email'] ?: $user;
-        $fromName  = $this->cfg['from_name'] ?: 'OrbitHost';
+        $fromName  = $this->cfg['from_name'] ?: 'Orbit Cloud';
 
         $transport = ($enc === 'ssl') ? 'ssl://' : '';
         $ctx = stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]]);
@@ -99,8 +99,8 @@ final class Mailer
 
         if ($code($read()) !== 220) return $fail('Server did not greet correctly.');
 
-        $ehlo = $cmd('EHLO orbithost.local');
-        if ($code($ehlo) !== 250) { $cmd('HELO orbithost.local'); }
+        $ehlo = $cmd('EHLO orbitcloud.local');
+        if ($code($ehlo) !== 250) { $cmd('HELO orbitcloud.local'); }
 
         if ($enc === 'tls') {
             if ($code($cmd('STARTTLS')) !== 220) return $fail('STARTTLS was refused by the server.');
@@ -108,7 +108,7 @@ final class Mailer
             if (defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT')) $crypto |= STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT;
             if (defined('STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT')) $crypto |= STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT;
             if (!@stream_socket_enable_crypto($fp, true, $crypto)) return $fail('TLS negotiation failed.');
-            $cmd('EHLO orbithost.local');
+            $cmd('EHLO orbitcloud.local');
         }
 
         if ($user !== '') {
@@ -127,7 +127,7 @@ final class Mailer
             "To: <{$to}>",
             'Subject: ' . $this->encodeHeader($subject),
             'Date: ' . date('r'),
-            'Message-ID: <' . bin2hex(random_bytes(8)) . '@orbithost>',
+            'Message-ID: <' . bin2hex(random_bytes(8)) . '@orbitcloud>',
             'MIME-Version: 1.0',
             'Content-Type: text/html; charset=UTF-8',
             'Content-Transfer-Encoding: 8bit',

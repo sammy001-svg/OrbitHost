@@ -1,7 +1,7 @@
 <?php
 /**
- * OrbitHost — Live chat API (public)
- * Powers the floating "OrbitHost Support" widget on the website.
+ * Orbit Cloud — Live chat API (public)
+ * Powers the floating "Orbit Cloud Support" widget on the website.
  *
  *   POST action=start   {name?, email?, message}  → { ok, conversation, token }
  *   POST action=send    {conversation, token, message}

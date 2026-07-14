@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — detects this server's outbound IP address for registrar
+ * Orbit Cloud — detects this server's outbound IP address for registrar
  * IP-whitelisting (NetEarthOne / ResellerClub reject non-whitelisted
  * requests with "Access Denied: You are not authorized to perform this
  * action").

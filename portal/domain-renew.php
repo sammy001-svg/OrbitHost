@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — self-service domain renewal.
+ * Orbit Cloud — self-service domain renewal.
  * Client picks years, pays through any active gateway, and on confirmed
  * payment the registrar's renew() is called and the domain's expiry is
  * extended. If payment succeeds but the registrar call fails, the
@@ -151,7 +151,7 @@ $days_left = $dom['expiry_date'] ? (int) ceil((strtotime($dom['expiry_date']) - 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Renew Domain — OrbitHost</title>
+  <title>Renew Domain — Orbit Cloud</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css" />
   <style>

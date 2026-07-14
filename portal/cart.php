@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Domain cart
+ * Orbit Cloud — Domain cart
  * Session-based; works before login (checkout is where sign-in happens).
  *   ?add=domain.tld    add a domain (from the website search)
  *   ?remove=domain.tld remove
@@ -77,7 +77,7 @@ $logged_in = !empty($_SESSION['client_id']);
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Your Cart — OrbitHost</title>
+  <title>Your Cart — Orbit Cloud</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css" />
   <style>
@@ -147,7 +147,7 @@ $logged_in = !empty($_SESSION['client_id']);
     <?php endif; ?>
   </div>
 
-  <a href="../index.html" class="back-link">← Back to OrbitHost website</a>
+  <a href="../index.html" class="back-link">← Back to Orbit Cloud website</a>
 </div>
 </body>
 </html>

@@ -78,7 +78,7 @@ require_once '../includes/header.php';
         ?>
           <div class="thread-msg <?php echo $is_admin ? 'from-admin' : 'from-client'; ?>">
             <div class="msg-meta">
-              <span class="msg-sender"><?php echo htmlspecialchars($r['sender_name'] ?: ($is_admin ? 'OrbitHost Support' : 'You')); ?></span>
+              <span class="msg-sender"><?php echo htmlspecialchars($r['sender_name'] ?: ($is_admin ? 'Orbit Cloud Support' : 'You')); ?></span>
               <?php if ($is_admin): ?><span class="msg-badge admin">Support Team</span><?php else: ?><span class="msg-badge client">You</span><?php endif; ?>
               <span class="msg-time"><?php echo format_datetime($r['created_at']); ?></span>
             </div>

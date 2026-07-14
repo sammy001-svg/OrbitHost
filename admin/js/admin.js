@@ -1,4 +1,4 @@
-/* OrbitHost Admin Panel — JavaScript */
+/* Orbit Cloud Admin Panel — JavaScript */
 
 document.addEventListener('DOMContentLoaded', function () {
 

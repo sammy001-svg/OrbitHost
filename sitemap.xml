@@ -6,7 +6,7 @@
 
   <!-- Homepage -->
   <url>
-    <loc>https://sammy001-svg.github.io/OrbitHost/</loc>
+    <loc>https://orbitcloud.co.ke/</loc>
     <lastmod>2026-07-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
@@ -14,37 +14,37 @@
 
   <!-- Hosting Pages -->
   <url>
-    <loc>https://sammy001-svg.github.io/OrbitHost/hosting/shared.html</loc>
+    <loc>https://orbitcloud.co.ke/hosting/shared.html</loc>
     <lastmod>2026-07-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://sammy001-svg.github.io/OrbitHost/hosting/vps.html</loc>
+    <loc>https://orbitcloud.co.ke/hosting/vps.html</loc>
     <lastmod>2026-07-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://sammy001-svg.github.io/OrbitHost/hosting/dedicated.html</loc>
+    <loc>https://orbitcloud.co.ke/hosting/dedicated.html</loc>
     <lastmod>2026-07-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://sammy001-svg.github.io/OrbitHost/hosting/cloud.html</loc>
+    <loc>https://orbitcloud.co.ke/hosting/cloud.html</loc>
     <lastmod>2026-07-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://sammy001-svg.github.io/OrbitHost/hosting/wordpress.html</loc>
+    <loc>https://orbitcloud.co.ke/hosting/wordpress.html</loc>
     <lastmod>2026-07-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://sammy001-svg.github.io/OrbitHost/hosting/reseller.html</loc>
+    <loc>https://orbitcloud.co.ke/hosting/reseller.html</loc>
     <lastmod>2026-07-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -52,19 +52,19 @@
 
   <!-- Services -->
   <url>
-    <loc>https://sammy001-svg.github.io/OrbitHost/domains.html</loc>
+    <loc>https://orbitcloud.co.ke/domains.html</loc>
     <lastmod>2026-07-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://sammy001-svg.github.io/OrbitHost/ssl.html</loc>
+    <loc>https://orbitcloud.co.ke/ssl.html</loc>
     <lastmod>2026-07-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://sammy001-svg.github.io/OrbitHost/email-hosting.html</loc>
+    <loc>https://orbitcloud.co.ke/email-hosting.html</loc>
     <lastmod>2026-07-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -72,13 +72,13 @@
 
   <!-- Company -->
   <url>
-    <loc>https://sammy001-svg.github.io/OrbitHost/about.html</loc>
+    <loc>https://orbitcloud.co.ke/about.html</loc>
     <lastmod>2026-07-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://sammy001-svg.github.io/OrbitHost/contact.html</loc>
+    <loc>https://orbitcloud.co.ke/contact.html</loc>
     <lastmod>2026-07-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>

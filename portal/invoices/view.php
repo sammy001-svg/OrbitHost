@@ -50,9 +50,9 @@ require_once '../includes/header.php';
       <!-- Invoice header -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px">
         <div>
-          <div class="inv-logo">Orbit<span>Host</span></div>
+          <div class="inv-logo">Orbit<span>Cloud</span></div>
           <div style="margin-top:10px;font-size:13px;color:var(--text-muted);line-height:1.8">
-            OrbitHost Limited<br />Nairobi, Kenya<br />sammyopiyo001@gmail.com
+            Orbit Cloud Limited<br />Nairobi, Kenya<br />sammyopiyo001@gmail.com
           </div>
         </div>
         <div style="text-align:right">
@@ -124,7 +124,7 @@ require_once '../includes/header.php';
       <?php endif; ?>
 
       <div style="text-align:center;margin-top:28px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:14px">
-        Thank you for choosing OrbitHost! For queries: sammyopiyo001@gmail.com
+        Thank you for choosing Orbit Cloud! For queries: sammyopiyo001@gmail.com
       </div>
     </div>
   </div>

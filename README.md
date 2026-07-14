@@ -1,6 +1,6 @@
-# OrbitHost — Professional Web Hosting & Domain Services
+# Orbit Cloud — Professional Web Hosting & Domain Services
 
-OrbitHost is a modern, responsive website template for web hosting, cloud infrastructure, VPS, dedicated servers, and domain registration services. Designed with a clean aesthetic and high-performance frontend practices, it serves as a fully functional marketing website.
+Orbit Cloud is a modern, responsive website template for web hosting, cloud infrastructure, VPS, dedicated servers, and domain registration services. Designed with a clean aesthetic and high-performance frontend practices, it serves as a fully functional marketing website.
 
 ## 🚀 Features
 
@@ -33,7 +33,7 @@ OrbitHost is a modern, responsive website template for web hosting, cloud infras
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/sammy001-svg/OrbitHost.git
+   git clone https://github.com/sammy001-svg/Orbit Cloud.git
    ```
 2. Open `index.html` in any browser, or use a local development server like Live Server in VS Code, XAMPP, or:
    ```bash

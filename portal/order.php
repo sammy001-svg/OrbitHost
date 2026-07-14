@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Order services from inside the client portal.
+ * Orbit Cloud — Order services from inside the client portal.
  * Catalogue → choose plan → pay with any active gateway → order recorded
  * as pending for the team to provision. Uses the shared dp_* payment
  * helpers so redirect, STK-push and offline-instruction methods all work.

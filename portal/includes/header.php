@@ -22,7 +22,7 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title><?php echo isset($page_title) ? htmlspecialchars($page_title, ENT_QUOTES) . ' — ' : ''; ?>OrbitHost Client Portal</title>
+  <title><?php echo isset($page_title) ? htmlspecialchars($page_title, ENT_QUOTES) . ' — ' : ''; ?>Orbit Cloud Client Portal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css?v=<?php echo @filemtime(__DIR__ . '/../css/portal.css') ?: time(); ?>" />
 </head>
@@ -32,7 +32,7 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
   <div class="ph-inner">
     <a href="<?php echo PORTAL_URL; ?>/dashboard.php" class="portal-logo">
       <span class="logo-orb">O</span>
-      <span>Orbit<strong>Host</strong></span>
+      <span>Orbit<strong>Cloud</strong></span>
     </a>
 
     <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">

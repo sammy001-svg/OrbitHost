@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — scheduled reminders (renewal, expiry, overdue invoices)
+ * Orbit Cloud — scheduled reminders (renewal, expiry, overdue invoices)
  *
  * Run once daily via cPanel Cron Jobs:
  *   /usr/local/bin/php /home/USERNAME/public_html/admin/cron/reminders.php

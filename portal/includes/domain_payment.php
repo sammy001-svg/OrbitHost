@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — shared payment helpers for domain renew / transfer.
+ * Orbit Cloud — shared payment helpers for domain renew / transfer.
  * Mirrors the invoice + payment + verify pattern used in checkout.php,
  * factored out so renew and transfer don't duplicate the gateway logic.
  */

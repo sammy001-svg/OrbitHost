@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Public site settings API
+ * Orbit Cloud — Public site settings API
  * Read-only. Powers js/site-settings.js on every public page (branding,
  * favicon, announcement bar, footer, contact page content).
  */

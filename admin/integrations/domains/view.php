@@ -106,7 +106,7 @@ require_once '../../includes/header.php';
           <div class="form-group">
             <label class="form-label">Nameservers (one per line)</label>
             <textarea name="nameservers" class="form-control" rows="4"
-                      placeholder="ns1.orbithost.co.ke&#10;ns2.orbithost.co.ke"><?php echo htmlspecialchars(implode("\n", $ns_list)); ?></textarea>
+                      placeholder="ns1.orbitcloud.co.ke&#10;ns2.orbitcloud.co.ke"><?php echo htmlspecialchars(implode("\n", $ns_list)); ?></textarea>
           </div>
           <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Update Nameservers</button>
         </form>

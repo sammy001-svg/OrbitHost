@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Unified Payment Gateway client
+ * Orbit Cloud — Unified Payment Gateway client
  *
  * One interface over Stripe, PayPal, M-Pesa STK (Kopo Kopo), Flutterwave
  * and the offline methods (bank transfer, manual M-Pesa, cheque) so
@@ -333,7 +333,7 @@ final class PaymentClient
                 'currency'      => $currency,
                 'redirect_url'  => $urls['return'] ?? '',
                 'customer'      => ['email' => $c['email'] ?? '', 'name' => $c['name'] ?? '', 'phonenumber' => $c['phone'] ?? ''],
-                'customizations'=> ['title' => 'OrbitHost', 'description' => 'Invoice ' . $ref],
+                'customizations'=> ['title' => 'Orbit Cloud', 'description' => 'Invoice ' . $ref],
             ]);
         if (($r['data']['status'] ?? '') !== 'success') {
             return ['success' => false, 'message' => $r['data']['message'] ?? 'Flutterwave error'];

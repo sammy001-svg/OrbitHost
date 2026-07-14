@@ -1,5 +1,5 @@
 /* ================================================
-   ORBITHOST — Main JavaScript
+   ORBIT CLOUD — Main JavaScript
    ================================================ */
 
 // Carousel
@@ -335,7 +335,7 @@
       '<div class="chat-ph">' +
         '<div class="chat-ph-av"><i class="fas fa-headset"></i></div>' +
         '<div class="chat-ph-info">' +
-          '<div class="chat-ph-name">OrbitHost Support</div>' +
+          '<div class="chat-ph-name">Orbit Cloud Support</div>' +
           '<div class="chat-ph-status"><span class="chat-status-dot"></span> We reply as soon as we can</div>' +
         '</div>' +
         '<button type="button" class="chat-ph-x" aria-label="Close chat"><i class="fas fa-times"></i></button>' +

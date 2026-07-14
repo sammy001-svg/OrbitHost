@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Domain checkout
+ * Orbit Cloud — Domain checkout
  * Cart → sign-in gate → invoice → gateway payment → domain registration.
  */
 require_once __DIR__ . '/includes/config.php';
@@ -268,7 +268,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Checkout — OrbitHost</title>
+  <title>Checkout — Orbit Cloud</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css" />
   <style>

@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost Admin — First-run password setup.
+ * Orbit Cloud Admin — First-run password setup.
  * Access this file once at: http://your-site/admin/install/setup.php
  * DELETE this file after use.
  */
@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OrbitHost Admin Setup</title>
+<title>Orbit Cloud Admin Setup</title>
 <style>
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0B1E3D;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
   .box{background:#fff;border-radius:12px;padding:36px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 <div class="box">
-  <h1>OrbitHost Admin Setup</h1>
+  <h1>Orbit Cloud Admin Setup</h1>
   <p class="sub">Create your administrator account to get started.</p>
   <div class="warning">⚠ Delete this file immediately after setup — it is a security risk if left accessible.</div>
 
@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <label>Your Name</label>
     <input type="text" name="name" value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>" placeholder="Super Admin" />
     <label>Email Address</label>
-    <input type="email" name="email" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>" placeholder="admin@orbithost.com" required />
+    <input type="email" name="email" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>" placeholder="admin@orbitcloud.com" required />
     <label>Password (min 8 chars)</label>
     <input type="password" name="password" placeholder="••••••••" required />
     <label>Confirm Password</label>

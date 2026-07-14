@@ -1,5 +1,5 @@
 <?php
-/** OrbitHost — portal notification bell polling endpoint. */
+/** Orbit Cloud — portal notification bell polling endpoint. */
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once dirname(__DIR__) . '/admin/includes/functions.php';

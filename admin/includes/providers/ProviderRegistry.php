@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Provider Registry
+ * Orbit Cloud — Provider Registry
  *
  * Single source of truth for every third-party integration. Each entry
  * declares its category, branding, the adapter that talks to its API, and
@@ -28,7 +28,7 @@ final class ProviderRegistry
                 'client'      => 'PanelClient',
                 'docs'        => 'https://api.docs.cpanel.net/whm/',
                 'fields'      => [
-                    ['key'=>'host',       'label'=>'WHM Host / IP',   'type'=>'text',   'required'=>true, 'placeholder'=>'server.orbithost.co.ke', 'hint'=>'Hostname or IP only — no https:// and no :2087 (added automatically).'],
+                    ['key'=>'host',       'label'=>'WHM Host / IP',   'type'=>'text',   'required'=>true, 'placeholder'=>'server.orbitcloud.co.ke', 'hint'=>'Hostname or IP only — no https:// and no :2087 (added automatically).'],
                     ['key'=>'user',       'label'=>'Username',        'type'=>'text',   'default'=>'root'],
                     ['key'=>'token',      'label'=>'API Token',       'type'=>'secret', 'required'=>true, 'hint'=>'WHM › Development › Manage API Tokens.'],
                     ['key'=>'port',       'label'=>'Port',            'type'=>'number', 'default'=>2087],
@@ -45,7 +45,7 @@ final class ProviderRegistry
                 'client'   => 'PanelClient',
                 'docs'     => 'https://docs.plesk.com/en-US/obsidian/api-rpc/',
                 'fields'   => [
-                    ['key'=>'host',       'label'=>'Plesk Host / IP', 'type'=>'text',   'required'=>true, 'placeholder'=>'plesk.orbithost.co.ke'],
+                    ['key'=>'host',       'label'=>'Plesk Host / IP', 'type'=>'text',   'required'=>true, 'placeholder'=>'plesk.orbitcloud.co.ke'],
                     ['key'=>'user',       'label'=>'Admin Username',  'type'=>'text',   'default'=>'admin'],
                     ['key'=>'password',   'label'=>'Admin Password / API Key', 'type'=>'secret', 'required'=>true],
                     ['key'=>'port',       'label'=>'Port',            'type'=>'number', 'default'=>8443],
@@ -62,7 +62,7 @@ final class ProviderRegistry
                 'client'   => 'PanelClient',
                 'docs'     => 'https://docs.directadmin.com/developer/api/',
                 'fields'   => [
-                    ['key'=>'host',       'label'=>'DirectAdmin Host / IP', 'type'=>'text',   'required'=>true, 'placeholder'=>'da.orbithost.co.ke'],
+                    ['key'=>'host',       'label'=>'DirectAdmin Host / IP', 'type'=>'text',   'required'=>true, 'placeholder'=>'da.orbitcloud.co.ke'],
                     ['key'=>'user',       'label'=>'Admin Username',   'type'=>'text',   'required'=>true, 'default'=>'admin'],
                     ['key'=>'token',      'label'=>'Login Key / Password', 'type'=>'secret', 'required'=>true],
                     ['key'=>'port',       'label'=>'Port',             'type'=>'number', 'default'=>2222],
@@ -246,7 +246,7 @@ final class ProviderRegistry
                 'docs'     => '',
                 'fields'   => [
                     ['key'=>'paybill',      'label'=>'Paybill / Till Number', 'type'=>'text', 'required'=>true, 'placeholder'=>'e.g. 522533'],
-                    ['key'=>'account_name', 'label'=>'Account Name Shown',    'type'=>'text', 'placeholder'=>'OrbitHost Ltd', 'hint'=>'The name customers see when paying — helps them trust the number.'],
+                    ['key'=>'account_name', 'label'=>'Account Name Shown',    'type'=>'text', 'placeholder'=>'Orbit Cloud Ltd', 'hint'=>'The name customers see when paying — helps them trust the number.'],
                     ['key'=>'instructions', 'label'=>'Extra Instructions',    'type'=>'textarea', 'placeholder'=>'e.g. Use your invoice number as the account reference.'],
                 ],
             ],
@@ -262,7 +262,7 @@ final class ProviderRegistry
                 'docs'     => '',
                 'fields'   => [
                     ['key'=>'bank_name',      'label'=>'Bank Name',      'type'=>'text', 'required'=>true, 'placeholder'=>'Equity Bank'],
-                    ['key'=>'account_name',   'label'=>'Account Name',   'type'=>'text', 'required'=>true, 'placeholder'=>'OrbitHost Ltd'],
+                    ['key'=>'account_name',   'label'=>'Account Name',   'type'=>'text', 'required'=>true, 'placeholder'=>'Orbit Cloud Ltd'],
                     ['key'=>'account_number', 'label'=>'Account Number', 'type'=>'text', 'required'=>true],
                     ['key'=>'branch',         'label'=>'Branch',         'type'=>'text'],
                     ['key'=>'swift_code',     'label'=>'SWIFT / Sort Code', 'type'=>'text'],
@@ -280,7 +280,7 @@ final class ProviderRegistry
                 'offline'  => true,
                 'docs'     => '',
                 'fields'   => [
-                    ['key'=>'payee_name',   'label'=>'Cheque Payable To', 'type'=>'text', 'required'=>true, 'placeholder'=>'OrbitHost Ltd'],
+                    ['key'=>'payee_name',   'label'=>'Cheque Payable To', 'type'=>'text', 'required'=>true, 'placeholder'=>'Orbit Cloud Ltd'],
                     ['key'=>'delivery',     'label'=>'Delivery Address',  'type'=>'textarea', 'placeholder'=>'P.O. Box …, Nairobi'],
                     ['key'=>'instructions', 'label'=>'Extra Instructions','type'=>'textarea', 'placeholder'=>'e.g. Allow 3–5 business days for clearing.'],
                 ],
@@ -302,8 +302,8 @@ final class ProviderRegistry
                     ['key'=>'username',   'label'=>'Username',  'type'=>'text',   'required'=>true],
                     ['key'=>'password',   'label'=>'Password',  'type'=>'secret', 'required'=>true],
                     ['key'=>'encryption', 'label'=>'Encryption','type'=>'select', 'options'=>['tls'=>'TLS (STARTTLS)','ssl'=>'SSL','none'=>'None'], 'default'=>'tls'],
-                    ['key'=>'from_name',  'label'=>'From Name', 'type'=>'text',   'default'=>'OrbitHost'],
-                    ['key'=>'from_email', 'label'=>'From Email','type'=>'text',   'placeholder'=>'noreply@orbithost.co.ke'],
+                    ['key'=>'from_name',  'label'=>'From Name', 'type'=>'text',   'default'=>'Orbit Cloud'],
+                    ['key'=>'from_email', 'label'=>'From Email','type'=>'text',   'placeholder'=>'noreply@orbitcloud.co.ke'],
                 ],
             ],
 

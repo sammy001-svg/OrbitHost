@@ -1,5 +1,5 @@
 -- ============================================================
---  OrbitHost — Schema v5 Migration
+--  Orbit Cloud — Schema v5 Migration
 --  TLD pricing + widen domain_registrations.registrar
 --
 --  NOTE: The "TLD Pricing" admin page (Integrations › Domains ›

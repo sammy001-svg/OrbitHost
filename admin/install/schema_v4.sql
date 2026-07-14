@@ -1,5 +1,5 @@
 -- ============================================================
---  OrbitHost — Schema v4 Migration
+--  Orbit Cloud — Schema v4 Migration
 --  Link website plans (services catalogue) to hosting-panel packages
 --
 --  NOTE: The "Plans & Packages" admin page applies this automatically

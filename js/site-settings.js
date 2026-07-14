@@ -1,5 +1,5 @@
 /**
- * OrbitHost — applies admin-managed site settings to every page:
+ * Orbit Cloud — applies admin-managed site settings to every page:
  * favicon, logo, announcement bar, header phone, footer content and
  * (on contact.html only) the contact page fields. Safe no-op for any
  * element that isn't present on the current page.

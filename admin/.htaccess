@@ -1,4 +1,4 @@
-# OrbitHost Admin Panel — Apache security config
+# Orbit Cloud Admin Panel — Apache security config
 
 Options -Indexes
 ServerSignature Off

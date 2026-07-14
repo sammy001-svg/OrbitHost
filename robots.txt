@@ -1,7 +1,7 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://sammy001-svg.github.io/OrbitHost/sitemap.xml
+Sitemap: https://orbitcloud.co.ke/sitemap.xml
 
 # Disallow client portal and admin areas
 Disallow: /portal/

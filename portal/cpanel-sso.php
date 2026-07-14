@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — one-click cPanel login (SSO)
+ * Orbit Cloud — one-click cPanel login (SSO)
  * Verifies the logged-in client owns the cPanel account, asks WHM for a
  * temporary session URL (create_user_session) and redirects — the client
  * never types a cPanel username or password.

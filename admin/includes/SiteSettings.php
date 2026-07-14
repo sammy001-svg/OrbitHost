@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Site Settings (branding, header, business info, footer, contact page)
+ * Orbit Cloud — Site Settings (branding, header, business info, footer, contact page)
  *
  * Same pattern as ProviderRegistry/Provider: a field-schema registry drives
  * the admin UI, settings persist as one JSON blob per section, and the
@@ -29,8 +29,8 @@ final class SiteSettings
                 'label' => 'Branding', 'icon' => 'fa-swatchbook',
                 'hint'  => 'Your logo, favicon and brand name shown across the whole website.',
                 'fields' => [
-                    ['key'=>'site_name_primary', 'label'=>'Brand name — part 1', 'type'=>'text', 'default'=>'Orbit', 'hint'=>'e.g. "Orbit" in "OrbitHost".'],
-                    ['key'=>'site_name_accent',  'label'=>'Brand name — part 2 (accent color)', 'type'=>'text', 'default'=>'Host'],
+                    ['key'=>'site_name_primary', 'label'=>'Brand name — part 1', 'type'=>'text', 'default'=>'Orbit', 'hint'=>'e.g. "Orbit" in "Orbit Cloud".'],
+                    ['key'=>'site_name_accent',  'label'=>'Brand name — part 2 (accent color)', 'type'=>'text', 'default'=>'Cloud'],
                     ['key'=>'logo_image',    'label'=>'Logo image',    'type'=>'image', 'hint'=>'Optional. Replaces the text logo everywhere. PNG/WebP with transparent background recommended. Max 2MB.'],
                     ['key'=>'favicon_image', 'label'=>'Favicon',       'type'=>'image', 'hint'=>'Optional. Square PNG or ICO, at least 32×32px. Max 2MB.'],
                 ],
@@ -52,9 +52,9 @@ final class SiteSettings
                 'fields' => [
                     ['key'=>'phone',         'label'=>'Phone number',      'type'=>'text', 'default'=>'+254 700 000 000'],
                     ['key'=>'whatsapp',      'label'=>'WhatsApp number',   'type'=>'text', 'placeholder'=>'+254 700 000 000', 'hint'=>'Optional — leave blank to hide WhatsApp.'],
-                    ['key'=>'general_email', 'label'=>'General enquiries email', 'type'=>'text', 'default'=>'info@orbithost.com'],
-                    ['key'=>'support_email', 'label'=>'Technical support email', 'type'=>'text', 'default'=>'support@orbithost.com'],
-                    ['key'=>'sales_email',   'label'=>'Sales email',      'type'=>'text', 'default'=>'sales@orbithost.com'],
+                    ['key'=>'general_email', 'label'=>'General enquiries email', 'type'=>'text', 'default'=>'info@orbitcloud.com'],
+                    ['key'=>'support_email', 'label'=>'Technical support email', 'type'=>'text', 'default'=>'support@orbitcloud.com'],
+                    ['key'=>'sales_email',   'label'=>'Sales email',      'type'=>'text', 'default'=>'sales@orbitcloud.com'],
                     ['key'=>'address_line',  'label'=>'Address',          'type'=>'text', 'default'=>'Nairobi, Kenya'],
                 ],
             ],
@@ -62,8 +62,8 @@ final class SiteSettings
                 'label' => 'Footer', 'icon' => 'fa-shoe-prints',
                 'hint'  => 'The about text, copyright line and social links shown in the site footer.',
                 'fields' => [
-                    ['key'=>'about_text',      'label'=>'About text',      'type'=>'textarea', 'default'=>'OrbitHost delivers enterprise-grade hosting infrastructure, 99.9% uptime, and expert 24/7 support to businesses across Africa and beyond.'],
-                    ['key'=>'copyright_text',  'label'=>'Copyright line',  'type'=>'text', 'default'=>'© {year} OrbitHost Ltd. All rights reserved.', 'hint'=>'Use {year} to always show the current year.'],
+                    ['key'=>'about_text',      'label'=>'About text',      'type'=>'textarea', 'default'=>'Orbit Cloud delivers enterprise-grade hosting infrastructure, 99.9% uptime, and expert 24/7 support to businesses across Africa and beyond.'],
+                    ['key'=>'copyright_text',  'label'=>'Copyright line',  'type'=>'text', 'default'=>'© {year} Orbit Cloud Ltd. All rights reserved.', 'hint'=>'Use {year} to always show the current year.'],
                     ['key'=>'social_facebook', 'label'=>'Facebook URL',   'type'=>'text', 'placeholder'=>'https://facebook.com/…'],
                     ['key'=>'social_twitter',  'label'=>'X / Twitter URL','type'=>'text', 'placeholder'=>'https://x.com/…'],
                     ['key'=>'social_linkedin', 'label'=>'LinkedIn URL',   'type'=>'text', 'placeholder'=>'https://linkedin.com/company/…'],
@@ -74,7 +74,7 @@ final class SiteSettings
                 'label' => 'Contact Page', 'icon' => 'fa-address-card',
                 'hint'  => 'Content shown on the Contact Us page.',
                 'fields' => [
-                    ['key'=>'hero_heading',     'label'=>'Page heading',     'type'=>'text', 'default'=>'Contact OrbitHost Support'],
+                    ['key'=>'hero_heading',     'label'=>'Page heading',     'type'=>'text', 'default'=>'Contact Orbit Cloud Support'],
                     ['key'=>'hero_subtext',     'label'=>'Page subtext',     'type'=>'textarea', 'default'=>'Our certified hosting specialists are available around the clock. Choose the support channel that works best for you.'],
                     ['key'=>'office1_title',    'label'=>'Office 1 — title',   'type'=>'text', 'default'=>'Head Office — Nairobi'],
                     ['key'=>'office1_address',  'label'=>'Office 1 — address', 'type'=>'textarea', 'default'=>"Upper Hill Business Park,\nNairobi, Kenya"],

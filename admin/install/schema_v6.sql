@@ -1,5 +1,5 @@
 -- ============================================================
---  OrbitHost — Schema v6 Migration
+--  Orbit Cloud — Schema v6 Migration
 --  Live chat (website widget ↔ admin inbox)
 --
 --  NOTE: api/chat.php creates these automatically on the first

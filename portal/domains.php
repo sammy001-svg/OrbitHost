@@ -18,7 +18,7 @@ require_once __DIR__ . '/includes/header.php';
   <div class="container">
     <div>
       <h1>My Domains</h1>
-      <p>Domain names registered with OrbitHost</p>
+      <p>Domain names registered with Orbit Cloud</p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <a href="<?php echo PORTAL_URL; ?>/domain-transfer.php" class="btn btn-ghost" style="border:1px solid rgba(255,255,255,.3);color:#fff"><i class="fas fa-right-left"></i> Transfer a Domain</a>

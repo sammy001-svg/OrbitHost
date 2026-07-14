@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — service lifecycle automation
+ * Orbit Cloud — service lifecycle automation
  *
  * The glue between billing and provisioning:
  *

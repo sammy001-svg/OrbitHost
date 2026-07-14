@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — public contact form backend.
+ * Orbit Cloud — public contact form backend.
  * Creates a support ticket from a website visitor (no client account
  * required) and notifies admins in-app + by email, using the same
  * Notifier pipeline as every other ticket in the system.

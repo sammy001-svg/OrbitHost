@@ -1,5 +1,5 @@
 -- ============================================================
---  OrbitHost — Schema v3 Migration
+--  Orbit Cloud — Schema v3 Migration
 --  Service lifecycle + multi-provider integrations + payments
 --
 --  Run AFTER schema.sql and schema_v2.sql

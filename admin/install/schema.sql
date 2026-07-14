@@ -1,12 +1,12 @@
 -- ============================================================
---  OrbitHost Admin Panel — Database Schema
+--  Orbit Cloud Admin Panel — Database Schema
 --
 --  phpMyAdmin: select your database in the left panel first,
 --  then Import this file — do NOT include a USE statement.
 --
 --  CLI (local/root): mysql -u root -p your_db_name < schema.sql
 --
---  Default login: admin@orbithost.com / Admin@1234
+--  Default login: admin@orbitcloud.com / Admin@1234
 --  ⚠  Run install/setup.php to set a real password immediately.
 -- ============================================================
 
@@ -164,6 +164,6 @@ CREATE TABLE IF NOT EXISTS activity_log (
 -- Hash generated with: password_hash('Admin@1234', PASSWORD_BCRYPT)
 -- Run install/setup.php in your browser to set a real password.
 INSERT IGNORE INTO admin_users (name, email, password, role)
-VALUES ('Super Admin', 'admin@orbithost.com',
+VALUES ('Super Admin', 'admin@orbitcloud.com',
         '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
         'super_admin');

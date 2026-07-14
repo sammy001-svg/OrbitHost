@@ -150,7 +150,7 @@ class WHMClient
         return $this->call('accountsummary', ['user' => $username]);
     }
 
-    public function suspendAccount(string $username, string $reason = 'Suspended by OrbitHost admin'): array
+    public function suspendAccount(string $username, string $reason = 'Suspended by Orbit Cloud admin'): array
     {
         return $this->call('suspendacct', ['user' => $username, 'reason' => $reason], 'POST');
     }

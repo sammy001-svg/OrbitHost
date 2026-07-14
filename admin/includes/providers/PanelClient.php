@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Unified Hosting Control Panel client
+ * Orbit Cloud — Unified Hosting Control Panel client
  *
  * One interface over WHM/cPanel, Plesk and DirectAdmin so the Services
  * module can provision and manage accounts without caring which panel a
@@ -34,7 +34,7 @@ final class PanelClient
         return $this->dispatch(__FUNCTION__, [$p]);
     }
 
-    public function suspend(string $user, string $reason = 'Suspended by OrbitHost'): array
+    public function suspend(string $user, string $reason = 'Suspended by Orbit Cloud'): array
     {
         return $this->dispatch(__FUNCTION__, [$user, $reason]);
     }

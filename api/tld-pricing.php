@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — public TLD pricing list (no availability check).
+ * Orbit Cloud — public TLD pricing list (no availability check).
  * Powers the static "Popular Domain Extensions" comparison table on
  * domains.html, so it always reflects what's actually set in
  * Integrations > Domains > TLD Pricing instead of hardcoded numbers.

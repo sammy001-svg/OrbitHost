@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $invite) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Accept Invite — OrbitHost Portal</title>
+  <title>Accept Invite — Orbit Cloud Portal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css" />
   <style>
@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $invite) {
     <?php else: ?>
       <div style="text-align:center;margin-bottom:24px">
         <i class="fas fa-user-check" style="font-size:36px;color:var(--green);margin-bottom:12px"></i>
-        <h2>Welcome to OrbitHost</h2>
+        <h2>Welcome to Orbit Cloud</h2>
         <p style="color:var(--text-muted);font-size:14px">
           Hi <strong><?php echo htmlspecialchars($invite['first_name']); ?></strong>, set a password for your client portal account.<br />
           <span style="font-size:12px"><?php echo htmlspecialchars($invite['email']); ?></span>

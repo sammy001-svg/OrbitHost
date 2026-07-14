@@ -1,5 +1,5 @@
 /**
- * OrbitHost — Internal Client Portal link wiring
+ * Orbit Cloud — Internal Client Portal link wiring
  *
  * This file used to redirect "Log In" and "Get Started" actions to an
  * external WHMCS billing system. That integration has been removed —

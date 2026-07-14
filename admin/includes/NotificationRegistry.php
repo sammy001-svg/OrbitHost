@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Notification type registry
+ * Orbit Cloud — Notification type registry
  *
  * Every notification the platform sends — in-app and email — is defined
  * here as one entry: who it's for, whether it emails by default, and the
@@ -94,10 +94,10 @@ final class NotificationRegistry
             /* ══════════════ ACCOUNT / SERVICES ══════════════ */
             'account_welcome' => [
                 'audience' => 'client', 'icon' => 'fa-user-check', 'color' => '#1A8A45', 'email' => true,
-                'title'   => 'Welcome to OrbitHost!',
+                'title'   => 'Welcome to Orbit Cloud!',
                 'message' => 'Your client portal account is ready.',
-                'email_subject' => 'Welcome to OrbitHost — your account is ready',
-                'email_body'    => '<p>Hi {client_name},</p><p>Your OrbitHost client portal account is now active. From the portal you can manage your services, domains, invoices and support tickets any time.</p>',
+                'email_subject' => 'Welcome to Orbit Cloud — your account is ready',
+                'email_body'    => '<p>Hi {client_name},</p><p>Your Orbit Cloud client portal account is now active. From the portal you can manage your services, domains, invoices and support tickets any time.</p>',
             ],
             'service_ready' => [
                 'audience' => 'client', 'icon' => 'fa-server', 'color' => '#1A8A45', 'email' => true,
@@ -138,8 +138,8 @@ final class NotificationRegistry
                 'audience' => 'client', 'icon' => 'fa-key', 'color' => '#2563eb', 'email' => true,
                 'title'   => 'Your password was changed',
                 'message' => 'If this wasn\'t you, contact support immediately.',
-                'email_subject' => 'Security alert: your OrbitHost password was changed',
-                'email_body'    => '<p>Hi {client_name},</p><p>This is a confirmation that the password for your OrbitHost client portal account was just changed.</p><p style="color:#64748b;font-size:13px">If you did not make this change, please contact support immediately.</p>',
+                'email_subject' => 'Security alert: your Orbit Cloud password was changed',
+                'email_body'    => '<p>Hi {client_name},</p><p>This is a confirmation that the password for your Orbit Cloud client portal account was just changed.</p><p style="color:#64748b;font-size:13px">If you did not make this change, please contact support immediately.</p>',
             ],
         ];
     }

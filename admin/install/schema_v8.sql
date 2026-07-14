@@ -1,5 +1,5 @@
 -- ============================================================
---  OrbitHost — Schema v8 Migration
+--  Orbit Cloud — Schema v8 Migration
 --  Notifications (in-app + email) and reminder de-duplication
 --
 --  NOTE: Notifier::ensureTables() creates these automatically on first

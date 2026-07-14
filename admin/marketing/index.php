@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Client-portal marketing banners.
+ * Orbit Cloud — Client-portal marketing banners.
  * Two placements: 'hero' (large carousel at the top of the client dashboard)
  * and 'side' (small rotating card beside the dashboard tables). Images can
  * be uploaded here or referenced by URL.

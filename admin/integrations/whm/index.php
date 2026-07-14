@@ -123,9 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'link'
             $link = $prot . '://' . $hostn . $rel . '/portal/accept-invite.php?token=' . $token;
 
             require_once '../../includes/Mailer.php';
-            $r = Mailer::fromConfig()->send($email, 'Your OrbitHost client portal access',
+            $r = Mailer::fromConfig()->send($email, 'Your Orbit Cloud client portal access',
                 '<p>Hello ' . h($first ?: 'there') . ',</p>'
-              . '<p>Your hosting account <strong>' . h($domain ?: $cp_user) . '</strong> can now be managed in the OrbitHost client portal — invoices, support and one-click cPanel login.</p>'
+              . '<p>Your hosting account <strong>' . h($domain ?: $cp_user) . '</strong> can now be managed in the Orbit Cloud client portal — invoices, support and one-click cPanel login.</p>'
               . '<p><a href="' . h($link) . '" style="background:#1A8A45;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">Activate your account</a></p>'
               . '<p style="color:#64748b;font-size:13px">Or copy this link (valid for 48 hours):<br>' . h($link) . '</p>');
             $invite_note = !empty($r['success'])

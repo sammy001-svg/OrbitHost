@@ -1,5 +1,5 @@
 -- ============================================================
---  OrbitHost — Schema v9 Migration
+--  Orbit Cloud — Schema v9 Migration
 --  Guest contact details on tickets (for the public contact form —
 --  submissions from visitors who don't have a client account yet)
 --

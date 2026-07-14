@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * OrbitHost Performance Build Script
+ * Orbit Cloud Performance Build Script
  * Run: node build.js
  *
  * - Minifies css/style.css  → css/style.min.css

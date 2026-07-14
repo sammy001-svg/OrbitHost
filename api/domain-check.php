@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — Public domain availability + pricing API
+ * Orbit Cloud — Public domain availability + pricing API
  * Used by the website domain search (home page + domains page).
  *
  * GET ?q=<search term>   e.g. ?q=mybusiness or ?q=mybusiness.co.ke

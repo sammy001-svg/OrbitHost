@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — self-service domain transfer-in.
+ * Orbit Cloud — self-service domain transfer-in.
  * Two steps: (1) client enters the domain + auth/EPP code, we look up
  * transfer pricing for its TLD; (2) client pays, and on confirmation we
  * submit the transfer request to the active registrar. Transfers are
@@ -178,7 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transfer Domain — OrbitHost</title>
+  <title>Transfer Domain — Orbit Cloud</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css" />
   <style>
@@ -209,7 +209,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
 <div class="co-wrap">
   <div class="co-brand">
     <div class="co-orb">O</div>
-    <h1>Transfer a Domain to OrbitHost</h1>
+    <h1>Transfer a Domain to Orbit Cloud</h1>
   </div>
 
   <div class="co-card">
@@ -280,7 +280,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
       </script>
 
     <?php else: ?>
-      <p style="font-size:13.5px;color:var(--text-muted);margin-bottom:18px">Moving an existing domain to OrbitHost usually takes 5–7 days once your current registrar approves it. We'll handle everything after you pay.</p>
+      <p style="font-size:13.5px;color:var(--text-muted);margin-bottom:18px">Moving an existing domain to Orbit Cloud usually takes 5–7 days once your current registrar approves it. We'll handle everything after you pay.</p>
       <form method="POST">
         <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
         <input type="hidden" name="action" value="quote" />

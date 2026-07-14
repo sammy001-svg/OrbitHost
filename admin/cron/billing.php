@@ -1,6 +1,6 @@
 <?php
 /**
- * OrbitHost — automated renewal billing + overdue suspension
+ * Orbit Cloud — automated renewal billing + overdue suspension
  *
  * Run once daily via cPanel Cron Jobs (alongside reminders.php):
  *   /usr/local/bin/php /home/USERNAME/public_html/admin/cron/billing.php

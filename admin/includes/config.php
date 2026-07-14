@@ -20,7 +20,7 @@
 // ── Defaults (used if .env omits them) ────────────────────────
 defined('DB_HOST')          || define('DB_HOST',    'localhost');
 defined('DB_CHARSET')       || define('DB_CHARSET', 'utf8mb4');
-defined('APP_NAME')         || define('APP_NAME',   'OrbitHost Admin');
+defined('APP_NAME')         || define('APP_NAME',   'Orbit Cloud Admin');
 defined('TAX_RATE')         || define('TAX_RATE',   16);
 defined('CURRENCY')         || define('CURRENCY',   'USD');
 defined('PER_PAGE')         || define('PER_PAGE',   20);

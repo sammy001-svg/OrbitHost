@@ -43,9 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $invite_link = $portal_url . '/accept-invite.php?token=' . $token;
     $name        = $client['first_name'] . ' ' . $client['last_name'];
 
-    $subject = 'You\'re invited to OrbitHost Client Portal';
+    $subject = 'You\'re invited to Orbit Cloud Client Portal';
     $body = "Dear {$client['first_name']},\n\n"
-          . "Your account has been set up on the OrbitHost client portal.\n\n"
+          . "Your account has been set up on the Orbit Cloud client portal.\n\n"
           . "Click the link below to activate your account and set your password (valid 48 hours):\n"
           . $invite_link . "\n\n"
           . "Through the portal you can:\n"
@@ -53,8 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           . "  • Download and pay invoices\n"
           . "  • Submit and track support tickets\n\n"
           . "If you have any questions, reply to this email or contact sammyopiyo001@gmail.com.\n\n"
-          . "Best regards,\nThe OrbitHost Team";
-    $headers = "From: noreply@orbithost.co.ke\r\nReply-To: sammyopiyo001@gmail.com\r\nX-Mailer: PHP";
+          . "Best regards,\nThe Orbit Cloud Team";
+    $headers = "From: noreply@orbitcloud.co.ke\r\nReply-To: sammyopiyo001@gmail.com\r\nX-Mailer: PHP";
 
     @mail($client['email'], $subject, $body, $headers);
 
