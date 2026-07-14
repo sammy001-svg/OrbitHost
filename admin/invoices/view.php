@@ -3,8 +3,10 @@ require_once '../includes/config.php';
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
+require_once '../includes/SiteSettings.php';
 
 auth_check();
+$_invoice_logo = SiteSettings::logoImgTag(60, 240);
 
 $id = (int)($_GET['id'] ?? 0);
 $stmt = db()->prepare('
@@ -79,7 +81,11 @@ require_once '../includes/header.php';
     <!-- Header -->
     <div class="invoice-header">
       <div>
-        <div class="invoice-logo">Orbit<span>Cloud</span></div>
+        <?php if ($_invoice_logo): ?>
+          <?php echo $_invoice_logo; ?>
+        <?php else: ?>
+          <div class="invoice-logo">Orbit<span>Cloud</span></div>
+        <?php endif; ?>
         <div style="margin-top:10px;font-size:13px;color:var(--text-muted);line-height:1.8">
           Orbit Cloud Limited<br />
           Nairobi, Kenya<br />

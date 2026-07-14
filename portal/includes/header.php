@@ -1,6 +1,7 @@
 <?php
 require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/Notifier.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/SiteSettings.php';
 require_once __DIR__ . '/banners.php';
 
 portal_start();
@@ -10,6 +11,7 @@ $_cur   = basename($_SERVER['PHP_SELF']);
 $_cdir  = basename(dirname($_SERVER['PHP_SELF']));
 $_unread  = $_c['id'] ? Notifier::unreadCount('client', (int) $_c['id']) : 0;
 $_notifs  = $_c['id'] ? Notifier::listFor('client', (int) $_c['id'], 8) : [];
+$_portal_logo = SiteSettings::logoImgTag(36, 150);
 
 function pnav(string $href, string $label, string $file = '', string $dir = ''): void {
     global $_cur, $_cdir;
@@ -31,8 +33,12 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
 <header class="portal-header">
   <div class="ph-inner">
     <a href="<?php echo PORTAL_URL; ?>/dashboard.php" class="portal-logo">
-      <span class="logo-orb">O</span>
-      <span>Orbit<strong>Cloud</strong></span>
+      <?php if ($_portal_logo): ?>
+        <?php echo $_portal_logo; ?>
+      <?php else: ?>
+        <span class="logo-orb">O</span>
+        <span>Orbit<strong>Cloud</strong></span>
+      <?php endif; ?>
     </a>
 
     <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">
@@ -56,7 +62,10 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
         </button>
         <div class="notif-dropdown" id="notifDropdown">
           <div class="notif-dd-head">
-            <span>Notifications</span>
+            <span style="display:flex;align-items:center;gap:8px">
+              <?php $_notif_logo = SiteSettings::logoImgTag(18, 80); if ($_notif_logo) echo $_notif_logo; ?>
+              Notifications
+            </span>
             <?php if ($_unread): ?>
               <form method="POST" action="<?php echo PORTAL_URL; ?>/notifications.php" style="margin:0">
                 <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />

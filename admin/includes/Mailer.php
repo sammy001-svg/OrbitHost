@@ -8,6 +8,7 @@
  * no SMTP host is configured.
  */
 require_once __DIR__ . '/providers/Provider.php';
+require_once __DIR__ . '/SiteSettings.php';
 
 final class Mailer
 {
@@ -26,16 +27,26 @@ final class Mailer
     public function test(string $to): array
     {
         $when = date('M j, Y H:i');
+        $logo = SiteSettings::logoImgTag(44, 220);
+        if ($logo) {
+            $mark = $logo;
+        } else {
+            $b = SiteSettings::get('branding');
+            $mark = '<span style="font-size:18px;font-weight:800;color:#fff">'
+                  . htmlspecialchars($b['site_name_primary'] ?: 'Orbit')
+                  . '<span style="color:#1A8A45">' . htmlspecialchars($b['site_name_accent'] ?: 'Cloud') . '</span></span>';
+        }
+        $brand = SiteSettings::brandName();
         $html = '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:auto">'
               . '<div style="background:#0B1E3D;color:#fff;padding:20px 24px;border-radius:12px 12px 0 0">'
-              . '<span style="font-size:18px;font-weight:800">Orbit<span style="color:#1A8A45">Host</span></span></div>'
+              . $mark . '</div>'
               . '<div style="border:1px solid #e3e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px">'
               . '<h2 style="margin:0 0 10px;font-size:17px;color:#0B1E3D">✅ Email configuration works</h2>'
-              . '<p style="color:#475569;font-size:14px;line-height:1.6">If you are reading this, your Orbit Cloud admin console '
+              . '<p style="color:#475569;font-size:14px;line-height:1.6">If you are reading this, your ' . htmlspecialchars($brand) . ' admin console '
               . 'successfully delivered an email through <strong>' . htmlspecialchars($this->cfg['host'] ?: 'PHP mail()') . '</strong>.</p>'
               . '<p style="color:#94a3b8;font-size:12px">Sent ' . $when . '</p></div></div>';
 
-        return $this->send($to, 'Orbit Cloud — SMTP test email', $html);
+        return $this->send($to, $brand . ' — SMTP test email', $html);
     }
 
     /** Send an email. Uses SMTP when a host is configured, else PHP mail(). */

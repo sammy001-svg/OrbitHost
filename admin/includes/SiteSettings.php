@@ -131,6 +131,47 @@ final class SiteSettings
         return $out;
     }
 
+    /**
+     * Absolute site-root URL (no trailing slash), derived from APP_URL
+     * (which every context — admin, portal, api, cron — already defines
+     * via admin/includes/config.php and always ends in "/admin").
+     */
+    public static function siteRoot(): string
+    {
+        return defined('APP_URL') ? preg_replace('#/admin/?$#', '', APP_URL) : '';
+    }
+
+    /** Absolute URL of the uploaded logo image, or null if none is set. */
+    public static function logoUrl(): ?string
+    {
+        $b = self::get('branding');
+        return !empty($b['logo_image']) ? self::siteRoot() . $b['logo_image'] : null;
+    }
+
+    /** Combined brand name text, e.g. "Orbit Cloud". */
+    public static function brandName(): string
+    {
+        $b = self::get('branding');
+        return trim(($b['site_name_primary'] ?: 'Orbit') . ' ' . ($b['site_name_accent'] ?: 'Cloud'));
+    }
+
+    /**
+     * <img> tag for the uploaded logo (absolute URL, safe for emails),
+     * or null if no logo is set — callers fall back to their existing
+     * text-logo markup so the logo only overrides the name where one
+     * has actually been uploaded. Inline-sized (no stylesheet
+     * dependency) so it renders correctly in email clients too:
+     * height fixed, width auto, so any logo shape stays legible
+     * instead of being squeezed into a small icon square.
+     */
+    public static function logoImgTag(int $maxHeight = 40, int $maxWidth = 200): ?string
+    {
+        $logo = self::logoUrl();
+        if (!$logo) return null;
+        return '<img src="' . htmlspecialchars($logo) . '" alt="' . htmlspecialchars(self::brandName()) . '" '
+             . 'style="display:block;height:auto;width:auto;max-height:' . $maxHeight . 'px;max-width:' . $maxWidth . 'px;object-fit:contain" />';
+    }
+
     public static function save(string $section, array $data): void
     {
         $json = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

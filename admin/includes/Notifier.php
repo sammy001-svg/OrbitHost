@@ -12,6 +12,7 @@
  */
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/NotificationRegistry.php';
+require_once __DIR__ . '/SiteSettings.php';
 
 final class Notifier
 {
@@ -141,12 +142,22 @@ final class Notifier
 
     private static function emailShell(string $bodyHtml): string
     {
+        $logo = SiteSettings::logoImgTag(44, 220);
+        if ($logo) {
+            $mark = $logo;
+        } else {
+            $b = SiteSettings::get('branding');
+            $mark = '<span style="font-size:18px;font-weight:800;color:#fff">'
+                  . htmlspecialchars($b['site_name_primary'] ?: 'Orbit')
+                  . '<span style="color:#1A8A45">' . htmlspecialchars($b['site_name_accent'] ?: 'Cloud') . '</span></span>';
+        }
+
         return '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:auto">'
              . '<div style="background:#0B1E3D;color:#fff;padding:20px 24px;border-radius:12px 12px 0 0">'
-             . '<span style="font-size:18px;font-weight:800">Orbit<span style="color:#1A8A45">Host</span></span></div>'
+             . $mark . '</div>'
              . '<div style="border:1px solid #e3e8f0;border-top:none;border-radius:0 0 12px 12px;padding:24px;color:#334155;font-size:14px;line-height:1.6">'
              . $bodyHtml
-             . '<p style="color:#94a3b8;font-size:11.5px;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:14px">This is an automated notification from Orbit Cloud. If you have questions, just reply or open a support ticket from the client portal.</p>'
+             . '<p style="color:#94a3b8;font-size:11.5px;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:14px">This is an automated notification from ' . htmlspecialchars(SiteSettings::brandName()) . '. If you have questions, just reply or open a support ticket from the client portal.</p>'
              . '</div></div>';
     }
 

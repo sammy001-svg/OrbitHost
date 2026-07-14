@@ -3,6 +3,8 @@ require_once '../includes/config.php';
 require_once '../includes/auth.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/providers/Provider.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/SiteSettings.php';
+$_invoice_logo = SiteSettings::logoImgTag(60, 240);
 
 portal_check();
 $cid = current_client()['id'];
@@ -50,7 +52,11 @@ require_once '../includes/header.php';
       <!-- Invoice header -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px">
         <div>
-          <div class="inv-logo">Orbit<span>Cloud</span></div>
+          <?php if ($_invoice_logo): ?>
+            <?php echo $_invoice_logo; ?>
+          <?php else: ?>
+            <div class="inv-logo">Orbit<span>Cloud</span></div>
+          <?php endif; ?>
           <div style="margin-top:10px;font-size:13px;color:var(--text-muted);line-height:1.8">
             Orbit Cloud Limited<br />Nairobi, Kenya<br />sammyopiyo001@gmail.com
           </div>

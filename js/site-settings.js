@@ -27,19 +27,27 @@
   function fileUrl(path) { return path ? BASE + path : ''; }
 
   // ── Branding: logo + favicon ──
+  // An uploaded logo overrides the text brand name entirely — big and
+  // visible, not squeezed into the small icon square — on every ".logo"
+  // link (used for both the header and footer logo on every page).
   function applyBranding(b) {
     var logoUrl = fileUrl(b.logo_image);
-    document.querySelectorAll('.logo-icon, .logo-orb, .brand-orb').forEach(function (el) {
-      if (!logoUrl) return;
-      el.style.background = 'transparent';
-      el.innerHTML = '<img src="' + logoUrl + '" alt="Logo" style="width:100%;height:100%;object-fit:contain">';
-    });
-    if (!logoUrl && (b.site_name_primary || b.site_name_accent)) {
+    if (logoUrl) {
+      document.querySelectorAll('.logo, .portal-logo').forEach(function (wrap) {
+        var icon = wrap.querySelector('.logo-icon, .logo-orb, .brand-orb');
+        var text = wrap.querySelector('.logo-text, .portal-logo > span:last-child, .brand-text');
+        var img = document.createElement('img');
+        img.src = logoUrl;
+        img.alt = (b.site_name_primary || 'Orbit') + ' ' + (b.site_name_accent || 'Cloud');
+        img.style.cssText = 'display:block;height:auto;width:auto;max-height:44px;max-width:220px;object-fit:contain';
+        if (icon) icon.replaceWith(img); else wrap.insertBefore(img, wrap.firstChild);
+        if (text) text.remove();
+      });
+    } else if (b.site_name_primary || b.site_name_accent) {
       document.querySelectorAll('.logo-text, .portal-logo span:last-child').forEach(function (el) {
-        var accent = el.querySelector('span');
         el.textContent = b.site_name_primary || 'Orbit';
         var span = document.createElement('span');
-        span.textContent = b.site_name_accent || 'Host';
+        span.textContent = b.site_name_accent || 'Cloud';
         el.appendChild(span);
       });
     }

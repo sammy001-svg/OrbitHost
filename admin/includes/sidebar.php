@@ -1,7 +1,9 @@
 <?php
+require_once __DIR__ . '/SiteSettings.php';
 $_cur_page = basename($_SERVER['PHP_SELF']);
 $_cur_dir  = basename(dirname($_SERVER['PHP_SELF']));
 $_cur_dir2 = basename(dirname(dirname($_SERVER['PHP_SELF'])));
+$_sidebar_logo = SiteSettings::logoImgTag(40, 168);
 
 function _nav(string $href, string $icon, string $label, string $dir = '', string $file = '', string $dir2 = '', string $tag = '', string $tagClass = ''): void
 {
@@ -19,8 +21,12 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
 ?>
 <aside class="sidebar" id="sidebar">
   <a href="<?php echo APP_URL; ?>/dashboard.php" class="sidebar-brand">
-    <div class="brand-orb">O</div>
-    <span class="brand-text">Orbit<strong>Host</strong></span>
+    <?php if ($_sidebar_logo): ?>
+      <?php echo $_sidebar_logo; ?>
+    <?php else: ?>
+      <div class="brand-orb">O</div>
+      <span class="brand-text">Orbit<strong>Cloud</strong></span>
+    <?php endif; ?>
     <span class="brand-badge">Console</span>
   </a>
 

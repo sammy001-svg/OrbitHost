@@ -486,3 +486,7 @@ a.p-stat:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 .notif-empty i { font-size: 26px; opacity: .25; display: block; margin-bottom: 8px; }
 .notif-dd-foot { display: block; text-align: center; padding: 10px; font-size: 12px; font-weight: 600; color: var(--green); border-top: 1px solid var(--border); text-decoration: none; }
 .notif-dd-foot:hover { background: #f7f9fc; }
+
+/* Invoice letterhead text-logo fallback (shown when no logo image is uploaded) */
+.inv-logo { font-size: 22px; font-weight: 800; color: var(--navy); }
+.inv-logo span { color: var(--green); }

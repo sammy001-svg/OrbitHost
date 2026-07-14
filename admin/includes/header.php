@@ -38,7 +38,10 @@ $_notifs = Notifier::listFor('admin', (int) $_admin['id'], 8);
         </button>
         <div class="notif-dropdown" id="notifDropdown">
           <div class="notif-dd-head">
-            <span>Notifications</span>
+            <span style="display:flex;align-items:center;gap:8px">
+              <?php $_notif_logo = SiteSettings::logoImgTag(18, 80); if ($_notif_logo) echo $_notif_logo; ?>
+              Notifications
+            </span>
             <?php if ($_unread): ?>
               <form method="POST" action="<?php echo APP_URL; ?>/notifications/index.php" style="margin:0">
                 <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
