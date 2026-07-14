@@ -256,7 +256,7 @@ a { color: inherit; }
 .alert-warning { background: var(--warning-bg); color: #92400e; border-color: var(--warning); }
 
 /* ══════════════ KPI / stat tiles ══════════════ */
-.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
 
 .stat-card {
   background: var(--surface); border: 1px solid var(--border);
@@ -574,7 +574,7 @@ tbody tr:hover { background: var(--surface-2); }
 /* ══════════════ Responsive ══════════════ */
 @media (max-width: 1200px) {
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
-  .charts-grid, .grid-3 { grid-template-columns: 1fr; }
+  .charts-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
 }
 @media (max-width: 768px) {
   .sidebar { transform: translateX(calc(-1 * var(--sidebar-w))); }
@@ -595,6 +595,29 @@ tbody tr:hover { background: var(--surface-2); }
   .stat-grid { grid-template-columns: 1fr; }
   .topbar-user .topbar-name, .topbar-user .topbar-role { display: none; }
 }
+
+/* ══════════════ Quick action tiles (dashboard) ══════════════ */
+.qa-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.qa-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px;
+  padding: 18px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); text-decoration: none; text-align: center; font-size: 12.5px; font-weight: 600;
+  transition: border-color .15s, background .15s, transform .15s;
+}
+.qa-tile:hover { border-color: var(--green); background: var(--green-light); transform: translateY(-2px); }
+.qa-tile i { font-size: 19px; color: var(--green); }
+
+/* ══════════════ Activity feed (dashboard) ══════════════ */
+.activity-list { display: flex; flex-direction: column; }
+.activity-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--surface-3); }
+.activity-item:last-child { border-bottom: none; }
+.activity-icon {
+  width: 32px; height: 32px; border-radius: 9px; background: var(--surface-3); color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;
+}
+.activity-text { font-size: 12.5px; color: var(--text-2); line-height: 1.45; }
+.activity-text strong { color: var(--navy); font-weight: 650; }
+.activity-time { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
 
 /* ══════════════ Notification bell dropdown ══════════════ */
 .notif-menu { position: relative; }
