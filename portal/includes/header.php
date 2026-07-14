@@ -1,6 +1,7 @@
 <?php
 require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/Notifier.php';
+require_once __DIR__ . '/banners.php';
 
 portal_start();
 $_c     = current_client();

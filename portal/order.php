@@ -188,6 +188,8 @@ require_once __DIR__ . '/includes/header.php';
 <div class="page-body">
 <div class="container">
 
+  <?php portal_render_banners(); ?>
+
 <?php if ($error): ?>
   <div class="p-alert p-alert-error" style="margin-bottom:18px"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?></div>
 <?php endif; ?>

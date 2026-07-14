@@ -26,6 +26,8 @@ require_once '../includes/header.php';
 <div class="page-body">
 <div class="container">
 
+  <?php portal_render_banners(); ?>
+
   <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
     <?php foreach (['' => 'All', 'open' => 'Open', 'pending' => 'Pending', 'answered' => 'Answered', 'closed' => 'Closed'] as $v => $l): ?>
       <a href="?status=<?php echo $v; ?>" class="btn btn-sm <?php echo $status===$v?'btn-outline':'btn-ghost'; ?>"><?php echo $l; ?></a>

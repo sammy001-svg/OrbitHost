@@ -50,6 +50,8 @@ require_once __DIR__ . '/includes/header.php';
 <div class="page-body">
 <div class="container">
 
+  <?php portal_render_banners(); ?>
+
 <?php if ($orders): foreach ($orders as $o): ?>
 
   <div class="p-card" style="margin-bottom:16px">

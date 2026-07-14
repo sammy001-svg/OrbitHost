@@ -28,6 +28,8 @@ require_once '../includes/header.php';
 <div class="page-body">
 <div class="container">
 
+  <?php portal_render_banners(); ?>
+
   <!-- Status filter tabs -->
   <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
     <?php

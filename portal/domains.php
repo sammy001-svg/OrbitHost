@@ -30,6 +30,8 @@ require_once __DIR__ . '/includes/header.php';
 <div class="page-body">
 <div class="container">
 
+  <?php portal_render_banners(); ?>
+
 <?php if ($domains): foreach ($domains as $d):
     $days_left = $d['expiry_date'] ? (int) ceil((strtotime($d['expiry_date']) - time()) / 86400) : null;
     $ns = json_decode($d['nameservers'] ?? '[]', true) ?: [];

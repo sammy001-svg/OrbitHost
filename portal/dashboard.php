@@ -53,12 +53,10 @@ $due_soon = $db->query("
     ORDER BY o.next_due ASC LIMIT 3
 ")->fetchAll();
 
-// Marketing banners (admin-managed; table may not exist yet)
-$hero_banners = $side_banners = [];
+// Side marketing banners (hero carousel renders via portal_render_banners())
+$side_banners = [];
 try {
-    foreach ($db->query("SELECT * FROM portal_banners WHERE is_active = 1 ORDER BY sort_order, id")->fetchAll() as $b) {
-        if ($b['placement'] === 'side') $side_banners[] = $b; else $hero_banners[] = $b;
-    }
+    $side_banners = $db->query("SELECT * FROM portal_banners WHERE is_active = 1 AND placement = 'side' ORDER BY sort_order, id")->fetchAll();
 } catch (\Throwable $e) { /* none configured */ }
 $site_base = preg_replace('#/portal/?$#', '', PORTAL_URL);
 $banner_img = function (?string $u) use ($site_base): string {
@@ -84,31 +82,7 @@ require_once __DIR__ . '/includes/header.php';
 <div class="page-body">
 <div class="container">
 
-  <?php if ($hero_banners): ?>
-  <!-- Marketing hero carousel -->
-  <div class="bn-hero" id="bnHero">
-    <?php foreach ($hero_banners as $i => $b): ?>
-      <div class="bn-slide<?php echo $i === 0 ? ' on' : ''; ?>"
-           style="background:<?php echo htmlspecialchars($b['bg_color'] ?: 'var(--navy)'); ?><?php
-             echo $b['image_url'] ? ' url(' . htmlspecialchars($banner_img($b['image_url'])) . ') center/cover no-repeat' : ''; ?>">
-        <div class="bn-slide-inner">
-          <div class="bn-title"><?php echo htmlspecialchars($b['title']); ?></div>
-          <?php if ($b['subtitle']): ?><div class="bn-sub"><?php echo htmlspecialchars($b['subtitle']); ?></div><?php endif; ?>
-          <?php if ($b['link_url']): ?>
-            <a href="<?php echo htmlspecialchars($b['link_url']); ?>" class="btn btn-white btn-sm" style="margin-top:12px;display:inline-flex">
-              <?php echo htmlspecialchars($b['link_label'] ?: 'Learn more'); ?> <i class="fas fa-arrow-right" style="font-size:11px"></i>
-            </a>
-          <?php endif; ?>
-        </div>
-      </div>
-    <?php endforeach; ?>
-    <?php if (count($hero_banners) > 1): ?>
-      <div class="bn-dots">
-        <?php foreach ($hero_banners as $i => $b): ?><button type="button" class="bn-dot<?php echo $i === 0 ? ' on' : ''; ?>" data-slide="<?php echo $i; ?>" aria-label="Banner <?php echo $i + 1; ?>"></button><?php endforeach; ?>
-      </div>
-    <?php endif; ?>
-  </div>
-  <?php endif; ?>
+  <?php portal_render_banners(); ?>
 
   <?php if ($due_soon): ?>
   <div class="p-alert p-alert-info" style="margin-bottom:20px">
@@ -255,15 +229,6 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 
 <style>
-.bn-hero { position:relative; border-radius:14px; overflow:hidden; margin-bottom:20px; height:180px; box-shadow:0 6px 20px rgba(11,36,71,.12); }
-.bn-slide { position:absolute; inset:0; opacity:0; transition:opacity .6s; display:flex; align-items:center; }
-.bn-slide.on { opacity:1; z-index:1; }
-.bn-slide-inner { padding:28px 34px; max-width:640px; background:linear-gradient(90deg, rgba(4,14,30,.62) 0%, rgba(4,14,30,.25) 70%, transparent 100%); height:100%; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; }
-.bn-title { color:#fff; font-size:21px; font-weight:800; line-height:1.25; text-shadow:0 1px 4px rgba(0,0,0,.3); }
-.bn-sub { color:rgba(255,255,255,.85); font-size:13.5px; margin-top:6px; text-shadow:0 1px 3px rgba(0,0,0,.3); }
-.bn-dots { position:absolute; bottom:10px; right:16px; display:flex; gap:6px; z-index:2; }
-.bn-dot { width:9px; height:9px; border-radius:50%; border:none; background:rgba(255,255,255,.45); cursor:pointer; padding:0; }
-.bn-dot.on { background:#fff; }
 .bn-side { position:relative; border-radius:12px; overflow:hidden; height:200px; box-shadow:0 4px 14px rgba(11,36,71,.10); }
 .bn-side-slide { position:absolute; inset:0; opacity:0; transition:opacity .6s; display:flex; align-items:flex-end; text-decoration:none; }
 .bn-side-slide.on { opacity:1; z-index:1; }
@@ -271,32 +236,20 @@ require_once __DIR__ . '/includes/header.php';
 .bn-side-title { display:block; color:#fff; font-size:14px; font-weight:800; line-height:1.3; }
 .bn-side-sub { display:block; color:rgba(255,255,255,.82); font-size:11.5px; margin-top:3px; }
 .bn-side-cta { display:inline-flex; align-items:center; gap:5px; color:#fff; font-size:11.5px; font-weight:700; margin-top:8px; border-bottom:1px solid rgba(255,255,255,.5); padding-bottom:1px; }
-@media (max-width: 860px) { .bn-bottom-grid { grid-template-columns: 1fr !important; } .bn-hero { height:150px; } .bn-title { font-size:17px; } }
+@media (max-width: 860px) { .bn-bottom-grid { grid-template-columns: 1fr !important; } }
 </style>
 <script>
 (function () {
-  function rotate(rootId, slideSel, dotSel, ms) {
-    var root = document.getElementById(rootId);
-    if (!root) return;
-    var slides = root.querySelectorAll(slideSel);
-    if (slides.length < 2) return;
-    var dots = dotSel ? root.querySelectorAll(dotSel) : [];
-    var cur = 0, timer;
-    function show(i) {
-      slides[cur].classList.remove('on');
-      if (dots[cur]) dots[cur].classList.remove('on');
-      cur = (i + slides.length) % slides.length;
-      slides[cur].classList.add('on');
-      if (dots[cur]) dots[cur].classList.add('on');
-    }
-    function start() { timer = setInterval(function () { show(cur + 1); }, ms); }
-    dots.forEach(function (d, i) {
-      d.addEventListener('click', function () { clearInterval(timer); show(i); start(); });
-    });
-    start();
-  }
-  rotate('bnHero', '.bn-slide', '.bn-dot', 6000);
-  rotate('bnSide', '.bn-side-slide', null, 5000);
+  var root = document.getElementById('bnSide');
+  if (!root) return;
+  var slides = root.querySelectorAll('.bn-side-slide');
+  if (slides.length < 2) return;
+  var cur = 0;
+  setInterval(function () {
+    slides[cur].classList.remove('on');
+    cur = (cur + 1) % slides.length;
+    slides[cur].classList.add('on');
+  }, 5000);
 })();
 </script>
 
