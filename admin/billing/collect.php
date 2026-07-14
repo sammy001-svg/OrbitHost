@@ -27,6 +27,17 @@ foreach (ProviderRegistry::byCategory('payment') as $key => $def) {
     if (Provider::isActive($key) && Provider::isConfigured($key)) $gateways[$key] = $def;
 }
 
+// A client may have already submitted a reference/cheque number for this
+// invoice from the portal (bank transfer, manual M-Pesa, cheque) — surface
+// it so admin isn't guessing what to look for on the bank/M-Pesa statement.
+$offline_pending = null;
+try {
+    $stmt3 = db()->prepare("SELECT gateway, gateway_ref, created_at FROM payments WHERE invoice_id = ? AND status = 'pending' AND gateway IN ('mpesa_manual','bank_transfer','cheque') ORDER BY id DESC LIMIT 1");
+    $stmt3->execute([$invoice_id]);
+    $offline_pending = $stmt3->fetch() ?: null;
+} catch (\Throwable $e) { /* defensive only */ }
+$offline_method_labels = ['mpesa_manual' => 'M-Pesa', 'bank_transfer' => 'Bank Transfer', 'cheque' => 'Cheque'];
+
 $result = null;
 $currency = defined('CURRENCY') ? CURRENCY : 'USD';
 
@@ -182,12 +193,25 @@ require_once '../includes/header.php';
 
         <hr style="border:none;border-top:1px solid var(--border);margin:22px 0">
         <p class="form-section-title">Or record a manual payment</p>
+
+        <?php if ($offline_pending): ?>
+          <div class="alert alert-warning" style="align-items:flex-start">
+            <i class="fas fa-receipt" style="margin-top:2px"></i>
+            <div>
+              <strong>Client submitted a reference</strong> via <?php echo h($offline_method_labels[$offline_pending['gateway']] ?? $offline_pending['gateway']); ?>, <?php echo h(time_ago($offline_pending['created_at'])); ?>:
+              <div class="code-chip" style="margin-top:6px;display:inline-block;font-size:13px"><?php echo h($offline_pending['gateway_ref']); ?></div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:6px">Verify this against your bank/M-Pesa statement before confirming below.</div>
+            </div>
+          </div>
+        <?php endif; ?>
+
         <form method="POST" class="flex-gap" style="gap:10px">
           <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>">
           <input type="hidden" name="invoice_id" value="<?php echo $invoice_id; ?>">
           <input type="hidden" name="action" value="manual">
           <select name="method" class="form-select" style="width:auto">
-            <?php foreach (get_payment_methods() as $m): ?><option><?php echo h($m); ?></option><?php endforeach; ?>
+            <?php $default_method = $offline_method_labels[$offline_pending['gateway'] ?? ''] ?? null; ?>
+            <?php foreach (get_payment_methods() as $m): ?><option <?php echo $default_method === $m ? 'selected' : ''; ?>><?php echo h($m); ?></option><?php endforeach; ?>
           </select>
           <button type="submit" class="btn btn-ghost" data-confirm="Mark this invoice as paid?"><i class="fas fa-check"></i> Mark as paid</button>
         </form>

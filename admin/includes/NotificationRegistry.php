@@ -74,6 +74,13 @@ final class NotificationRegistry
                 'email_subject' => 'We couldn\'t process your payment',
                 'email_body'    => '<p>Hi {client_name},</p><p>Your recent payment attempt of <strong>{amount}</strong> via {gateway} was not successful.</p><p style="color:#64748b;font-size:13px">{reason}</p><p>Please try again from the client portal, or contact support if the problem continues.</p>',
             ],
+            'payment_reference_submitted' => [
+                'audience' => 'admin', 'icon' => 'fa-receipt', 'color' => '#d97706', 'email' => true,
+                'title'   => 'Payment reference submitted — {invoice_number}',
+                'message' => '{client_name} says they paid {amount} via {gateway}: {reference}',
+                'email_subject' => 'Awaiting confirmation: {invoice_number} — {gateway} reference submitted',
+                'email_body'    => '<p>A client has submitted a manual payment reference for review.</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:6px 0;color:#64748b">Client</td><td style="padding:6px 0;text-align:right;font-weight:700">{client_name}</td></tr><tr><td style="padding:6px 0;color:#64748b">Invoice</td><td style="padding:6px 0;text-align:right;font-weight:700">{invoice_number}</td></tr><tr><td style="padding:6px 0;color:#64748b">Amount</td><td style="padding:6px 0;text-align:right;font-weight:700">{amount}</td></tr><tr><td style="padding:6px 0;color:#64748b">Method</td><td style="padding:6px 0;text-align:right;font-weight:700">{gateway}</td></tr><tr><td style="padding:6px 0;color:#64748b">Reference</td><td style="padding:6px 0;text-align:right;font-weight:700">{reference}</td></tr></table><p>Verify it against your bank/M-Pesa statement, then confirm receipt in Billing.</p>',
+            ],
 
             /* ══════════════ ORDERS / PURCHASES ══════════════ */
             'order_new' => [

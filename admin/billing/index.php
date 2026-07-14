@@ -108,7 +108,9 @@ require_once '../includes/header.php';
             <td><?php echo pay_badge($p['status']); ?></td>
             <td style="font-size:12px;color:var(--text-muted)"><?php echo time_ago($p['created_at']); ?></td>
             <td>
-              <?php if ($p['status'] === 'pending' && !in_array($p['gateway'], ['bank_transfer', 'mpesa_manual', 'cheque'], true)): ?>
+              <?php if ($p['status'] === 'pending' && in_array($p['gateway'], ['bank_transfer', 'mpesa_manual', 'cheque'], true) && $p['invoice_id']): ?>
+                <a href="<?php echo APP_URL; ?>/billing/collect.php?invoice_id=<?php echo (int)$p['invoice_id']; ?>" class="btn btn-primary btn-xs" title="Client submitted a reference — verify and confirm"><i class="fas fa-receipt"></i> Review</a>
+              <?php elseif ($p['status'] === 'pending'): ?>
                 <form method="POST" style="margin:0" title="Re-verify with the gateway now instead of waiting for the next automatic check">
                   <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
                   <input type="hidden" name="action" value="recheck" />
