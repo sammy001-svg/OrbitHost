@@ -150,14 +150,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
     exit;
 }
 
-// Any offline reference already submitted for this invoice, keyed by method —
+// Latest offline reference submitted per method (pending OR rejected) —
 // shown back to the client instead of a blank form so they're not left
-// wondering whether it went through.
+// wondering whether it went through, and so a rejected one prompts a
+// correction with the reason instead of silently vanishing.
 $pending_offline = [];
 try {
-    $rows = db()->prepare("SELECT gateway, gateway_ref, created_at FROM payments WHERE invoice_id = ? AND status = 'pending' AND gateway IN ('mpesa_manual','bank_transfer','cheque')");
+    $rows = db()->prepare("SELECT gateway, gateway_ref, status, raw, created_at FROM payments WHERE invoice_id = ? AND gateway IN ('mpesa_manual','bank_transfer','cheque') AND status IN ('pending','failed') ORDER BY id DESC");
     $rows->execute([$id]);
-    foreach ($rows->fetchAll() as $r) { $pending_offline[$r['gateway']] = $r; }
+    foreach ($rows->fetchAll() as $r) {
+        if (!isset($pending_offline[$r['gateway']])) $pending_offline[$r['gateway']] = $r;
+    }
 } catch (\Throwable $e) { /* payments table always exists — defensive only */ }
 
 $page_title = $inv['invoice_number'];
@@ -376,7 +379,22 @@ require_once '../includes/header.php';
               </div>
               <div class="offline-instructions"><?php echo implode('<br />', $card['lines']); ?></div>
 
-              <?php if ($submitted): ?>
+              <?php if ($submitted && $submitted['status'] === 'failed'):
+                  $raw = json_decode($submitted['raw'] ?? '', true) ?: [];
+                  $rejectReason = $raw['rejection_reason'] ?? 'The reference could not be verified.';
+              ?>
+                <div class="offline-submitted" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">
+                  <i class="fas fa-triangle-exclamation"></i>
+                  <span>Reference <strong><?php echo h($submitted['gateway_ref']); ?></strong> couldn't be verified: <?php echo h($rejectReason); ?> Please correct it and resubmit below.</span>
+                </div>
+                <form method="POST" class="offline-ref-form" style="margin-top:10px">
+                  <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
+                  <input type="hidden" name="action" value="submit_reference" />
+                  <input type="hidden" name="gateway" value="<?php echo h($card['key']); ?>" />
+                  <input type="text" name="reference" placeholder="<?php echo h($refLabel); ?>" required minlength="3" />
+                  <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-paper-plane"></i></button>
+                </form>
+              <?php elseif ($submitted): ?>
                 <div class="offline-submitted">
                   <i class="fas fa-clock"></i>
                   <span>Reference <strong><?php echo h($submitted['gateway_ref']); ?></strong> submitted <?php echo time_ago($submitted['created_at']); ?> — awaiting confirmation.

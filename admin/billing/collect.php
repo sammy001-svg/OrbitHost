@@ -32,7 +32,7 @@ foreach (ProviderRegistry::byCategory('payment') as $key => $def) {
 // it so admin isn't guessing what to look for on the bank/M-Pesa statement.
 $offline_pending = null;
 try {
-    $stmt3 = db()->prepare("SELECT gateway, gateway_ref, created_at FROM payments WHERE invoice_id = ? AND status = 'pending' AND gateway IN ('mpesa_manual','bank_transfer','cheque') ORDER BY id DESC LIMIT 1");
+    $stmt3 = db()->prepare("SELECT id, gateway, gateway_ref, created_at FROM payments WHERE invoice_id = ? AND status = 'pending' AND gateway IN ('mpesa_manual','bank_transfer','cheque') ORDER BY id DESC LIMIT 1");
     $stmt3->execute([$invoice_id]);
     $offline_pending = $stmt3->fetch() ?: null;
 } catch (\Throwable $e) { /* defensive only */ }
@@ -51,6 +51,18 @@ function notify_invoice_paid_admin(array $inv, int $invoice_id, string $gateway)
         'gateway'        => ucfirst($gateway),
         'email'          => $inv['email'],
         'link'           => portal_base_url() . '/invoices/view.php?id=' . $invoice_id,
+    ]);
+}
+
+function notify_reference_rejected(array $inv, int $invoice_id, string $reason): void
+{
+    if (!$inv['client_id'] || !$inv['email']) return;
+    Notifier::send('payment_reference_rejected', (int) $inv['client_id'], [
+        'client_name'    => trim(($inv['first_name'] ?? '') . ' ' . ($inv['last_name'] ?? '')),
+        'invoice_number' => $inv['invoice_number'],
+        'reason'         => $reason,
+        'email'          => $inv['email'],
+        'link'           => portal_base_url() . '/invoices/view.php?id=' . $invoice_id . '#pay',
     ]);
 }
 
@@ -103,6 +115,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash_set('success', ($pending_id ? 'Offline payment confirmed — invoice marked as paid.' : 'Payment recorded and invoice marked as paid.')
             . (in_array($auto['status'], ['provisioned', 'reactivated', 'renewed'], true) ? ' ' . $auto['message'] : ''));
         header('Location: ' . APP_URL . '/billing/');
+        exit;
+    }
+
+    if ($action === 'reject_reference') {
+        $payment_id = (int) ($_POST['payment_id'] ?? 0);
+        $reason     = trim($_POST['reason'] ?? '') ?: 'The reference could not be matched to a payment on our records.';
+        $p = db()->prepare("SELECT * FROM payments WHERE id = ? AND invoice_id = ? AND status = 'pending' AND gateway IN ('bank_transfer','mpesa_manual','cheque')");
+        $p->execute([$payment_id, $invoice_id]);
+        $prow = $p->fetch();
+        if (!$prow) {
+            flash_set('error', 'That submitted reference is no longer pending.');
+        } else {
+            db()->prepare("UPDATE payments SET status = 'failed', raw = ? WHERE id = ?")
+                ->execute([json_encode(['rejection_reason' => $reason]), $payment_id]);
+            notify_reference_rejected($inv, $invoice_id, $reason);
+            log_activity('payment_reference_rejected', 'invoice', $invoice_id, 'Rejected ' . $prow['gateway'] . ' reference "' . $prow['gateway_ref'] . '": ' . $reason);
+            flash_set('success', 'Reference rejected — the client has been notified and can resubmit.');
+        }
+        header('Location: ' . APP_URL . '/billing/collect.php?invoice_id=' . $invoice_id);
         exit;
     }
 
@@ -197,10 +228,22 @@ require_once '../includes/header.php';
         <?php if ($offline_pending): ?>
           <div class="alert alert-warning" style="align-items:flex-start">
             <i class="fas fa-receipt" style="margin-top:2px"></i>
-            <div>
+            <div style="flex:1">
               <strong>Client submitted a reference</strong> via <?php echo h($offline_method_labels[$offline_pending['gateway']] ?? $offline_pending['gateway']); ?>, <?php echo h(time_ago($offline_pending['created_at'])); ?>:
               <div class="code-chip" style="margin-top:6px;display:inline-block;font-size:13px"><?php echo h($offline_pending['gateway_ref']); ?></div>
               <div style="font-size:12px;color:var(--text-muted);margin-top:6px">Verify this against your bank/M-Pesa statement before confirming below.</div>
+
+              <button type="button" class="btn btn-ghost btn-xs" style="margin-top:10px" onclick="document.getElementById('rejectRefForm').style.display='flex'">
+                <i class="fas fa-xmark"></i> Doesn't match — reject it
+              </button>
+              <form method="POST" id="rejectRefForm" style="display:none;gap:8px;margin-top:10px">
+                <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>">
+                <input type="hidden" name="invoice_id" value="<?php echo $invoice_id; ?>">
+                <input type="hidden" name="action" value="reject_reference">
+                <input type="hidden" name="payment_id" value="<?php echo (int) $offline_pending['id']; ?>">
+                <input type="text" name="reason" class="form-control" placeholder="Reason (shown to the client)" style="flex:1" />
+                <button type="submit" class="btn btn-danger btn-sm" data-confirm="Reject this reference? The client will be notified and asked to resubmit."><i class="fas fa-xmark"></i> Reject</button>
+              </form>
             </div>
           </div>
         <?php endif; ?>

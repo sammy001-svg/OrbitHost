@@ -81,6 +81,13 @@ final class NotificationRegistry
                 'email_subject' => 'Awaiting confirmation: {invoice_number} — {gateway} reference submitted',
                 'email_body'    => '<p>A client has submitted a manual payment reference for review.</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:6px 0;color:#64748b">Client</td><td style="padding:6px 0;text-align:right;font-weight:700">{client_name}</td></tr><tr><td style="padding:6px 0;color:#64748b">Invoice</td><td style="padding:6px 0;text-align:right;font-weight:700">{invoice_number}</td></tr><tr><td style="padding:6px 0;color:#64748b">Amount</td><td style="padding:6px 0;text-align:right;font-weight:700">{amount}</td></tr><tr><td style="padding:6px 0;color:#64748b">Method</td><td style="padding:6px 0;text-align:right;font-weight:700">{gateway}</td></tr><tr><td style="padding:6px 0;color:#64748b">Reference</td><td style="padding:6px 0;text-align:right;font-weight:700">{reference}</td></tr></table><p>Verify it against your bank/M-Pesa statement, then confirm receipt in Billing.</p>',
             ],
+            'payment_reference_rejected' => [
+                'audience' => 'client', 'icon' => 'fa-circle-xmark', 'color' => '#dc2626', 'email' => true,
+                'title'   => 'We couldn\'t verify your payment — {invoice_number}',
+                'message' => '{reason}',
+                'email_subject' => 'Action needed: payment reference for {invoice_number}',
+                'email_body'    => '<p>Hi {client_name},</p><p>We could not verify the payment reference you submitted for invoice <strong>{invoice_number}</strong>.</p><p style="color:#64748b;font-size:13px">{reason}</p><p>Please double-check the reference number and submit it again from the client portal, or contact support if you believe this is a mistake.</p>',
+            ],
 
             /* ══════════════ ORDERS / PURCHASES ══════════════ */
             'order_new' => [
