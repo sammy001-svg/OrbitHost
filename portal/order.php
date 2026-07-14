@@ -10,6 +10,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once dirname(__DIR__) . '/admin/includes/functions.php';
 require_once __DIR__ . '/includes/domain_payment.php';
 require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
+require_once dirname(__DIR__) . '/admin/includes/Automation.php';
 
 portal_check();
 $page_title = 'Order Services';
@@ -40,76 +41,36 @@ $cat_labels = ['shared'=>'Shared Hosting','vps'=>'VPS Hosting','dedicated'=>'Ded
 
 $view = 'catalogue'; $error = ''; $push_msg = ''; $pay_id = 0; $sel_plan = null; $order_note = '';
 
-/** Create the order once payment is confirmed (idempotent via context flag). */
-function order_fulfil(array $pay, int $cid, array $client): string
-{
-    $ctx = dp_context($pay);
-    if (($ctx['action'] ?? '') !== 'order_service') return '';
-    if (!empty($ctx['order_id'])) return (string) $ctx['order_id']; // already created
-
-    $stmt = db()->prepare('SELECT * FROM services WHERE id = ?');
-    $stmt->execute([(int) $ctx['service_id']]);
-    $plan = $stmt->fetch();
-    $name  = $plan['name'] ?? ($ctx['plan_name'] ?? 'Service');
-    $cycle = $plan['billing_cycle'] ?? 'monthly';
-    $next  = $cycle === 'monthly' ? date('Y-m-d', strtotime('+1 month'))
-           : ($cycle === 'annual' ? date('Y-m-d', strtotime('+1 year')) : null);
-
-    db()->prepare('INSERT INTO orders (client_id, service_id, service_name, domain_name, amount, billing_cycle, status, start_date, next_due, notes)
-                   VALUES (?,?,?,?,?,?,?,CURDATE(),?,?)')
-        ->execute([$cid, $plan['id'] ?? null, $name, $ctx['domain'] ?: null, (float) $pay['amount'], $cycle,
-                   'pending', $next, 'Ordered from client portal — invoice #' . $pay['invoice_id']]);
-    $order_id = (string) db()->lastInsertId();
-
-    // remember we've fulfilled, so refreshing the page can't duplicate it
-    $ctx['order_id'] = $order_id;
-    $raw = json_decode($pay['raw'] ?? '', true) ?: [];
-    $raw['context'] = $ctx;
-    db()->prepare('UPDATE payments SET raw = ? WHERE id = ?')->execute([json_encode($raw), (int) $pay['id']]);
-
-    // Link the invoice to this order (renewal billing follows it from here),
-    // then try to provision the hosting account immediately.
-    try {
-        require_once dirname(__DIR__) . '/admin/includes/Automation.php';
-        Automation::ensureSchema();
-        if ($pay['invoice_id']) {
-            db()->prepare('UPDATE invoices SET order_id = ? WHERE id = ?')->execute([(int) $order_id, (int) $pay['invoice_id']]);
-        }
-        Automation::provisionOrder((int) $order_id);
-    } catch (\Throwable $e) { /* provisioning failure never blocks the order */ }
-
-    $client_name = trim($client['first_name'] . ' ' . $client['last_name']);
-    Notifier::send('order_new', $cid, [
-        'client_name' => $client_name, 'item' => $name,
-        'amount' => (defined('CURRENCY') ? CURRENCY : 'USD') . ' ' . number_format((float) $pay['amount'], 2),
-        'note' => 'Our team is setting up your service — you\'ll be notified the moment it\'s active.',
-        'email' => $client['email'], 'link' => portal_base_url() . '/services.php',
-    ]);
-    Notifier::sendToAllAdmins('order_new_admin', [
-        'client_name' => $client_name, 'item' => $name,
-        'amount' => (defined('CURRENCY') ? CURRENCY : 'USD') . ' ' . number_format((float) $pay['amount'], 2),
-        'gateway' => ucfirst(str_replace('_', ' ', $pay['gateway'])),
-        'link' => APP_URL . '/orders/',
-    ]);
-    return $order_id;
-}
-
 // ── Verify a returning payment ──
+// settlePayment() verifies with the gateway and, on success, creates +
+// provisions the order from context stored at payment-creation time —
+// not a page-local variable — so the reconciliation cron/webhook can
+// finish this identically if the client never comes back to this tab.
 if (isset($_GET['pay'])) {
     $pay_id = (int) $_GET['pay'];
-    $v = dp_verify($pay_id, $cid);
-    if (!empty($v['ok'])) {
-        order_fulfil($v['payment'], $cid, $client_row);
-        $view = 'success';
-    } elseif (!empty($v['failed'])) {
-        $view = 'failed';
-        $error = $v['message'] ?? 'Payment failed.';
-    } elseif (!empty($v['pending'])) {
-        $view = 'pending';
-        $push_msg = $v['message'] ?? 'Payment not confirmed yet.';
-    } else {
+    $stmt = db()->prepare('SELECT status FROM payments WHERE id = ? AND client_id = ?');
+    $stmt->execute([$pay_id, $cid]);
+    $pay_status = $stmt->fetchColumn();
+
+    if ($pay_status === false) {
         $view = 'catalogue';
-        $error = $v['message'] ?? 'Payment record not found.';
+        $error = 'Payment record not found.';
+    } elseif ($pay_status === 'completed') {
+        $view = 'success';
+    } elseif ($pay_status === 'failed') {
+        $view = 'failed';
+        $error = 'This payment attempt failed.';
+    } else {
+        $r = Automation::settlePayment($pay_id);
+        if ($r['status'] === 'completed') {
+            $view = 'success';
+        } elseif ($r['status'] === 'failed') {
+            $view = 'failed';
+            $error = $r['message'];
+        } else {
+            $view = 'pending';
+            $push_msg = $r['message'];
+        }
     }
 }
 

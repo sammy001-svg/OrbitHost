@@ -12,6 +12,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/domain_payment.php';
 require_once dirname(__DIR__) . '/admin/includes/DomainClient.php';
 require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
+require_once dirname(__DIR__) . '/admin/includes/Automation.php';
 
 portal_check();
 $client_id = (int) current_client()['id'];
@@ -42,73 +43,41 @@ function tf_price_lookup(string $domain): ?array
 }
 
 // ── Verify / complete a pending payment ──
+// settlePayment() verifies with the gateway and, on success, submits the
+// transfer from context stored at payment-creation time (domain, auth
+// code, years) — not a page-local variable — so the reconciliation
+// cron/webhook can finish this identically if the client never returns.
 if (isset($_GET['pay'])) {
     $pay_id = (int) $_GET['pay'];
-    $result = dp_verify($pay_id, $client_id);
+    $stmt = db()->prepare('SELECT * FROM payments WHERE id = ? AND client_id = ?');
+    $stmt->execute([$pay_id, $client_id]);
+    $pay_row = $stmt->fetch();
 
-    if (!$result['ok']) {
-        if (!empty($result['failed'])) {
-            $view = 'failed';
-            $error = $result['message'] ?? 'Payment failed.';
-            if (empty($result['already'])) {
-                Notifier::send('payment_failed', $client_id, [
-                    'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
-                    'amount' => $result['payment']['currency'] . ' ' . number_format($result['payment']['amount'], 2),
-                    'gateway' => ucfirst($result['payment']['gateway']), 'reason' => $error,
-                    'email' => $client['email'], 'link' => PORTAL_URL . '/domain-transfer.php',
-                ]);
-            }
-        } else {
-            $view = !empty($result['pending']) ? 'pending' : 'form';
-            $error = $result['message'] ?? 'Payment could not be confirmed.';
-        }
-    } else {
+    if (!$pay_row) {
+        $view = 'form';
+        $error = 'Payment record not found.';
+    } elseif ($pay_row['status'] === 'completed') {
         $view = 'success';
-        if (empty($result['already'])) {
-            $ctx    = dp_context($result['payment']);
-            $domain = $ctx['domain'] ?? '';
-            $code   = $ctx['auth_code'] ?? '';
-            $years  = max(1, min(5, (int) ($ctx['years'] ?? 1)));
-
-            $inv_no = '';
-            if ($result['payment']['invoice_id']) {
-                $invstmt = db()->prepare('SELECT invoice_number FROM invoices WHERE id = ?');
-                $invstmt->execute([$result['payment']['invoice_id']]);
-                $inv_no = $invstmt->fetchColumn() ?: '';
-            }
-            $paid_amount = $result['payment']['currency'] . ' ' . number_format($result['payment']['amount'], 2);
-            Notifier::send('invoice_paid', $client_id, [
-                'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
-                'invoice_number' => $inv_no, 'amount' => $paid_amount,
-                'gateway' => ucfirst($result['payment']['gateway']), 'email' => $client['email'],
-                'link' => PORTAL_URL . '/domains.php',
-            ]);
-            Notifier::sendToAllAdmins('order_new_admin', [
-                'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
-                'item' => 'Domain transfer: ' . $domain, 'amount' => $paid_amount,
-                'gateway' => ucfirst($result['payment']['gateway']),
-                'link' => APP_URL . '/integrations/domains/',
-            ]);
-
-            try {
-                $rr = Provider::registrar($reg_key)->transfer($domain, $code, [
-                    'first_name' => $client['first_name'], 'last_name' => $client['last_name'],
-                    'email' => $client['email'], 'phone' => $client['phone'] ?: '+254700000000',
-                    'company' => $client['company'] ?? '', 'country_code' => dp_iso_country($client['country'] ?? 'Kenya'),
-                ], $years);
-                $tf_ok = !empty($rr['success']);
-                $tf_note = $rr['message'] ?? '';
-            } catch (\Throwable $e) {
-                $tf_ok = false;
-                $tf_note = $e->getMessage();
-            }
-
-            try {
-                db()->prepare('INSERT INTO domain_registrations (client_id, domain_name, registrar, registration_date, status, auto_renew)
-                               VALUES (?,?,?,CURDATE(),?,1)
-                               ON DUPLICATE KEY UPDATE status = VALUES(status)')
-                    ->execute([$client_id, $domain, $reg_key, $tf_ok ? 'pending' : 'pending']);
-            } catch (\Throwable $e) { /* keep going — payment + transfer request already happened */ }
+        $raw = json_decode($pay_row['raw'] ?? '', true) ?: [];
+        $tf_ok   = $raw['transfer']['success'] ?? null;
+        $tf_note = $raw['transfer']['message'] ?? '';
+        $domain  = $raw['transfer']['domain'] ?? ($raw['context']['domain'] ?? $domain);
+    } elseif ($pay_row['status'] === 'failed') {
+        $view = 'failed';
+        $error = 'This payment attempt failed.';
+    } else {
+        $r = Automation::settlePayment($pay_id);
+        if ($r['status'] === 'completed') {
+            $view = 'success';
+            $tf_ok   = $r['transfer']['success'] ?? null;
+            $tf_note = $r['transfer']['message'] ?? '';
+            $domain  = $r['transfer']['domain'] ?? $domain;
+        } elseif ($r['status'] === 'failed') {
+            $view = 'failed';
+            $error = $r['message'];
+        } else {
+            $view = 'pending';
+            $error = $r['message'];
         }
     }
 }

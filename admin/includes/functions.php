@@ -166,3 +166,20 @@ function ensure_client_verify_columns(): void
         // no ALTER privilege — verification simply won't be available until schema is added manually
     }
 }
+
+/**
+ * Absolute webhook callback URL for a specific payment. Embedding the
+ * payment id directly (rather than trying to parse it back out of
+ * whatever a gateway's callback payload happens to contain) means the
+ * webhook receiver never has to guess which payment fired it — it just
+ * re-verifies that exact payment with the gateway via
+ * Automation::settlePayment(), the same trusted path the client's own
+ * return page and the reconciliation cron both use. Currently only
+ * consumed by Kopo Kopo (the only gateway that takes a per-request
+ * callback URL); harmless no-op value for gateways that ignore it.
+ */
+function payment_webhook_url(int $payment_id, string $gateway = 'kopokopo'): string
+{
+    $site_root = preg_replace('#/admin/?$#i', '', rtrim(APP_URL, '/'));
+    return $site_root . '/api/webhooks/' . $gateway . '.php?pay=' . $payment_id;
+}

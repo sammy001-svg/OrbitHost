@@ -49,33 +49,17 @@ if (isset($_GET['paid']) && $inv['status'] !== 'paid') {
     $p->execute([$invoice_id]);
     $pending = $p->fetch();
     if ($pending) {
-        try {
-            $v = Provider::payment($pending['gateway'])->verify($pending['gateway_ref']);
-            if (!empty($v['success'])) {
-                db()->prepare("UPDATE payments SET status = 'completed' WHERE id = ?")->execute([$pending['id']]);
-                db()->prepare("UPDATE invoices SET status = 'paid', paid_date = CURDATE(), payment_method = ? WHERE id = ?")
-                    ->execute([$pending['gateway'], $invoice_id]);
-                notify_invoice_paid_admin($inv, $invoice_id, $pending['gateway']);
-                $auto = Automation::invoicePaid($invoice_id);
-                flash_set('success', 'Payment confirmed — invoice marked as paid.'
-                    . (in_array($auto['status'], ['provisioned', 'reactivated', 'renewed'], true) ? ' ' . $auto['message'] : ''));
-            } elseif (($v['status'] ?? '') === 'failed') {
-                db()->prepare("UPDATE payments SET status = 'failed' WHERE id = ?")->execute([$pending['id']]);
-                $reason = $v['message'] ?? 'Payment failed.';
-                flash_set('error', 'Payment failed: ' . $reason);
-                if ($inv['client_id'] && $inv['email']) {
-                    Notifier::send('payment_failed', (int) $inv['client_id'], [
-                        'client_name' => trim(($inv['first_name'] ?? '') . ' ' . ($inv['last_name'] ?? '')),
-                        'amount' => $currency . ' ' . number_format((float) $pending['amount'], 2),
-                        'gateway' => ucfirst($pending['gateway']), 'reason' => $reason,
-                        'email' => $inv['email'], 'link' => portal_base_url() . '/invoices/view.php?id=' . $invoice_id,
-                    ]);
-                }
-            } else {
-                flash_set('error', $v['message'] ?? ($v['status'] ?? 'Payment not confirmed yet — try again shortly.'));
-            }
-        } catch (\Throwable $e) {
-            flash_set('error', $e->getMessage());
+        // settlePayment() is the same verify-then-fulfil path the client's
+        // own return page, the reconciliation cron, and gateway webhooks
+        // all use — admin clicking "check" here is just another trigger.
+        $r = Automation::settlePayment((int) $pending['id']);
+        if ($r['status'] === 'completed') {
+            notify_invoice_paid_admin($inv, $invoice_id, $pending['gateway']);
+            flash_set('success', 'Payment confirmed — invoice marked as paid.');
+        } elseif ($r['status'] === 'failed') {
+            flash_set('error', 'Payment failed: ' . $r['message']);
+        } else {
+            flash_set('error', $r['message'] ?: 'Payment not confirmed yet — try again shortly.');
         }
     }
     header('Location: ' . APP_URL . '/billing/collect.php?invoice_id=' . $invoice_id);

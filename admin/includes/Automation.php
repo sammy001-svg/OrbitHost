@@ -15,6 +15,19 @@
  *       order: first payment → provision; renewal → advance next_due
  *       and unsuspend the account if it was suspended.
  *
+ *   Automation::settlePayment($payment_id)
+ *       THE single entry point for "a payment might be done — check and
+ *       fulfil it if so." Used identically by: the interactive return-URL
+ *       handlers (checkout.php/order.php, so a client watching the page
+ *       gets an instant result), the reconciliation cron (for clients who
+ *       never come back), and gateway webhooks (for near-instant
+ *       confirmation without waiting for the cron). Verifies with the
+ *       gateway, marks the payment/invoice, then dispatches fulfilment by
+ *       payments.raw.context.action — every action stores everything it
+ *       needs in that JSON, never in the PHP session, so any of these
+ *       three callers can complete it identically. Fully idempotent: safe
+ *       to call repeatedly on the same payment from all three places.
+ *
  *   Automation::suspendOrder($order) / reactivateOrder($order)
  *       Used by the billing cron for overdue suspension and by
  *       invoicePaid for reactivation.
@@ -185,6 +198,375 @@ final class Automation
             return self::reactivateOrder($o);
         }
         return ['status' => 'renewed', 'message' => 'Next due date advanced.'];
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    /**
+     * Verify a payment with its gateway and, if paid, fulfil it — safe to
+     * call any number of times from any context (browser return, cron,
+     * webhook). See class docblock for the full contract.
+     * @return array{status:string, message:string, ...}
+     *   status: completed|already|failed|pending|not_found
+     */
+    public static function settlePayment(int $payment_id): array
+    {
+        $stmt = db()->prepare('SELECT * FROM payments WHERE id = ?');
+        $stmt->execute([$payment_id]);
+        $pay = $stmt->fetch();
+        if (!$pay) return ['status' => 'not_found', 'message' => 'Payment not found.'];
+        if ($pay['status'] === 'completed') return ['status' => 'already', 'message' => 'Already settled.'];
+        if ($pay['status'] === 'failed') return ['status' => 'failed', 'message' => 'Already marked failed.'];
+
+        try {
+            $v = Provider::payment($pay['gateway'])->verify((string) ($pay['gateway_ref'] ?? ''));
+        } catch (\Throwable $e) {
+            return ['status' => 'pending', 'message' => $e->getMessage()];
+        }
+
+        if (empty($v['success'])) {
+            if (($v['status'] ?? '') === 'failed') {
+                db()->prepare("UPDATE payments SET status = 'failed' WHERE id = ?")->execute([$payment_id]);
+                self::notifyPaymentOutcome($pay, false, $v['message'] ?? 'Payment failed.');
+                return ['status' => 'failed', 'message' => $v['message'] ?? 'Payment failed.'];
+            }
+            return ['status' => 'pending', 'message' => $v['message'] ?? ($v['status'] ?? 'Not confirmed yet.')];
+        }
+
+        // Paid — mark it, then dispatch fulfilment by context. Order matters:
+        // flip the payment to completed FIRST so a concurrent second caller
+        // (cron overlapping a webhook, say) hits the "already" branch above
+        // instead of double-fulfilling.
+        db()->prepare("UPDATE payments SET status = 'completed' WHERE id = ?")->execute([$payment_id]);
+        if ($pay['invoice_id']) {
+            db()->prepare("UPDATE invoices SET status = 'paid', paid_date = CURDATE(), payment_method = ? WHERE id = ?")
+                ->execute([$pay['gateway'], $pay['invoice_id']]);
+        }
+
+        $ctx = (json_decode($pay['raw'] ?? '', true) ?: [])['context'] ?? [];
+        $result = ['status' => 'completed', 'message' => 'Payment settled.'];
+
+        switch ($ctx['action'] ?? '') {
+            case 'domain_checkout':
+                $result['fulfilment'] = self::fulfilDomainCheckout($pay, $ctx);
+                break;
+            case 'order_service':
+                $result['order'] = self::fulfilOrderService($pay, $ctx);
+                break;
+            case 'renew':
+                $result['renewal'] = self::fulfilDomainRenewal($pay, $ctx);
+                break;
+            case 'transfer':
+                $result['transfer'] = self::fulfilDomainTransfer($pay, $ctx);
+                break;
+            default:
+                // Renewals, transfers, plain invoices — invoicePaid() already
+                // knows how to advance/reactivate/provision from invoice_id.
+                if ($pay['invoice_id']) $result['invoice'] = self::invoicePaid((int) $pay['invoice_id']);
+        }
+        return $result;
+    }
+
+    /**
+     * Register every domain from a checkout's cart. $ctx['items'] is the
+     * exact cart snapshot taken at payment-creation time (see
+     * portal/checkout.php) — never the PHP session, so this runs
+     * identically whether called from the client's own return request or
+     * from the cron/webhook hours later after the session is long gone.
+     */
+    public static function fulfilDomainCheckout(array $pay, array $ctx): array
+    {
+        $raw = json_decode($pay['raw'] ?? '', true) ?: [];
+        if (!empty($raw['fulfilment'])) return $raw['fulfilment']; // already done — idempotent
+
+        $stmt = db()->prepare('SELECT * FROM clients WHERE id = ?');
+        $stmt->execute([(int) $pay['client_id']]);
+        $client = $stmt->fetch() ?: [];
+
+        $reg_key = Provider::activeFor('registrar');
+        $summary = [];
+        foreach ($ctx['items'] ?? [] as $it) {
+            $domain = $it['domain'];
+            $years  = (int) ($it['years'] ?? 1);
+            $ok = false; $note = '';
+            if ($reg_key) {
+                try {
+                    $r = Provider::registrar($reg_key)->register($domain, [
+                        'first_name'   => $client['first_name'] ?? '',
+                        'last_name'    => $client['last_name'] ?? '',
+                        'email'        => $client['email'] ?? '',
+                        'phone'        => $client['phone'] ?: '+254700000000',
+                        'company'      => $client['company'] ?? '',
+                        'country_code' => self::isoCountry($client['country'] ?? 'Kenya'),
+                    ], $years);
+                    $ok   = !empty($r['success']);
+                    $note = $r['message'] ?? '';
+                } catch (\Throwable $e) {
+                    $note = $e->getMessage();
+                }
+            } else {
+                $note = 'No registrar active — to be registered manually by our team.';
+            }
+
+            try {
+                db()->prepare('INSERT INTO domain_registrations (client_id, domain_name, registrar, registration_date, expiry_date, status, auto_renew)
+                               VALUES (?,?,?,CURDATE(),DATE_ADD(CURDATE(), INTERVAL ? YEAR),?,1)
+                               ON DUPLICATE KEY UPDATE status=VALUES(status), expiry_date=VALUES(expiry_date)')
+                    ->execute([$pay['client_id'], $domain, $reg_key ?: 'manual', $years, $ok ? 'active' : 'pending']);
+            } catch (\Throwable $e) {
+                try {
+                    db()->prepare('INSERT IGNORE INTO domain_registrations (client_id, domain_name, registrar, registration_date, expiry_date, status, auto_renew)
+                                   VALUES (?,?,?,CURDATE(),DATE_ADD(CURDATE(), INTERVAL ? YEAR),?,1)')
+                        ->execute([$pay['client_id'], $domain, 'manual', $years, $ok ? 'active' : 'pending']);
+                } catch (\Throwable $e2) { /* legacy ENUM registrar column — payment is already recorded regardless */ }
+            }
+            $summary[] = ['domain' => $domain, 'registered' => $ok, 'note' => $note];
+        }
+
+        $raw['fulfilment'] = $summary;
+        db()->prepare('UPDATE payments SET raw = ? WHERE id = ?')->execute([json_encode($raw), (int) $pay['id']]);
+
+        $currency   = $pay['currency'] ?: (defined('CURRENCY') ? CURRENCY : 'USD');
+        $registered = array_filter($summary, fn($d) => !empty($d['registered']));
+        $item_desc  = $registered ? implode(', ', array_column($registered, 'domain')) : 'domain order';
+        $inv_no = '';
+        if ($pay['invoice_id']) {
+            $invstmt = db()->prepare('SELECT invoice_number FROM invoices WHERE id = ?');
+            $invstmt->execute([$pay['invoice_id']]);
+            $inv_no = $invstmt->fetchColumn() ?: '';
+        }
+        $client_name = trim(($client['first_name'] ?? '') . ' ' . ($client['last_name'] ?? ''));
+
+        Notifier::send('invoice_paid', (int) $pay['client_id'], [
+            'client_name' => $client_name, 'invoice_number' => $inv_no,
+            'amount' => $currency . ' ' . number_format((float) $pay['amount'], 2),
+            'gateway' => ucfirst($pay['gateway']), 'email' => $client['email'] ?? '',
+            'link' => portal_base_url() . '/domains.php',
+        ]);
+        Notifier::send('order_new', (int) $pay['client_id'], [
+            'client_name' => $client_name, 'item' => $item_desc,
+            'amount' => $currency . ' ' . number_format((float) $pay['amount'], 2),
+            'note' => 'You can manage your domains any time from the client portal.',
+            'email' => $client['email'] ?? '', 'link' => portal_base_url() . '/domains.php',
+        ]);
+        Notifier::sendToAllAdmins('order_new_admin', [
+            'client_name' => $client_name, 'item' => $item_desc,
+            'amount' => $currency . ' ' . number_format((float) $pay['amount'], 2),
+            'gateway' => ucfirst($pay['gateway']),
+            'link' => APP_URL . '/integrations/domains/',
+        ]);
+        return $summary;
+    }
+
+    /**
+     * Create (if not already) and provision the order for a portal
+     * service purchase. Mirrors the old page-local order_fulfil() from
+     * portal/order.php, moved here so the cron/webhook can complete an
+     * order the client never came back to see confirmed.
+     */
+    public static function fulfilOrderService(array $pay, array $ctx): array
+    {
+        if (!empty($ctx['order_id'])) {
+            return ['order_id' => (int) $ctx['order_id'], 'status' => 'already', 'message' => 'Already created.'];
+        }
+
+        $stmt = db()->prepare('SELECT * FROM services WHERE id = ?');
+        $stmt->execute([(int) ($ctx['service_id'] ?? 0)]);
+        $plan = $stmt->fetch();
+        $name  = $plan['name'] ?? ($ctx['plan_name'] ?? 'Service');
+        $cycle = $plan['billing_cycle'] ?? 'monthly';
+        $next  = $cycle === 'monthly' ? date('Y-m-d', strtotime('+1 month'))
+               : ($cycle === 'annual' ? date('Y-m-d', strtotime('+1 year')) : null);
+
+        db()->prepare('INSERT INTO orders (client_id, service_id, service_name, domain_name, amount, billing_cycle, status, start_date, next_due, notes)
+                       VALUES (?,?,?,?,?,?,?,CURDATE(),?,?)')
+            ->execute([$pay['client_id'], $plan['id'] ?? null, $name, $ctx['domain'] ?: null, (float) $pay['amount'], $cycle,
+                       'pending', $next, 'Ordered from client portal — invoice #' . $pay['invoice_id']]);
+        $order_id = (int) db()->lastInsertId();
+
+        // Remember we've created it, so a later call (cron overlapping the
+        // client's own return) can't create a second order for this payment.
+        $ctx['order_id'] = $order_id;
+        $raw = json_decode($pay['raw'] ?? '', true) ?: [];
+        $raw['context'] = $ctx;
+        db()->prepare('UPDATE payments SET raw = ? WHERE id = ?')->execute([json_encode($raw), (int) $pay['id']]);
+
+        self::ensureSchema();
+        try {
+            if ($pay['invoice_id']) {
+                db()->prepare('UPDATE invoices SET order_id = ? WHERE id = ?')->execute([$order_id, (int) $pay['invoice_id']]);
+            }
+        } catch (\Throwable $e) {}
+        $provision = self::provisionOrder($order_id);
+
+        $stmt = db()->prepare('SELECT first_name, last_name, email FROM clients WHERE id = ?');
+        $stmt->execute([(int) $pay['client_id']]);
+        $client = $stmt->fetch() ?: [];
+        $client_name = trim(($client['first_name'] ?? '') . ' ' . ($client['last_name'] ?? ''));
+        $currency = $pay['currency'] ?: (defined('CURRENCY') ? CURRENCY : 'USD');
+
+        Notifier::send('order_new', (int) $pay['client_id'], [
+            'client_name' => $client_name, 'item' => $name,
+            'amount' => $currency . ' ' . number_format((float) $pay['amount'], 2),
+            'note' => 'Our team is setting up your service — you\'ll be notified the moment it\'s active.',
+            'email' => $client['email'] ?? '', 'link' => portal_base_url() . '/services.php',
+        ]);
+        Notifier::sendToAllAdmins('order_new_admin', [
+            'client_name' => $client_name, 'item' => $name,
+            'amount' => $currency . ' ' . number_format((float) $pay['amount'], 2),
+            'gateway' => ucfirst(str_replace('_', ' ', $pay['gateway'])),
+            'link' => APP_URL . '/orders/',
+        ]);
+        return ['order_id' => $order_id, 'status' => 'created', 'provision' => $provision];
+    }
+
+    /**
+     * Extend a domain's registration after a paid renewal. $ctx['domain_id']
+     * is domain_registrations.id, stored at payment-creation time — looking
+     * the domain up fresh here (rather than trusting a page-local variable)
+     * is what lets the cron/webhook complete this without the client.
+     */
+    public static function fulfilDomainRenewal(array $pay, array $ctx): array
+    {
+        $raw = json_decode($pay['raw'] ?? '', true) ?: [];
+        if (isset($raw['renewal'])) return $raw['renewal']; // already done — idempotent
+
+        $stmt = db()->prepare('SELECT * FROM domain_registrations WHERE id = ? AND client_id = ?');
+        $stmt->execute([(int) ($ctx['domain_id'] ?? 0), (int) $pay['client_id']]);
+        $dom = $stmt->fetch();
+        $years = max(1, min(5, (int) ($ctx['years'] ?? 1)));
+
+        if (!$dom) {
+            $result = ['success' => false, 'message' => 'Domain record not found — payment recorded, needs manual follow-up.'];
+        } else {
+            try {
+                $rr = Provider::registrar($dom['registrar'])->renew($dom['domain_name'], $years);
+                $ok = !empty($rr['success']);
+                if ($ok) {
+                    db()->prepare('UPDATE domain_registrations SET expiry_date = DATE_ADD(expiry_date, INTERVAL ? YEAR), status = "active" WHERE id = ?')
+                        ->execute([$years, $dom['id']]);
+                } else {
+                    self::noteDomain((int) $dom['id'], 'Renewal paid but registrar call failed: ' . ($rr['message'] ?? 'unknown'));
+                }
+                $result = ['success' => $ok, 'message' => $rr['message'] ?? ($ok ? 'Domain renewed.' : 'The registrar did not confirm the renewal.'), 'domain' => $dom['domain_name']];
+            } catch (\Throwable $e) {
+                self::noteDomain((int) $dom['id'], 'Renewal paid but errored: ' . $e->getMessage());
+                $result = ['success' => false, 'message' => $e->getMessage(), 'domain' => $dom['domain_name']];
+            }
+        }
+
+        $raw['renewal'] = $result;
+        db()->prepare('UPDATE payments SET raw = ? WHERE id = ?')->execute([json_encode($raw), (int) $pay['id']]);
+
+        $stmt = db()->prepare('SELECT first_name, last_name, email FROM clients WHERE id = ?');
+        $stmt->execute([(int) $pay['client_id']]);
+        $client = $stmt->fetch() ?: [];
+        self::notifyDomainPaymentReceived($pay, $client, $dom['domain_name'] ?? ($ctx['domain'] ?? 'your domain'));
+        return $result;
+    }
+
+    /**
+     * Submit an inbound transfer request after a paid transfer. Unlike
+     * renewal, the domain isn't in domain_registrations yet — everything
+     * needed (domain, auth code, years) came from the cart-style context
+     * stored at payment-creation time.
+     */
+    public static function fulfilDomainTransfer(array $pay, array $ctx): array
+    {
+        $raw = json_decode($pay['raw'] ?? '', true) ?: [];
+        if (isset($raw['transfer'])) return $raw['transfer']; // already done — idempotent
+
+        $domain = $ctx['domain'] ?? '';
+        $code   = $ctx['auth_code'] ?? '';
+        $years  = max(1, min(5, (int) ($ctx['years'] ?? 1)));
+        $reg_key = Provider::activeFor('registrar');
+
+        $stmt = db()->prepare('SELECT first_name, last_name, email, phone, company, country FROM clients WHERE id = ?');
+        $stmt->execute([(int) $pay['client_id']]);
+        $client = $stmt->fetch() ?: [];
+
+        if (!$reg_key || $domain === '') {
+            $result = ['success' => false, 'message' => 'No active registrar or missing domain — payment recorded, needs manual follow-up.', 'domain' => $domain];
+        } else {
+            try {
+                $rr = Provider::registrar($reg_key)->transfer($domain, $code, [
+                    'first_name' => $client['first_name'] ?? '', 'last_name' => $client['last_name'] ?? '',
+                    'email' => $client['email'] ?? '', 'phone' => $client['phone'] ?: '+254700000000',
+                    'company' => $client['company'] ?? '', 'country_code' => self::isoCountry($client['country'] ?? 'Kenya'),
+                ], $years);
+                $result = ['success' => !empty($rr['success']), 'message' => $rr['message'] ?? '', 'domain' => $domain];
+            } catch (\Throwable $e) {
+                $result = ['success' => false, 'message' => $e->getMessage(), 'domain' => $domain];
+            }
+            try {
+                db()->prepare('INSERT INTO domain_registrations (client_id, domain_name, registrar, registration_date, status, auto_renew)
+                               VALUES (?,?,?,CURDATE(),"pending",1) ON DUPLICATE KEY UPDATE status = VALUES(status)')
+                    ->execute([$pay['client_id'], $domain, $reg_key]);
+            } catch (\Throwable $e) { /* payment + transfer request already happened either way */ }
+        }
+
+        $raw['transfer'] = $result;
+        db()->prepare('UPDATE payments SET raw = ? WHERE id = ?')->execute([json_encode($raw), (int) $pay['id']]);
+
+        self::notifyDomainPaymentReceived($pay, $client, $domain);
+        Notifier::sendToAllAdmins('order_new_admin', [
+            'client_name' => trim(($client['first_name'] ?? '') . ' ' . ($client['last_name'] ?? '')),
+            'item' => 'Domain transfer: ' . $domain,
+            'amount' => ($pay['currency'] ?: 'USD') . ' ' . number_format((float) $pay['amount'], 2),
+            'gateway' => ucfirst($pay['gateway']),
+            'link' => APP_URL . '/integrations/domains/',
+        ]);
+        return $result;
+    }
+
+    /** Shared "invoice_paid" client email for renewal/transfer (both bill through a plain invoice, no order). */
+    private static function notifyDomainPaymentReceived(array $pay, array $client, string $domainLabel): void
+    {
+        $inv_no = '';
+        if ($pay['invoice_id']) {
+            $stmt = db()->prepare('SELECT invoice_number FROM invoices WHERE id = ?');
+            $stmt->execute([$pay['invoice_id']]);
+            $inv_no = $stmt->fetchColumn() ?: '';
+        }
+        Notifier::send('invoice_paid', (int) $pay['client_id'], [
+            'client_name' => trim(($client['first_name'] ?? '') . ' ' . ($client['last_name'] ?? '')),
+            'invoice_number' => $inv_no,
+            'amount' => ($pay['currency'] ?: 'USD') . ' ' . number_format((float) $pay['amount'], 2),
+            'gateway' => ucfirst($pay['gateway']), 'email' => $client['email'] ?? '',
+            'link' => portal_base_url() . '/domains.php',
+        ]);
+    }
+
+    private static function noteDomain(int $domain_id, string $note): void
+    {
+        try {
+            db()->prepare("UPDATE domain_registrations SET notes = CONCAT(COALESCE(notes,''), '\n', ?) WHERE id = ?")
+                ->execute(['[' . date('Y-m-d H:i') . '] ' . $note, $domain_id]);
+        } catch (\Throwable $e) {}
+    }
+
+    /** Client-facing failure notification, used by settlePayment()'s cron/webhook path. */
+    private static function notifyPaymentOutcome(array $pay, bool $success, string $message): void
+    {
+        if ($success || !$pay['client_id']) return;
+        $stmt = db()->prepare('SELECT first_name, last_name, email FROM clients WHERE id = ?');
+        $stmt->execute([(int) $pay['client_id']]);
+        $client = $stmt->fetch();
+        if (!$client || !$client['email']) return;
+        Notifier::send('payment_failed', (int) $pay['client_id'], [
+            'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
+            'amount' => ($pay['currency'] ?: 'USD') . ' ' . number_format((float) $pay['amount'], 2),
+            'gateway' => ucfirst($pay['gateway']), 'reason' => $message,
+            'email' => $client['email'], 'link' => portal_base_url() . '/invoices/',
+        ]);
+    }
+
+    /** Same country-name→ISO map used by portal/includes/domain_payment.php's dp_iso_country(). */
+    private static function isoCountry(string $name): string
+    {
+        $map = ['Kenya'=>'KE','Uganda'=>'UG','Tanzania'=>'TZ','Rwanda'=>'RW','Ethiopia'=>'ET','Nigeria'=>'NG','Ghana'=>'GH',
+                'South Africa'=>'ZA','Egypt'=>'EG','Morocco'=>'MA','USA'=>'US','United Kingdom'=>'GB','Canada'=>'CA',
+                'Australia'=>'AU','Germany'=>'DE','France'=>'FR','India'=>'IN','China'=>'CN','UAE'=>'AE','Saudi Arabia'=>'SA'];
+        return $map[$name] ?? 'KE';
     }
 
     // ─────────────────────────────────────────────────────────────

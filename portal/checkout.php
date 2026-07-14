@@ -9,6 +9,7 @@ require_once dirname(__DIR__) . '/admin/includes/functions.php';
 require_once dirname(__DIR__) . '/admin/includes/providers/Provider.php';
 require_once dirname(__DIR__) . '/admin/includes/DomainClient.php';
 require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
+require_once dirname(__DIR__) . '/admin/includes/Automation.php';
 
 portal_start();
 
@@ -129,64 +130,21 @@ if (isset($_GET['pay'])) {
         $view = 'failed';
         $error = 'This payment attempt failed. Please start over from your cart.';
     } else {
-        try {
-            $v = Provider::payment($pay['gateway'])->verify($pay['gateway_ref']);
-            if (!empty($v['success'])) {
-                $fulfilment = fulfil_domains($items, $cart, $client, (int)$pay['invoice_id']);
-                db()->prepare("UPDATE payments SET status='completed', raw=? WHERE id=?")
-                    ->execute([json_encode(['verify' => $v, 'fulfilment' => $fulfilment]), $pay_id]);
-                if ($pay['invoice_id']) {
-                    db()->prepare("UPDATE invoices SET status='paid', paid_date=CURDATE(), payment_method=? WHERE id=?")
-                        ->execute([$pay['gateway'], $pay['invoice_id']]);
-                }
-                $_SESSION['cart_domains'] = [];
-                $view = 'success';
-                $done = $fulfilment;
-
-                $registered = array_filter($done, fn($d) => !empty($d['registered']));
-                $item_desc  = $registered ? implode(', ', array_column($registered, 'domain')) : 'domain order';
-                $inv_no = '';
-                if ($pay['invoice_id']) {
-                    $invstmt = db()->prepare('SELECT invoice_number FROM invoices WHERE id = ?');
-                    $invstmt->execute([$pay['invoice_id']]);
-                    $inv_no = $invstmt->fetchColumn() ?: '';
-                }
-
-                Notifier::send('invoice_paid', $client_id, [
-                    'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
-                    'invoice_number' => $inv_no, 'amount' => $currency . ' ' . number_format($total, 2),
-                    'gateway' => ucfirst($pay['gateway']), 'email' => $client['email'],
-                    'link' => PORTAL_URL . '/domains.php',
-                ]);
-                Notifier::send('order_new', $client_id, [
-                    'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
-                    'item' => $item_desc, 'amount' => $currency . ' ' . number_format($total, 2),
-                    'note' => 'You can manage your domains any time from the client portal.',
-                    'email' => $client['email'], 'link' => PORTAL_URL . '/domains.php',
-                ]);
-                Notifier::sendToAllAdmins('order_new_admin', [
-                    'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
-                    'item' => $item_desc, 'amount' => $currency . ' ' . number_format($total, 2),
-                    'gateway' => ucfirst($pay['gateway']),
-                    'link' => APP_URL . '/integrations/domains/',
-                ]);
-            } elseif (($v['status'] ?? '') === 'failed') {
-                db()->prepare("UPDATE payments SET status='failed' WHERE id=?")->execute([$pay_id]);
-                $view = 'failed';
-                $error = $v['message'] ?? 'Payment failed.';
-                Notifier::send('payment_failed', $client_id, [
-                    'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
-                    'amount' => $currency . ' ' . number_format($total, 2),
-                    'gateway' => ucfirst($pay['gateway']), 'reason' => $error,
-                    'email' => $client['email'], 'link' => PORTAL_URL . '/cart.php',
-                ]);
-            } else {
-                $view = 'pending';
-                $error = $v['message'] ?? ($v['status'] ?? 'Payment not confirmed yet.');
-            }
-        } catch (\Throwable $e) {
+        // settlePayment() verifies with the gateway and, on success, fulfils
+        // from the cart snapshot stored in payments.raw at creation time —
+        // never the session, so this works identically here, from the
+        // reconciliation cron, or from a gateway webhook.
+        $r = Automation::settlePayment($pay_id);
+        if ($r['status'] === 'completed') {
+            $_SESSION['cart_domains'] = [];
+            $view = 'success';
+            $done = $r['fulfilment'] ?? [];
+        } elseif ($r['status'] === 'failed') {
+            $view = 'failed';
+            $error = $r['message'];
+        } else {
             $view = 'pending';
-            $error = $e->getMessage();
+            $error = $r['message'];
         }
     }
 }
@@ -214,9 +172,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
                     $item_stmt->execute([$invoice_id, 'Domain registration: ' . $it['domain'] . ' (' . $it['years'] . ' yr)', $it['years'], $it['unit'], $it['line']]);
                 }
 
-                // Payment attempt
-                db()->prepare('INSERT INTO payments (invoice_id, client_id, gateway, amount, currency, status) VALUES (?,?,?,?,?,"pending")')
-                    ->execute([$invoice_id, $client_id, $gw, $total, $currency]);
+                // Payment attempt — the cart snapshot goes into raw.context now,
+                // not just $_SESSION, so this payment can be reconciled by the
+                // cron/webhook even if the client never comes back to this tab.
+                $context = ['action' => 'domain_checkout', 'items' => $items];
+                db()->prepare('INSERT INTO payments (invoice_id, client_id, gateway, amount, currency, status, raw) VALUES (?,?,?,?,?,"pending",?)')
+                    ->execute([$invoice_id, $client_id, $gw, $total, $currency, json_encode(['context' => $context])]);
                 $pay_id = (int)db()->lastInsertId();
 
                 $return = PORTAL_URL . '/checkout.php?pay=' . $pay_id;
@@ -224,18 +185,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
                     'name'  => $client['first_name'] . ' ' . $client['last_name'],
                     'email' => $client['email'],
                     'phone' => trim($_POST['mpesa_phone'] ?? '') ?: ($client['phone'] ?? ''),
-                ], ['return' => $return, 'cancel' => PORTAL_URL . '/checkout.php', 'callback' => $return]);
+                ], ['return' => $return, 'cancel' => PORTAL_URL . '/checkout.php', 'callback' => payment_webhook_url($pay_id)]);
 
                 if (empty($r['success'])) {
                     $error = $r['message'] ?? 'The payment gateway rejected the request.';
-                    db()->prepare("UPDATE payments SET status='failed', raw=? WHERE id=?")->execute([json_encode($r), $pay_id]);
+                    db()->prepare("UPDATE payments SET status='failed', raw=? WHERE id=?")->execute([json_encode(['context' => $context, 'checkout' => $r]), $pay_id]);
                 } elseif (($r['mode'] ?? '') === 'instructions') {
                     // Offline method: nothing was charged. Record the domains as
                     // pending, hand the client the payment instructions, and let
                     // the team confirm receipt in admin › Billing.
                     $fulfilment = fulfil_domains($items, $cart, $client, $invoice_id, false);
                     db()->prepare('UPDATE payments SET gateway_ref=?, raw=? WHERE id=?')
-                        ->execute([$r['ref'] ?? '', json_encode(['checkout' => $r, 'fulfilment' => $fulfilment]), $pay_id]);
+                        ->execute([$r['ref'] ?? '', json_encode(['context' => $context, 'checkout' => $r, 'fulfilment' => $fulfilment]), $pay_id]);
                     $_SESSION['cart_domains'] = [];
                     $view = 'instructions';
                     $push_msg = $r['message'] ?? 'Follow the payment instructions to complete your order.';

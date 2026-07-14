@@ -60,7 +60,7 @@ function dp_start_payment(int $client_id, int $invoice_id, float $amount, string
 
     try {
         $r = Provider::payment($gateway)->createCheckout($amount, $currency, $inv_no, $customer, [
-            'return' => $return_url, 'cancel' => $cancel_url, 'callback' => $return_url,
+            'return' => $return_url, 'cancel' => $cancel_url, 'callback' => payment_webhook_url($pay_id),
         ]);
     } catch (\Throwable $e) {
         $r = ['success' => false, 'message' => $e->getMessage()];
@@ -70,57 +70,4 @@ function dp_start_payment(int $client_id, int $invoice_id, float $amount, string
         ->execute([$r['ref'] ?? null, !empty($r['success']) ? 'pending' : 'failed', json_encode(['context' => $context, 'checkout' => $r]), $pay_id]);
 
     return ['pay_id' => $pay_id, 'result' => $r];
-}
-
-/** Pull the context array stashed by dp_start_payment back out of a payments row. */
-function dp_context(array $payment): array
-{
-    $raw = json_decode($payment['raw'] ?? '', true);
-    return $raw['context'] ?? [];
-}
-
-/**
- * Verify a payment belonging to this client. Returns:
- *   ['ok'=>true,  'payment'=>row, 'already'=>bool]    — confirmed paid
- *   ['ok'=>false, 'failed'=>true, 'payment'=>row, ...] — definitively failed
- *   ['ok'=>false, 'pending'=>true, 'message'=>...]     — not confirmed yet, keep waiting
- *   ['ok'=>false, 'message'=>...]                      — not found / error
- * Marks the payment completed/failed and its invoice paid on success —
- * does NOT perform the domain action itself; the caller does that once
- * and only once (idempotency is the caller's responsibility).
- */
-function dp_verify(int $payment_id, int $client_id): array
-{
-    $stmt = db()->prepare('SELECT * FROM payments WHERE id = ? AND client_id = ?');
-    $stmt->execute([$payment_id, $client_id]);
-    $pay = $stmt->fetch();
-    if (!$pay) return ['ok' => false, 'message' => 'Payment record not found.'];
-    if ($pay['status'] === 'completed') return ['ok' => true, 'already' => true, 'payment' => $pay];
-    if ($pay['status'] === 'failed') return ['ok' => false, 'failed' => true, 'already' => true, 'payment' => $pay, 'message' => 'This payment attempt failed. Please start a new payment.'];
-
-    try {
-        $v = Provider::payment($pay['gateway'])->verify($pay['gateway_ref']);
-    } catch (\Throwable $e) {
-        return ['ok' => false, 'pending' => true, 'message' => $e->getMessage()];
-    }
-    if (empty($v['success'])) {
-        if (($v['status'] ?? '') === 'failed') {
-            db()->prepare("UPDATE payments SET status = 'failed' WHERE id = ?")->execute([$payment_id]);
-            return ['ok' => false, 'failed' => true, 'payment' => $pay, 'message' => $v['message'] ?? 'Payment failed.'];
-        }
-        return ['ok' => false, 'pending' => true, 'message' => $v['message'] ?? ($v['status'] ?? 'Payment not confirmed yet.')];
-    }
-
-    db()->prepare("UPDATE payments SET status = 'completed' WHERE id = ?")->execute([$payment_id]);
-    if ($pay['invoice_id']) {
-        db()->prepare("UPDATE invoices SET status = 'paid', paid_date = CURDATE(), payment_method = ? WHERE id = ?")
-            ->execute([$pay['gateway'], $pay['invoice_id']]);
-        // Lifecycle hook: provisions a first order / advances renewal dates /
-        // reactivates a suspended service tied to this invoice.
-        try {
-            require_once dirname(__DIR__, 2) . '/admin/includes/Automation.php';
-            Automation::invoicePaid((int) $pay['invoice_id']);
-        } catch (\Throwable $e) { /* never block payment confirmation */ }
-    }
-    return ['ok' => true, 'payment' => $pay];
 }

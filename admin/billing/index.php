@@ -4,9 +4,20 @@ require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 require_once '../includes/providers/Provider.php';
+require_once '../includes/Automation.php';
 
 auth_check();
 $page_title = 'Payments';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recheck') {
+    csrf_verify();
+    $pid = (int) ($_POST['id'] ?? 0);
+    $r = Automation::settlePayment($pid);
+    $labels = ['completed' => 'success', 'already' => 'success', 'failed' => 'error', 'pending' => 'info', 'not_found' => 'error'];
+    flash_set($labels[$r['status']] ?? 'info', 'Re-check: ' . ($r['message'] ?? $r['status']));
+    header('Location: ' . APP_URL . '/billing/');
+    exit;
+}
 
 // KPIs
 $collected = (float) db()->query("SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='completed' AND MONTH(created_at)=MONTH(CURDATE()) AND YEAR(created_at)=YEAR(CURDATE())")->fetchColumn();
@@ -47,7 +58,7 @@ require_once '../includes/header.php';
 <div class="content-header">
   <div>
     <h1 class="content-title">Payments</h1>
-    <p class="page-subtitle">Collect invoice payments through your connected gateways and track every transaction.</p>
+    <p class="page-subtitle">Collect invoice payments through your connected gateways and track every transaction. Pending payments are automatically re-checked in the background — use Re-check for an instant answer.</p>
   </div>
   <a href="<?php echo APP_URL; ?>/integrations/#prov-stripe" class="btn btn-ghost"><i class="fas fa-plug"></i> Gateways</a>
 </div>
@@ -81,10 +92,10 @@ require_once '../includes/header.php';
     <div class="table-toolbar"><span class="card-title">Recent payments</span><span class="table-count"><?php echo count($payments); ?> shown</span></div>
     <div class="table-scroll">
     <table>
-      <thead><tr><th>Reference</th><th>Client</th><th>Gateway</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+      <thead><tr><th>Reference</th><th>Client</th><th>Gateway</th><th>Amount</th><th>Status</th><th>Date</th><th></th></tr></thead>
       <tbody>
         <?php if (!$payments): ?>
-          <tr><td colspan="6"><div class="empty-state"><i class="fas fa-receipt"></i><p>No payments recorded yet.</p></div></td></tr>
+          <tr><td colspan="7"><div class="empty-state"><i class="fas fa-receipt"></i><p>No payments recorded yet.</p></div></td></tr>
         <?php else: foreach ($payments as $p): ?>
           <tr>
             <td>
@@ -96,6 +107,16 @@ require_once '../includes/header.php';
             <td class="fw-600"><?php echo h($p['currency']); ?> <?php echo number_format((float)$p['amount'], 2); ?></td>
             <td><?php echo pay_badge($p['status']); ?></td>
             <td style="font-size:12px;color:var(--text-muted)"><?php echo time_ago($p['created_at']); ?></td>
+            <td>
+              <?php if ($p['status'] === 'pending' && !in_array($p['gateway'], ['bank_transfer', 'mpesa_manual', 'cheque'], true)): ?>
+                <form method="POST" style="margin:0" title="Re-verify with the gateway now instead of waiting for the next automatic check">
+                  <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+                  <input type="hidden" name="action" value="recheck" />
+                  <input type="hidden" name="id" value="<?php echo (int)$p['id']; ?>" />
+                  <button type="submit" class="btn btn-ghost btn-xs"><i class="fas fa-rotate"></i> Re-check</button>
+                </form>
+              <?php endif; ?>
+            </td>
           </tr>
         <?php endforeach; endif; ?>
       </tbody>

@@ -11,6 +11,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/domain_payment.php';
 require_once dirname(__DIR__) . '/admin/includes/DomainClient.php';
 require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
+require_once dirname(__DIR__) . '/admin/includes/Automation.php';
 
 portal_check();
 $client_id = (int) current_client()['id'];
@@ -50,63 +51,39 @@ $gateways  = dp_active_gateways();
 $view = 'form'; $error = ''; $push_msg = ''; $pay_id = 0; $renew_ok = null; $renew_note = '';
 
 // ── Verify / complete a pending payment ──
+// settlePayment() verifies with the gateway and, on success, calls the
+// registrar's renew() from context stored at payment-creation time (not
+// a page-local variable) — so the reconciliation cron/webhook can finish
+// this identically if the client never comes back to this tab.
 if (isset($_GET['pay'])) {
     $pay_id = (int) $_GET['pay'];
-    $result = dp_verify($pay_id, $client_id);
+    $stmt = db()->prepare('SELECT * FROM payments WHERE id = ? AND client_id = ?');
+    $stmt->execute([$pay_id, $client_id]);
+    $pay_row = $stmt->fetch();
 
-    if (!$result['ok']) {
-        if (!empty($result['failed'])) {
-            $view = 'failed';
-            $error = $result['message'] ?? 'Payment failed.';
-            if (empty($result['already'])) {
-                Notifier::send('payment_failed', $client_id, [
-                    'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
-                    'amount' => $result['payment']['currency'] . ' ' . number_format($result['payment']['amount'], 2),
-                    'gateway' => ucfirst($result['payment']['gateway']), 'reason' => $error,
-                    'email' => $client['email'], 'link' => PORTAL_URL . '/domain-renew.php?id=' . $id,
-                ]);
-            }
-        } else {
-            $view = !empty($result['pending']) ? 'pending' : 'form';
-            $error = $result['message'] ?? 'Payment could not be confirmed.';
-        }
-    } else {
+    if (!$pay_row) {
+        $view = 'form';
+        $error = 'Payment record not found.';
+    } elseif ($pay_row['status'] === 'completed') {
         $view = 'success';
-        if (empty($result['already'])) {
-            $ctx   = dp_context($result['payment']);
-            $years = max(1, min(5, (int) ($ctx['years'] ?? 1)));
-
-            $inv_no = '';
-            if ($result['payment']['invoice_id']) {
-                $invstmt = db()->prepare('SELECT invoice_number FROM invoices WHERE id = ?');
-                $invstmt->execute([$result['payment']['invoice_id']]);
-                $inv_no = $invstmt->fetchColumn() ?: '';
-            }
-            Notifier::send('invoice_paid', $client_id, [
-                'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
-                'invoice_number' => $inv_no, 'amount' => $result['payment']['currency'] . ' ' . number_format($result['payment']['amount'], 2),
-                'gateway' => ucfirst($result['payment']['gateway']), 'email' => $client['email'],
-                'link' => PORTAL_URL . '/domains.php',
-            ]);
-
-            try {
-                $rr = Provider::registrar($reg_key)->renew($dom['domain_name'], $years);
-                $renew_ok = !empty($rr['success']);
-                if ($renew_ok) {
-                    db()->prepare('UPDATE domain_registrations SET expiry_date = DATE_ADD(expiry_date, INTERVAL ? YEAR), status = "active" WHERE id = ?')
-                        ->execute([$years, $dom['id']]);
-                    $renew_note = $rr['message'] ?? 'Domain renewed.';
-                } else {
-                    $renew_note = $rr['message'] ?? 'The registrar did not confirm the renewal.';
-                    db()->prepare("UPDATE domain_registrations SET notes = CONCAT(COALESCE(notes,''), '\n', ?) WHERE id = ?")
-                        ->execute(['[' . date('Y-m-d H:i') . '] Renewal paid but registrar call failed: ' . $renew_note, $dom['id']]);
-                }
-            } catch (\Throwable $e) {
-                $renew_ok = false;
-                $renew_note = $e->getMessage();
-                db()->prepare("UPDATE domain_registrations SET notes = CONCAT(COALESCE(notes,''), '\n', ?) WHERE id = ?")
-                    ->execute(['[' . date('Y-m-d H:i') . '] Renewal paid but errored: ' . $renew_note, $dom['id']]);
-            }
+        $raw = json_decode($pay_row['raw'] ?? '', true) ?: [];
+        $renew_ok   = $raw['renewal']['success'] ?? null;
+        $renew_note = $raw['renewal']['message'] ?? '';
+    } elseif ($pay_row['status'] === 'failed') {
+        $view = 'failed';
+        $error = 'This payment attempt failed.';
+    } else {
+        $r = Automation::settlePayment($pay_id);
+        if ($r['status'] === 'completed') {
+            $view = 'success';
+            $renew_ok   = $r['renewal']['success'] ?? null;
+            $renew_note = $r['renewal']['message'] ?? '';
+        } elseif ($r['status'] === 'failed') {
+            $view = 'failed';
+            $error = $r['message'];
+        } else {
+            $view = 'pending';
+            $error = $r['message'];
         }
     }
 }
