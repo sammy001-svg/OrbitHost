@@ -190,7 +190,9 @@ final class PanelClient
         $res  = curl_exec($ch);
         $err  = curl_error($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        if (is_resource($ch)) {
+            curl_close($ch);
+        }
 
         if ($err) throw new RuntimeException("Plesk connection error: $err");
         $data = json_decode($res, true) ?? [];
@@ -274,7 +276,9 @@ final class PanelClient
         }
         $res = curl_exec($ch);
         $err = curl_error($ch);
-        curl_close($ch);
+        if (is_resource($ch)) {
+            curl_close($ch);
+        }
         if ($err) throw new RuntimeException("DirectAdmin connection error: $err");
 
         parse_str($res, $parsed);           // DA returns URL-encoded key=value
