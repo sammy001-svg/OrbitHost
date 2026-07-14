@@ -58,6 +58,14 @@ final class Automation
         } catch (\Throwable $e) {
             // no ALTER privilege — automation still works, minus renewal linking
         }
+        try {
+            $col = db()->query("SHOW COLUMNS FROM invoices LIKE 'client_service_id'")->fetch();
+            if (!$col) {
+                db()->exec('ALTER TABLE invoices ADD COLUMN client_service_id INT UNSIGNED DEFAULT NULL, ADD INDEX idx_inv_cs (client_service_id)');
+            }
+        } catch (\Throwable $e) {
+            // no ALTER privilege — renewal billing for order-less services just won't link
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -165,13 +173,18 @@ final class Automation
     {
         self::ensureSchema();
         try {
-            $stmt = db()->prepare('SELECT order_id FROM invoices WHERE id = ?');
+            $stmt = db()->prepare('SELECT order_id, client_service_id FROM invoices WHERE id = ?');
             $stmt->execute([$invoice_id]);
-            $order_id = (int) $stmt->fetchColumn();
+            $row = $stmt->fetch();
+            $order_id = (int) ($row['order_id'] ?? 0);
+            $cs_id    = (int) ($row['client_service_id'] ?? 0);
         } catch (\Throwable $e) {
             return ['status' => 'none', 'message' => 'No order link column.'];
         }
-        if (!$order_id) return ['status' => 'none', 'message' => 'Invoice not linked to an order.'];
+
+        if (!$order_id) {
+            return $cs_id ? self::servicePaid($cs_id) : ['status' => 'none', 'message' => 'Invoice not linked to an order or service.'];
+        }
 
         $stmt = db()->prepare('SELECT * FROM orders WHERE id = ?');
         $stmt->execute([$order_id]);
@@ -196,6 +209,31 @@ final class Automation
 
         if ($o['status'] === 'suspended') {
             return self::reactivateOrder($o);
+        }
+        return ['status' => 'renewed', 'message' => 'Next due date advanced.'];
+    }
+
+    /**
+     * Renewal path for a standalone client_services row (billed directly
+     * via invoices.client_service_id, no order behind it). Same advance/
+     * reactivate logic as the order path in invoicePaid(), just keyed off
+     * the service row directly.
+     */
+    private static function servicePaid(int $cs_id): array
+    {
+        $stmt = db()->prepare('SELECT cs.*, c.first_name, c.email FROM client_services cs JOIN clients c ON c.id = cs.client_id WHERE cs.id = ?');
+        $stmt->execute([$cs_id]);
+        $cs = $stmt->fetch();
+        if (!$cs) return ['status' => 'none', 'message' => 'Service missing.'];
+
+        $interval = $cs['billing_cycle'] === 'annual' ? '1 YEAR' : '1 MONTH';
+        if ($cs['billing_cycle'] !== 'one_time') {
+            db()->prepare("UPDATE client_services SET next_due_date = DATE_ADD(GREATEST(COALESCE(next_due_date, CURDATE()), CURDATE()), INTERVAL $interval) WHERE id = ?")
+                ->execute([$cs_id]);
+        }
+
+        if ($cs['status'] === 'suspended') {
+            return self::reactivateService($cs);
         }
         return ['status' => 'renewed', 'message' => 'Next due date advanced.'];
     }
@@ -629,6 +667,71 @@ final class Automation
             'link'          => portal_base_url() . '/services.php',
         ]);
         return ['status' => 'reactivated', 'message' => 'Order reactivated.'];
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    /**
+     * Suspend a standalone client_services row (no order_id — created
+     * directly via services/create.php) for an unpaid renewal. Mirrors
+     * suspendOrder() but keys off the service row itself instead of an
+     * order, since order-less services have no orders row to update and
+     * their panel username is already stored right on client_services.
+     */
+    public static function suspendService(array $cs, string $reason = 'Unpaid renewal invoice'): array
+    {
+        $did_panel = false;
+        if (!empty($cs['username']) && !empty($cs['provider_key']) && $cs['provider_category'] === 'panel') {
+            try {
+                Provider::panel($cs['provider_key'])->suspend($cs['username'], $reason);
+                $did_panel = true;
+            } catch (\Throwable $e) {
+                self::noteService((int) $cs['id'], 'Suspension: panel call failed — ' . $e->getMessage());
+            }
+        }
+        db()->prepare("UPDATE client_services SET status = 'suspended' WHERE id = ?")->execute([(int) $cs['id']]);
+        self::noteService((int) $cs['id'], 'Suspended (' . $reason . ')' . ($did_panel ? ' — panel account ' . $cs['username'] . ' suspended.' : ' — no panel account to suspend.'));
+
+        Notifier::send('service_suspended', (int) $cs['client_id'], [
+            'client_name'   => $cs['first_name'] ?? '',
+            'service_label' => $cs['label'] ?: 'Your service',
+            'reason'        => $reason . ' — pay the outstanding invoice to restore service.',
+            'email'         => $cs['email'] ?? '',
+            'link'          => portal_base_url() . '/invoices/',
+        ]);
+        return ['status' => 'suspended', 'message' => 'Service suspended' . ($did_panel ? ' (panel too)' : '') . '.'];
+    }
+
+    /** Reactivate a suspended standalone client_services row after payment. */
+    public static function reactivateService(array $cs): array
+    {
+        if (!empty($cs['username']) && !empty($cs['provider_key']) && $cs['provider_category'] === 'panel') {
+            try {
+                Provider::panel($cs['provider_key'])->unsuspend($cs['username']);
+            } catch (\Throwable $e) {
+                self::noteService((int) $cs['id'], 'Reactivation: panel call failed — ' . $e->getMessage());
+            }
+        }
+        db()->prepare("UPDATE client_services SET status = 'active' WHERE id = ?")->execute([(int) $cs['id']]);
+        self::noteService((int) $cs['id'], 'Reactivated after payment.');
+
+        $c = db()->prepare('SELECT first_name, email FROM clients WHERE id = ?');
+        $c->execute([(int) $cs['client_id']]);
+        $c = $c->fetch() ?: ['first_name' => '', 'email' => ''];
+        Notifier::send('service_unsuspended', (int) $cs['client_id'], [
+            'client_name'   => $c['first_name'],
+            'service_label' => $cs['label'] ?: 'Your service',
+            'email'         => $c['email'],
+            'link'          => portal_base_url() . '/services.php',
+        ]);
+        return ['status' => 'reactivated', 'message' => 'Service reactivated.'];
+    }
+
+    private static function noteService(int $service_id, string $note): void
+    {
+        try {
+            db()->prepare("UPDATE client_services SET notes = CONCAT(COALESCE(notes,''), ?, '\n') WHERE id = ?")
+                ->execute(['[' . date('Y-m-d H:i') . '] ' . $note, $service_id]);
+        } catch (\Throwable $e) {}
     }
 
     // ─────────────────────────────────────────────────────────────

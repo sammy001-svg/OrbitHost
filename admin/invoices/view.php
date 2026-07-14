@@ -4,6 +4,7 @@ require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 require_once '../includes/SiteSettings.php';
+require_once '../includes/Automation.php';
 
 auth_check();
 $_invoice_logo = SiteSettings::logoOnNavy(60, 240);
@@ -37,8 +38,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     csrf_verify();
     $ns = $_POST['new_status'] ?? '';
     if (in_array($ns, ['draft','sent','paid','overdue','cancelled'])) {
+        $newly_paid = $ns === 'paid' && $inv['status'] !== 'paid';
         $paid = $ns === 'paid' ? date('Y-m-d') : ($inv['paid_date'] ?: null);
         db()->prepare('UPDATE invoices SET status=?, paid_date=? WHERE id=?')->execute([$ns, $paid, $id]);
+        // Marking paid manually (e.g. cash/bank transfer with no gateway
+        // payment row) previously never advanced next_due or reactivated a
+        // suspended order/service the way the automated payment paths do —
+        // run the same hook here so both paths stay in sync.
+        if ($newly_paid) {
+            try { Automation::invoicePaid($id); } catch (\Throwable $e) {}
+        }
         log_activity('update_invoice_status', 'invoice', $id, "Status changed to $ns");
         flash_set('success', 'Invoice status updated to ' . ucfirst($ns) . '.');
         header('Location: ' . APP_URL . '/invoices/view.php?id=' . $id);
