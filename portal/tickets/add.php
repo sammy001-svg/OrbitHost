@@ -61,6 +61,12 @@ require_once '../includes/header.php';
 
   <?php if ($errors): ?><div class="p-alert p-alert-error"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars(implode(' ',$errors)); ?></div><?php endif; ?>
 
+  <div class="p-form-card" style="margin-bottom:16px">
+    <label class="form-label"><i class="fas fa-book" style="color:var(--green)"></i> Search help articles first — you might get your answer instantly</label>
+    <input type="text" id="kbSearchBox" class="form-control" placeholder="e.g. renew a domain, cPanel login, invoice payment…" autocomplete="off" autofocus />
+    <div id="kbSearchResults" style="margin-top:10px;display:none"></div>
+  </div>
+
   <div class="p-form-card">
     <form method="POST">
       <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
@@ -69,7 +75,7 @@ require_once '../includes/header.php';
         <label class="form-label">Subject <span class="req">*</span></label>
         <input type="text" name="subject" class="form-control"
                value="<?php echo htmlspecialchars($data['subject']); ?>"
-               placeholder="Briefly describe your issue…" required autofocus />
+               placeholder="Briefly describe your issue…" required />
       </div>
 
       <div class="form-grid-2">
@@ -112,5 +118,39 @@ require_once '../includes/header.php';
   </div>
 </div>
 </div>
+
+<script>
+(function () {
+  var API = <?php echo json_encode(preg_replace('#/portal/?$#', '', PORTAL_URL) . '/api/kb-search.php'); ?>;
+  var KB  = <?php echo json_encode(preg_replace('#/portal/?$#', '', PORTAL_URL) . '/kb/article.php'); ?>;
+  var box = document.getElementById('kbSearchBox');
+  var out = document.getElementById('kbSearchResults');
+  var timer = null;
+
+  function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  box.addEventListener('input', function () {
+    clearTimeout(timer);
+    var term = box.value.trim();
+    if (term.length < 2) { out.style.display = 'none'; return; }
+    timer = setTimeout(function () {
+      fetch(API + '?q=' + encodeURIComponent(term))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.ok || !d.results.length) { out.style.display = 'none'; return; }
+          out.style.display = 'block';
+          out.innerHTML = d.results.map(function (a) {
+            return '<a href="' + KB + '?slug=' + encodeURIComponent(a.slug) + '" target="_blank" rel="noopener" ' +
+              'style="display:block;padding:9px 12px;border:1px solid var(--border);border-radius:8px;margin-top:6px;text-decoration:none">' +
+              '<span style="font-weight:700;color:var(--navy);font-size:13.5px"><i class="fas fa-file-lines" style="font-size:11px;margin-right:6px;color:var(--green)"></i>' + esc(a.title) + '</span>' +
+              (a.excerpt ? '<div style="font-size:12px;color:var(--text-muted);margin-top:2px">' + esc(a.excerpt) + '</div>' : '') +
+              '</a>';
+          }).join('');
+        })
+        .catch(function () { out.style.display = 'none'; });
+    }, 300);
+  });
+})();
+</script>
 
 <?php require_once '../includes/footer.php'; ?>

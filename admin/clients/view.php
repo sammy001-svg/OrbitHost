@@ -17,6 +17,49 @@ if (!$client) {
     exit;
 }
 
+// ── Account credit (auto-migrate) ──
+$credit_schema_ok = true;
+try {
+    db()->exec("CREATE TABLE IF NOT EXISTS client_credits (
+        id         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        client_id  INT UNSIGNED NOT NULL,
+        amount     DECIMAL(10,2) NOT NULL,
+        reason     VARCHAR(255) NOT NULL,
+        invoice_id INT UNSIGNED DEFAULT NULL,
+        created_by INT UNSIGNED DEFAULT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_cc_client (client_id),
+        FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+        FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+} catch (\Throwable $e) {
+    $credit_schema_ok = false;
+}
+
+if ($credit_schema_ok && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'adjust_credit') {
+    csrf_verify();
+    $amount = (float)($_POST['amount'] ?? 0);
+    $type   = ($_POST['type'] ?? 'add') === 'deduct' ? -1 : 1;
+    $reason = trim($_POST['reason'] ?? '');
+    if ($amount <= 0) {
+        flash_set('error', 'Enter an amount greater than zero.');
+    } elseif ($reason === '') {
+        flash_set('error', 'A reason is required (shown to the client on their portal).');
+    } else {
+        db()->prepare('INSERT INTO client_credits (client_id, amount, reason, created_by) VALUES (?,?,?,?)')
+            ->execute([$id, $amount * $type, $reason, current_admin()['id']]);
+        log_activity('credit_adjust', 'client', $id, ($type > 0 ? '+' : '-') . format_money($amount) . ' — ' . $reason);
+        flash_set('success', ($type > 0 ? 'Credit added' : 'Credit deducted') . ' for ' . h($client['first_name']) . '.');
+    }
+    header('Location: ' . APP_URL . '/clients/view.php?id=' . $id . '#credit-tab');
+    exit;
+}
+
+$credit_ledger  = $credit_schema_ok ? db()->prepare('SELECT * FROM client_credits WHERE client_id = ? ORDER BY created_at DESC') : null;
+if ($credit_ledger) $credit_ledger->execute([$id]);
+$credit_ledger  = $credit_ledger ? $credit_ledger->fetchAll() : [];
+$credit_balance = array_sum(array_column($credit_ledger, 'amount'));
+
 $page_title = $client['first_name'] . ' ' . $client['last_name'];
 
 // Orders
@@ -80,6 +123,7 @@ require_once '../includes/header.php';
       <li><span class="key">Invoices</span>   <span class="val"><?php echo count($invoices); ?></span></li>
       <li><span class="key">Tickets</span>    <span class="val"><?php echo count($tickets); ?></span></li>
       <li><span class="key">Total Revenue</span><span class="val text-success"><?php echo format_money($revenue); ?></span></li>
+      <li><span class="key">Account Credit</span><span class="val" style="<?php echo $credit_balance > 0 ? 'color:var(--success);font-weight:700' : ''; ?>"><?php echo format_money($credit_balance); ?></span></li>
       <li><span class="key">Client Since</span><span class="val"><?php echo format_date($client['created_at']); ?></span></li>
     </ul>
 
@@ -97,6 +141,7 @@ require_once '../includes/header.php';
       <a href="#orders-tab"   class="tab-link active">Orders (<?php echo count($orders); ?>)</a>
       <a href="#invoices-tab" class="tab-link">Invoices (<?php echo count($invoices); ?>)</a>
       <a href="#tickets-tab"  class="tab-link">Tickets (<?php echo count($tickets); ?>)</a>
+      <a href="#credit-tab"   class="tab-link">Credit (<?php echo format_money($credit_balance); ?>)</a>
     </div>
 
     <!-- Orders -->
@@ -189,6 +234,60 @@ require_once '../includes/header.php';
           </tbody>
         </table>
       </div>
+    </div>
+
+    <!-- Credit -->
+    <div id="credit-tab" class="tab-pane">
+      <?php if (!$credit_schema_ok): ?>
+        <div class="alert alert-danger"><i class="fas fa-triangle-exclamation"></i> Could not create the account-credit table automatically — check DB privileges and reload.</div>
+      <?php else: ?>
+      <div class="table-wrap" style="margin-bottom:16px">
+        <div class="card-header">
+          <div class="card-title">Adjust Account Credit</div>
+          <span class="badge <?php echo $credit_balance > 0 ? 'badge-success' : 'badge-secondary'; ?>" style="font-size:13px">Balance: <?php echo format_money($credit_balance); ?></span>
+        </div>
+        <div style="padding:16px">
+          <form method="POST" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+            <input type="hidden" name="action" value="adjust_credit" />
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Action</label>
+              <select name="type" class="form-select">
+                <option value="add">Add credit</option>
+                <option value="deduct">Deduct credit</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Amount</label>
+              <input type="number" step="0.01" min="0.01" name="amount" class="form-control" style="width:140px" required />
+            </div>
+            <div class="form-group" style="margin:0;flex:1;min-width:220px">
+              <label class="form-label">Reason <span class="text-muted" style="font-weight:400">(client sees this)</span></label>
+              <input type="text" name="reason" class="form-control" placeholder="e.g. Refund for downtime, overpayment on INV-2026-0042" required />
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Apply</button>
+          </form>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="card-header"><div class="card-title">Credit History</div></div>
+        <table>
+          <thead><tr><th>Date</th><th>Amount</th><th>Reason</th><th>Invoice</th></tr></thead>
+          <tbody>
+          <?php if ($credit_ledger): foreach ($credit_ledger as $c): ?>
+            <tr>
+              <td><?php echo format_datetime($c['created_at']); ?></td>
+              <td style="font-weight:700;color:<?php echo $c['amount'] >= 0 ? 'var(--success)' : 'var(--danger)'; ?>"><?php echo ($c['amount'] >= 0 ? '+' : '') . format_money($c['amount']); ?></td>
+              <td><?php echo h($c['reason']); ?></td>
+              <td><?php echo $c['invoice_id'] ? '<a href="' . APP_URL . '/invoices/view.php?id=' . $c['invoice_id'] . '">View</a>' : '<span class="text-muted">—</span>'; ?></td>
+            </tr>
+          <?php endforeach; else: ?>
+            <tr><td colspan="4"><div class="empty-state"><i class="fas fa-wallet"></i><p>No credit activity yet.</p></div></td></tr>
+          <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+      <?php endif; ?>
     </div>
   </div>
 </div>

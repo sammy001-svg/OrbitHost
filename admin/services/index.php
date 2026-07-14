@@ -7,6 +7,11 @@ require_once '../includes/functions.php';
 auth_check();
 $page_title = 'Services';
 
+$pending_changes = 0;
+try {
+    $pending_changes = (int) db()->query("SELECT COUNT(*) FROM service_change_requests WHERE status = 'pending'")->fetchColumn();
+} catch (\Throwable $e) { /* table not migrated yet */ }
+
 $status_filter = $_GET['status'] ?? '';
 $search        = trim($_GET['q'] ?? '');
 $page          = max(1, (int)($_GET['page'] ?? 1));
@@ -65,6 +70,10 @@ require_once '../includes/header.php';
     <p class="page-subtitle">Provisioned hosting, VPS, reseller and other client services across all providers.</p>
   </div>
   <div class="page-header-actions">
+    <a href="<?php echo APP_URL; ?>/services/change-requests.php" class="btn btn-ghost">
+      <i class="fas fa-arrows-up-down"></i> Change Requests
+      <?php if ($pending_changes): ?><span class="badge badge-warning" style="margin-left:6px"><?php echo $pending_changes; ?></span><?php endif; ?>
+    </a>
     <a href="<?php echo APP_URL; ?>/services/create.php" class="btn btn-primary"><i class="fas fa-plus"></i> Create Service</a>
   </div>
 </div>

@@ -4,6 +4,8 @@ require_once '../includes/auth.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/providers/Provider.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/SiteSettings.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/Notifier.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/Automation.php';
 $_invoice_logo = SiteSettings::logoOnNavy(60, 240);
 
 portal_check();
@@ -17,6 +19,37 @@ $inv = $stmt->fetch();
 if (!$inv) {
     portal_flash_set('error', 'Invoice not found.');
     header('Location: ' . PORTAL_URL . '/invoices/');
+    exit;
+}
+
+// ── Account credit balance (auto-migrates on admin/clients/view.php too; safe if table missing) ──
+$credit_balance = 0.0;
+try {
+    $stmt2 = db()->prepare('SELECT COALESCE(SUM(amount),0) FROM client_credits WHERE client_id = ?');
+    $stmt2->execute([$cid]);
+    $credit_balance = (float) $stmt2->fetchColumn();
+} catch (\Throwable $e) { /* table not migrated yet */ }
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay_credit' && in_array($inv['status'], ['sent', 'overdue'], true)) {
+    portal_csrf_verify();
+    if ($credit_balance >= (float) $inv['total']) {
+        db()->prepare('INSERT INTO client_credits (client_id, amount, reason, invoice_id) VALUES (?,?,?,?)')
+            ->execute([$cid, -1 * (float) $inv['total'], 'Applied to invoice ' . $inv['invoice_number'], $id]);
+        db()->prepare("INSERT INTO payments (invoice_id, client_id, gateway, gateway_ref, amount, currency, status) VALUES (?,?,?,?,?,?,'completed')")
+            ->execute([$id, $cid, 'credit', 'CREDIT-' . strtoupper(bin2hex(random_bytes(4))), $inv['total'], defined('CURRENCY') ? CURRENCY : 'USD']);
+        db()->prepare("UPDATE invoices SET status='paid', paid_date=CURDATE(), payment_method='Account Credit' WHERE id=?")->execute([$id]);
+        Automation::invoicePaid($id);
+        Notifier::send('invoice_paid', $cid, [
+            'client_name' => trim($inv['first_name'] . ' ' . $inv['last_name']),
+            'invoice_number' => $inv['invoice_number'], 'amount' => format_money((float) $inv['total']),
+            'gateway' => 'Account Credit', 'email' => $inv['client_email'],
+            'link' => PORTAL_URL . '/invoices/view.php?id=' . $id,
+        ]);
+        portal_flash_set('success', 'Paid with account credit — invoice settled.');
+    } else {
+        portal_flash_set('error', 'Insufficient account credit to cover this invoice.');
+    }
+    header('Location: ' . PORTAL_URL . '/invoices/view.php?id=' . $id);
     exit;
 }
 
@@ -143,6 +176,20 @@ require_once '../includes/header.php';
       <div><?php echo badge($inv['status']); ?></div>
     </div>
     <div class="p-card-body">
+      <?php if ($credit_balance > 0): ?>
+        <div class="p-alert p-alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px">
+          <span><i class="fas fa-wallet"></i> Account credit available: <strong><?php echo format_money($credit_balance); ?></strong></span>
+          <?php if ($credit_balance >= (float) $inv['total']): ?>
+            <form method="POST" style="margin:0">
+              <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
+              <input type="hidden" name="action" value="pay_credit" />
+              <button type="submit" class="btn btn-primary btn-sm" data-confirm="Pay this invoice using your account credit?"><i class="fas fa-check"></i> Pay with Account Credit</button>
+            </form>
+          <?php else: ?>
+            <span class="text-muted" style="font-size:12.5px">Not enough to cover this invoice in full — use another method below.</span>
+          <?php endif; ?>
+        </div>
+      <?php endif; ?>
       <?php
       // Real payment details come from the configured offline providers —
       // never hardcoded, so what clients see always matches Providers config.

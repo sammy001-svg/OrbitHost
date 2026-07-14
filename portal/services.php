@@ -27,6 +27,19 @@ try {
     // client_services not migrated yet
 }
 
+// Pending/decided change requests, keyed by client_service_id, so each
+// service card can show its own request status instead of the button.
+$change_requests = [];
+try {
+    $stmt = db()->prepare('SELECT * FROM service_change_requests WHERE client_id = ? ORDER BY created_at DESC');
+    $stmt->execute([$cid]);
+    foreach ($stmt->fetchAll() as $r) {
+        if (!isset($change_requests[$r['client_service_id']])) $change_requests[$r['client_service_id']] = $r; // most recent first
+    }
+} catch (\Throwable $e) {
+    // service_change_requests not migrated yet
+}
+
 require_once __DIR__ . '/includes/header.php';
 ?>
 
@@ -144,6 +157,14 @@ require_once __DIR__ . '/includes/header.php';
               <i class="fas fa-right-to-bracket"></i> Log in to cPanel
             </a>
           <?php endif; ?>
+        <?php endif; ?>
+        <?php $_req = $change_requests[$svc['id']] ?? null; ?>
+        <?php if ($_req && $_req['status'] === 'pending'): ?>
+          <span class="badge badge-warning" title="Requested <?php echo htmlspecialchars(time_ago($_req['created_at'])); ?>"><i class="fas fa-clock"></i> Change requested</span>
+        <?php elseif ($svc['status'] === 'active'): ?>
+          <a href="<?php echo PORTAL_URL; ?>/service-change.php?id=<?php echo (int)$svc['id']; ?>" class="btn btn-ghost btn-sm" style="border:1px solid var(--border)">
+            <i class="fas fa-arrows-up-down"></i> Upgrade / Downgrade
+          </a>
         <?php endif; ?>
         <a href="<?php echo PORTAL_URL; ?>/tickets/add.php?subject=<?php echo urlencode('Help with ' . $svc['label']); ?>" class="btn btn-ghost btn-sm">
           <i class="fas fa-life-ring"></i> Get Help

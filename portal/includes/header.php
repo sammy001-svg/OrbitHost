@@ -13,6 +13,15 @@ $_unread  = $_c['id'] ? Notifier::unreadCount('client', (int) $_c['id']) : 0;
 $_notifs  = $_c['id'] ? Notifier::listFor('client', (int) $_c['id'], 8) : [];
 $_portal_logo = SiteSettings::logoImgTag(36, 150);
 
+$_email_unverified = false;
+if ($_c['id']) {
+    try {
+        $stmt = db()->prepare('SELECT email_verified FROM clients WHERE id = ?');
+        $stmt->execute([$_c['id']]);
+        $_email_unverified = ((int) $stmt->fetchColumn()) === 0;
+    } catch (\Throwable $e) { /* verify columns not migrated yet — treat as verified */ }
+}
+
 function pnav(string $href, string $label, string $file = '', string $dir = ''): void {
     global $_cur, $_cdir;
     $active = ($file && $_cur === $file) || ($dir && $_cdir === $dir) ? ' active' : '';
@@ -115,6 +124,18 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
       <div class="p-alert p-alert-<?php echo $_flash['type']; ?>">
         <i class="fas <?php echo $_flash['type'] === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'; ?>"></i>
         <?php echo htmlspecialchars($_flash['msg']); ?>
+      </div>
+    </div>
+  <?php endif; ?>
+
+  <?php if ($_email_unverified): ?>
+    <div class="container">
+      <div class="p-alert p-alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+        <span><i class="fas fa-envelope-circle-check"></i> Please verify your email address (<?php echo htmlspecialchars($_c['email']); ?>) — check your inbox for the confirmation link.</span>
+        <form method="POST" action="<?php echo PORTAL_URL; ?>/resend-verification.php" style="margin:0">
+          <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
+          <button type="submit" class="btn btn-ghost btn-sm" style="border:1px solid var(--border);white-space:nowrap">Resend email</button>
+        </form>
       </div>
     </div>
   <?php endif; ?>

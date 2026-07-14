@@ -148,3 +148,21 @@ function portal_base_url(): string
 {
     return preg_replace('#/admin/?$#i', '', rtrim(APP_URL, '/')) . '/portal';
 }
+
+/** Auto-migrate the email-verification columns onto clients (idempotent, once per request). */
+function ensure_client_verify_columns(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        $col = db()->query("SHOW COLUMNS FROM clients LIKE 'verify_token'")->fetch();
+        if (!$col) {
+            db()->exec("ALTER TABLE clients
+                ADD COLUMN verify_token   VARCHAR(64) DEFAULT NULL,
+                ADD COLUMN verify_expires DATETIME    DEFAULT NULL");
+        }
+    } catch (\Throwable $e) {
+        // no ALTER privilege — verification simply won't be available until schema is added manually
+    }
+}

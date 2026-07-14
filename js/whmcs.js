@@ -13,7 +13,7 @@
  *   data-whmcs-action="login"   → portal login        (/portal/login.php)
  *   data-whmcs-product="slug"   → portal signup        (/portal/register.php?plan=slug)
  *   data-whmcs-action="ticket"  → portal login (tickets live in the portal)
- *   data-whmcs-action="kb"      → contact page
+ *   data-whmcs-action="kb"      → public knowledge base (/kb/index.php)
  *   data-whmcs-action="status"  → contact page
  */
 
@@ -48,7 +48,7 @@
     register:      PORTAL + '/register.php',
     cart:          PORTAL + '/cart.php',
     submitTicket:  PORTAL + '/login.php',
-    knowledgeBase: BASE + '/contact.html',
+    knowledgeBase: BASE + '/kb/index.php',
     serverStatus:  BASE + '/contact.html',
   };
 

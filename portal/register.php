@@ -66,9 +66,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($dup->fetch()) {
             $errors[] = 'An account with this email already exists. Try logging in instead.';
         } else {
-            $hash = password_hash($pass, PASSWORD_BCRYPT);
-            db()->prepare('INSERT INTO clients (first_name,last_name,email,phone,company,country,status,portal_password,email_verified) VALUES (?,?,?,?,?,?,"active",?,1)')
-                ->execute([$data['first_name'],$data['last_name'],$data['email'],$data['phone'],$data['company'],$data['country'],$hash]);
+            ensure_client_verify_columns();
+            $hash  = password_hash($pass, PASSWORD_BCRYPT);
+            $token = bin2hex(random_bytes(32));
+            db()->prepare('INSERT INTO clients (first_name,last_name,email,phone,company,country,status,portal_password,email_verified,verify_token,verify_expires) VALUES (?,?,?,?,?,?,"active",?,0,?,DATE_ADD(NOW(), INTERVAL 24 HOUR))')
+                ->execute([$data['first_name'],$data['last_name'],$data['email'],$data['phone'],$data['company'],$data['country'],$hash,$token]);
             $cid = db()->lastInsertId();
             // Auto-login
             session_regenerate_id(true);
@@ -80,6 +82,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Notifier::send('account_welcome', (int) $cid, [
                 'client_name' => $data['first_name'],
                 'email'       => $data['email'],
+                'link'        => PORTAL_URL . '/dashboard.php',
+            ]);
+            Notifier::send('email_verification', (int) $cid, [
+                'client_name' => $data['first_name'],
+                'email'       => $data['email'],
+                'verify_link' => PORTAL_URL . '/verify-email.php?token=' . $token,
                 'link'        => PORTAL_URL . '/dashboard.php',
             ]);
 

@@ -91,6 +91,36 @@ final class NotificationRegistry
                 'email_body'    => '<p>New order received.</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:6px 0;color:#64748b">Client</td><td style="padding:6px 0;text-align:right;font-weight:700">{client_name}</td></tr><tr><td style="padding:6px 0;color:#64748b">Item</td><td style="padding:6px 0;text-align:right;font-weight:700">{item}</td></tr><tr><td style="padding:6px 0;color:#64748b">Amount</td><td style="padding:6px 0;text-align:right;font-weight:700">{amount}</td></tr><tr><td style="padding:6px 0;color:#64748b">Gateway</td><td style="padding:6px 0;text-align:right;font-weight:700">{gateway}</td></tr></table>',
             ],
 
+            /* ══════════════ SERVICE CHANGE REQUESTS ══════════════ */
+            'service_change_requested' => [
+                'audience' => 'client', 'icon' => 'fa-arrows-up-down', 'color' => '#2563eb', 'email' => true,
+                'title'   => '{direction} request submitted for {service_label}',
+                'message' => 'Requested plan: {plan_name}. We\'ll review and confirm shortly.',
+                'email_subject' => 'Your {direction} request has been received',
+                'email_body'    => '<p>Hi {client_name},</p><p>We\'ve received your request to {direction_lc} <strong>{service_label}</strong> to <strong>{plan_name}</strong>.</p><p>Our team will review it and confirm shortly — you\'ll get another email once it\'s actioned.</p>',
+            ],
+            'service_change_requested_admin' => [
+                'audience' => 'admin', 'icon' => 'fa-arrows-up-down', 'color' => '#d97706', 'email' => true,
+                'title'   => '{direction} request: {service_label}',
+                'message' => '{client_name} wants to move to {plan_name}.',
+                'email_subject' => 'Service change request — {service_label}',
+                'email_body'    => '<p><strong>{client_name}</strong> has requested a {direction_lc} for <strong>{service_label}</strong> to <strong>{plan_name}</strong>.</p><p style="color:#64748b;font-size:13px">Review and action it from Services › Change Requests in the admin panel.</p>',
+            ],
+            'service_change_approved' => [
+                'audience' => 'client', 'icon' => 'fa-circle-check', 'color' => '#1A8A45', 'email' => true,
+                'title'   => '{service_label} is now {plan_name}',
+                'message' => 'Your plan change has been applied.',
+                'email_subject' => 'Your plan change is complete — {service_label}',
+                'email_body'    => '<p>Hi {client_name},</p><p>Good news — your {direction_lc} for <strong>{service_label}</strong> is complete. It\'s now on the <strong>{plan_name}</strong> plan.</p>',
+            ],
+            'service_change_declined' => [
+                'audience' => 'client', 'icon' => 'fa-circle-xmark', 'color' => '#dc2626', 'email' => true,
+                'title'   => '{direction} request declined',
+                'message' => '{reason}',
+                'email_subject' => 'Update on your {direction_lc} request — {service_label}',
+                'email_body'    => '<p>Hi {client_name},</p><p>We were unable to process your {direction_lc} request for <strong>{service_label}</strong>.</p><p style="color:#64748b;font-size:13px">Reason: {reason}</p><p>Please open a support ticket if you have questions.</p>',
+            ],
+
             /* ══════════════ ACCOUNT / SERVICES ══════════════ */
             'account_welcome' => [
                 'audience' => 'client', 'icon' => 'fa-user-check', 'color' => '#1A8A45', 'email' => true,
@@ -98,6 +128,13 @@ final class NotificationRegistry
                 'message' => 'Your client portal account is ready.',
                 'email_subject' => 'Welcome to Orbit Cloud — your account is ready',
                 'email_body'    => '<p>Hi {client_name},</p><p>Your Orbit Cloud client portal account is now active. From the portal you can manage your services, domains, invoices and support tickets any time.</p>',
+            ],
+            'email_verification' => [
+                'audience' => 'client', 'icon' => 'fa-envelope-circle-check', 'color' => '#2563eb', 'email' => true,
+                'title'   => 'Verify your email address',
+                'message' => 'Click the link we sent you to confirm your email.',
+                'email_subject' => 'Confirm your email address — Orbit Cloud',
+                'email_body'    => '<p>Hi {client_name},</p><p>Please confirm this is your email address by clicking the button below.</p><p style="margin:22px 0"><a href="{verify_link}" style="background:#1A8A45;color:#fff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:700">Verify Email Address</a></p><p style="color:#94a3b8;font-size:12px">This link expires in 24 hours. If you didn\'t create an Orbit Cloud account, you can ignore this email.</p>',
             ],
             'service_ready' => [
                 'audience' => 'client', 'icon' => 'fa-server', 'color' => '#1A8A45', 'email' => true,

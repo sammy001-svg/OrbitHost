@@ -51,6 +51,7 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <div class="nav-label">Support</div>
     <?php _nav(APP_URL . '/tickets/',       'fa-ticket',   'Tickets',        'tickets'); ?>
     <?php _nav(APP_URL . '/chat/',          'fa-comments', 'Live Chat',      'chat'); ?>
+    <?php _nav(APP_URL . '/kb/',            'fa-book',     'Knowledge Base', 'kb'); ?>
     <?php _nav(APP_URL . '/notifications/', 'fa-bell',     'Notifications',  'notifications'); ?>
 
     <div class="nav-label">Integrations</div>

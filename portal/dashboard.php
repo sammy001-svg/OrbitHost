@@ -29,6 +29,8 @@ try {
 $open_tickets    = (int) $db->query("SELECT COUNT(*) FROM tickets WHERE client_id=$cid AND status IN ('open','pending')")->fetchColumn();
 $unpaid_invoices = (int) $db->query("SELECT COUNT(*) FROM invoices WHERE client_id=$cid AND status IN ('sent','overdue')")->fetchColumn();
 $total_spent     = (float)$db->query("SELECT COALESCE(SUM(total),0) FROM invoices WHERE client_id=$cid AND status='paid'")->fetchColumn();
+$credit_balance  = 0.0;
+try { $credit_balance = (float) $db->query("SELECT COALESCE(SUM(amount),0) FROM client_credits WHERE client_id=$cid")->fetchColumn(); } catch (\Throwable $e) {}
 
 // Recent items
 $recent_orders = $db->query("
@@ -89,6 +91,13 @@ require_once __DIR__ . '/includes/header.php';
     <i class="fas fa-calendar-alt"></i>
     <strong><?php echo count($due_soon); ?> service<?php echo count($due_soon)>1?'s':''; ?> renewing within 7 days</strong> —
     <?php echo implode(', ', array_column($due_soon, 'svc_name')); ?>
+  </div>
+  <?php endif; ?>
+
+  <?php if ($credit_balance > 0): ?>
+  <div class="p-alert p-alert-success" style="margin-bottom:20px">
+    <i class="fas fa-wallet"></i>
+    <strong>Account credit: <?php echo format_money($credit_balance); ?></strong> — apply it toward any unpaid invoice at checkout.
   </div>
   <?php endif; ?>
 
