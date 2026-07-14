@@ -134,14 +134,17 @@ require_once '../../includes/header.php';
 <div class="content-header">
   <div>
     <h1 class="content-title">TLD Pricing</h1>
-    <p class="page-subtitle">The extensions your customers can search and buy. Active TLDs appear in the website domain search with these prices.</p>
+    <p class="page-subtitle">The extensions your customers can search and buy, priced in both USD and KES. Active TLDs appear in the website domain search.</p>
   </div>
   <div class="page-header-actions">
-    <button class="btn btn-ghost" data-drawer-open="drawer-tld-add"><i class="fas fa-plus"></i> Add TLD</button>
+    <button class="btn btn-primary tld-open" data-drawer-open="drawer-tld"
+            data-tld='{"id":0,"tld":"","register_price_usd":"","register_price_kes":"","transfer_price_usd":"","transfer_price_kes":"","renew_price_usd":"","renew_price_kes":"","sort_order":100,"is_active":1}'>
+      <i class="fas fa-plus"></i> Add TLD
+    </button>
     <form method="POST" style="margin:0">
       <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
       <input type="hidden" name="action" value="sync" />
-      <button type="submit" class="btn btn-primary" <?php echo $registrar_key ? '' : 'disabled title="Enable a registrar in Providers first"'; ?>>
+      <button type="submit" class="btn btn-ghost" <?php echo $registrar_key ? '' : 'disabled title="Enable a registrar in Providers first"'; ?>>
         <i class="fas fa-cloud-arrow-down"></i> Sync from <?php echo $registrar_key ? ucfirst($registrar_key) : 'provider'; ?>
       </button>
     </form>
@@ -172,51 +175,47 @@ require_once '../../includes/header.php';
     <thead>
       <tr>
         <th>TLD</th>
-        <th>Register ($ / KSh)</th>
-        <th>Transfer ($ / KSh)</th>
-        <th>Renewal ($ / KSh)</th>
+        <th>Register</th>
+        <th>Transfer</th>
+        <th>Renewal</th>
         <th>Cost (reg/trf/ren)</th>
-        <th>Order</th>
-        <th>Active</th>
-        <th></th>
+        <th>Status</th>
+        <th style="text-align:right">Actions</th>
       </tr>
     </thead>
     <tbody>
       <?php if (!$tlds): ?>
-        <tr><td colspan="8"><div class="empty-state"><i class="fas fa-globe"></i><p>No TLDs yet. Sync from your registrar or add one manually.</p></div></td></tr>
-      <?php else: foreach ($tlds as $t): ?>
+        <tr><td colspan="7"><div class="empty-state"><i class="fas fa-globe"></i><p>No TLDs yet. Sync from your registrar or add one manually.</p></div></td></tr>
+      <?php else: foreach ($tlds as $t):
+        $reg_usd = (float) ($t['register_price_usd'] ?? $t['register_price']);
+        $reg_kes = (float) ($t['register_price_kes'] ?? 0);
+        $trf_usd = (float) ($t['transfer_price_usd'] ?? $t['transfer_price']);
+        $trf_kes = (float) ($t['transfer_price_kes'] ?? 0);
+        $ren_usd = (float) ($t['renew_price_usd'] ?? $t['renew_price']);
+        $ren_kes = (float) ($t['renew_price_kes'] ?? 0);
+        $json = htmlspecialchars(json_encode([
+            'id' => (int) $t['id'], 'tld' => $t['tld'],
+            'register_price_usd' => $reg_usd, 'register_price_kes' => $reg_kes,
+            'transfer_price_usd' => $trf_usd, 'transfer_price_kes' => $trf_kes,
+            'renew_price_usd'    => $ren_usd, 'renew_price_kes'    => $ren_kes,
+            'sort_order' => (int) $t['sort_order'], 'is_active' => (int) $t['is_active'],
+        ], JSON_UNESCAPED_SLASHES), ENT_QUOTES);
+      ?>
         <tr>
-          <form method="POST">
-          <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
-          <input type="hidden" name="action" value="save" />
-          <input type="hidden" name="id" value="<?php echo $t['id']; ?>" />
           <td><span class="td-name mono">.<?php echo h($t['tld']); ?></span>
             <?php if ($t['provider']): ?><div class="td-sub"><?php echo h($t['provider']); ?></div><?php endif; ?></td>
-          <td style="display:flex;gap:5px">
-            <input type="number" step="0.01" min="0" name="register_price_usd" class="form-control" style="width:78px;padding:6px 8px" value="<?php echo h($t['register_price_usd'] ?? $t['register_price']); ?>" title="USD" />
-            <input type="number" step="0.01" min="0" name="register_price_kes" class="form-control" style="width:88px;padding:6px 8px" value="<?php echo h($t['register_price_kes'] ?? 0); ?>" title="KES" />
-          </td>
-          <td style="display:flex;gap:5px">
-            <input type="number" step="0.01" min="0" name="transfer_price_usd" class="form-control" style="width:78px;padding:6px 8px" value="<?php echo h($t['transfer_price_usd'] ?? $t['transfer_price']); ?>" title="USD" />
-            <input type="number" step="0.01" min="0" name="transfer_price_kes" class="form-control" style="width:88px;padding:6px 8px" value="<?php echo h($t['transfer_price_kes'] ?? 0); ?>" title="KES" />
-          </td>
-          <td style="display:flex;gap:5px">
-            <input type="number" step="0.01" min="0" name="renew_price_usd" class="form-control" style="width:78px;padding:6px 8px" value="<?php echo h($t['renew_price_usd'] ?? $t['renew_price']); ?>" title="USD" />
-            <input type="number" step="0.01" min="0" name="renew_price_kes" class="form-control" style="width:88px;padding:6px 8px" value="<?php echo h($t['renew_price_kes'] ?? 0); ?>" title="KES" />
-          </td>
+          <td><div class="td-name">$<?php echo number_format($reg_usd, 2); ?></div><div class="td-sub">KSh <?php echo number_format($reg_kes, 2); ?></div></td>
+          <td><div class="td-name">$<?php echo number_format($trf_usd, 2); ?></div><div class="td-sub">KSh <?php echo number_format($trf_kes, 2); ?></div></td>
+          <td><div class="td-name">$<?php echo number_format($ren_usd, 2); ?></div><div class="td-sub">KSh <?php echo number_format($ren_kes, 2); ?></div></td>
           <td style="font-size:12px;color:var(--text-muted);white-space:nowrap">
             <?php echo $t['register_cost'] !== null
                 ? number_format((float)$t['register_cost'],2) . ' / ' . number_format((float)$t['transfer_cost'],2) . ' / ' . number_format((float)$t['renew_cost'],2)
                 : '—'; ?>
           </td>
-          <td><input type="number" name="sort_order" class="form-control" style="width:66px;padding:6px 8px" value="<?php echo (int)$t['sort_order']; ?>" /></td>
-          <td>
-            <label class="switch" style="gap:0"><input type="checkbox" name="is_active" value="1" <?php echo $t['is_active'] ? 'checked' : ''; ?> /><span class="track"></span></label>
-          </td>
+          <td><?php echo $t['is_active'] ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-secondary">Hidden</span>'; ?></td>
           <td>
             <div class="actions" style="justify-content:flex-end">
-              <button type="submit" class="btn btn-primary btn-xs"><i class="fas fa-save"></i></button>
-          </form>
+              <button type="button" class="action-link edit tld-open" data-drawer-open="drawer-tld" data-tld="<?php echo $json; ?>"><i class="fas fa-pen"></i> Edit</button>
               <form method="POST" style="margin:0">
                 <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
                 <input type="hidden" name="action" value="delete" />
@@ -232,36 +231,89 @@ require_once '../../includes/header.php';
   </div>
 </div>
 
-<!-- Add TLD drawer -->
-<div class="drawer-scrim" id="drawer-tld-add-scrim"></div>
-<div class="drawer" id="drawer-tld-add">
+<!-- Single add/edit drawer, populated by JS (mirrors Plans & Packages) -->
+<div class="drawer-scrim" id="drawer-tld-scrim"></div>
+<div class="drawer" id="drawer-tld">
   <div class="drawer-head">
-    <div><div style="font-weight:700">Add TLD</div><div class="text-muted" style="font-size:11.5px">Manual extension entry</div></div>
+    <div><div style="font-weight:700" id="tldDrawerTitle">Add TLD</div><div class="text-muted" style="font-size:11.5px">Register / transfer / renewal pricing, in both currencies</div></div>
     <button type="button" class="drawer-close" data-drawer-close>&times;</button>
   </div>
   <form method="POST" style="display:contents">
     <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
-    <input type="hidden" name="action" value="add" />
+    <input type="hidden" name="action" id="tldAction" value="add" />
+    <input type="hidden" name="id" id="tldId" value="0" />
     <div class="drawer-body">
       <div class="form-group">
         <label class="form-label">TLD <span class="req">*</span></label>
-        <input type="text" name="tld" class="form-control mono" placeholder="co.ke" required />
+        <input type="text" name="tld" id="tldName" class="form-control mono" placeholder="co.ke" required />
       </div>
-      <div class="form-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="form-group"><label class="form-label">Register price (USD)</label><input type="number" step="0.01" min="0" name="register_price_usd" class="form-control" /></div>
-        <div class="form-group"><label class="form-label">Register price (KES)</label><input type="number" step="0.01" min="0" name="register_price_kes" class="form-control" /></div>
-        <div class="form-group"><label class="form-label">Transfer price (USD)</label><input type="number" step="0.01" min="0" name="transfer_price_usd" class="form-control" /></div>
-        <div class="form-group"><label class="form-label">Transfer price (KES)</label><input type="number" step="0.01" min="0" name="transfer_price_kes" class="form-control" /></div>
-        <div class="form-group"><label class="form-label">Renewal price (USD)</label><input type="number" step="0.01" min="0" name="renew_price_usd" class="form-control" /></div>
-        <div class="form-group"><label class="form-label">Renewal price (KES)</label><input type="number" step="0.01" min="0" name="renew_price_kes" class="form-control" /></div>
+
+      <p class="form-section-title" style="margin-top:14px">Register price</p>
+      <div class="form-grid-2">
+        <div class="form-group"><label class="form-label">USD</label><input type="number" step="0.01" min="0" name="register_price_usd" id="tldRegUsd" class="form-control" /></div>
+        <div class="form-group"><label class="form-label">KES</label><input type="number" step="0.01" min="0" name="register_price_kes" id="tldRegKes" class="form-control" /></div>
+      </div>
+
+      <p class="form-section-title" style="margin-top:10px">Transfer price</p>
+      <div class="form-grid-2">
+        <div class="form-group"><label class="form-label">USD</label><input type="number" step="0.01" min="0" name="transfer_price_usd" id="tldTrfUsd" class="form-control" /></div>
+        <div class="form-group"><label class="form-label">KES</label><input type="number" step="0.01" min="0" name="transfer_price_kes" id="tldTrfKes" class="form-control" /></div>
+      </div>
+
+      <p class="form-section-title" style="margin-top:10px">Renewal price</p>
+      <div class="form-grid-2">
+        <div class="form-group"><label class="form-label">USD</label><input type="number" step="0.01" min="0" name="renew_price_usd" id="tldRenUsd" class="form-control" /></div>
+        <div class="form-group"><label class="form-label">KES</label><input type="number" step="0.01" min="0" name="renew_price_kes" id="tldRenKes" class="form-control" /></div>
+      </div>
+
+      <div class="form-grid-2" style="margin-top:10px">
+        <div class="form-group">
+          <label class="form-label">Sort order</label>
+          <input type="number" name="sort_order" id="tldSort" class="form-control" value="100" />
+          <small class="form-hint">Lower numbers appear first in the website's TLD list.</small>
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:9px">
+          <label class="switch">
+            <input type="checkbox" name="is_active" id="tldActive" value="1" />
+            <span class="track"></span><span>Active in search</span>
+          </label>
+        </div>
       </div>
     </div>
     <div class="drawer-foot">
-      <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Add TLD</button>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <span id="tldSaveLabel">Add TLD</span></button>
       <button type="button" class="btn btn-ghost" data-drawer-close>Cancel</button>
     </div>
   </form>
 </div>
+
+<script>
+document.addEventListener('click', function (e) {
+  var btn = e.target.closest ? e.target.closest('.tld-open') : null;
+  if (!btn) return;
+  var d;
+  try { d = JSON.parse(btn.getAttribute('data-tld')); } catch (err) { return; }
+
+  var isEdit = !!d.id;
+  document.getElementById('tldDrawerTitle').textContent = isEdit ? '.' + d.tld + ' pricing' : 'Add TLD';
+  document.getElementById('tldAction').value = isEdit ? 'save' : 'add';
+  document.getElementById('tldId').value = d.id || 0;
+
+  var tldInput = document.getElementById('tldName');
+  tldInput.value = d.tld || '';
+  tldInput.readOnly = isEdit;
+
+  document.getElementById('tldRegUsd').value = d.register_price_usd || '';
+  document.getElementById('tldRegKes').value = d.register_price_kes || '';
+  document.getElementById('tldTrfUsd').value = d.transfer_price_usd || '';
+  document.getElementById('tldTrfKes').value = d.transfer_price_kes || '';
+  document.getElementById('tldRenUsd').value = d.renew_price_usd || '';
+  document.getElementById('tldRenKes').value = d.renew_price_kes || '';
+  document.getElementById('tldSort').value = d.sort_order ?? 100;
+  document.getElementById('tldActive').checked = !!Number(d.is_active);
+  document.getElementById('tldSaveLabel').textContent = isEdit ? 'Save Changes' : 'Add TLD';
+});
+</script>
 
 <?php endif; ?>
 
