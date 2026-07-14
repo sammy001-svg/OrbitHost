@@ -8,8 +8,11 @@
  */
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once dirname(__DIR__) . '/admin/includes/Currency.php';
 
 portal_start();
+Currency::ensureSchema();
+$currency = Currency::current();
 if (!isset($_SESSION['cart_domains']) || !is_array($_SESSION['cart_domains'])) {
     $_SESSION['cart_domains'] = [];
 }
@@ -17,7 +20,10 @@ if (!isset($_SESSION['cart_domains']) || !is_array($_SESSION['cart_domains'])) {
 // Load sellable TLDs (price lookups + validation)
 $tld_rows = [];
 try {
-    foreach (db()->query('SELECT tld, currency, register_price, renew_price FROM domain_tlds WHERE is_active = 1')->fetchAll() as $r) {
+    foreach (db()->query(
+        'SELECT tld, register_price_usd, register_price_kes, renew_price_usd, renew_price_kes
+         FROM domain_tlds WHERE is_active = 1'
+    )->fetchAll() as $r) {
         $tld_rows[$r['tld']] = $r;
     }
 } catch (\Throwable $e) {
@@ -60,15 +66,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['years'])) {
 
 $cart = $_SESSION['cart_domains'];
 $total = 0.0;
-$currency = defined('CURRENCY') ? CURRENCY : 'USD';
 $items = [];
 foreach ($cart as $domain => $it) {
     $p = $tld_rows[$it['tld']] ?? null;
     if (!$p) { unset($_SESSION['cart_domains'][$domain]); continue; }
-    $line = (float)$p['register_price'] * $it['years'];
+    $unit = (float) ($currency === 'KES' ? ($p['register_price_kes'] ?? 0) : ($p['register_price_usd'] ?? 0));
+    $line = $unit * $it['years'];
     $total += $line;
-    $currency = $p['currency'];
-    $items[] = ['domain' => $domain, 'years' => $it['years'], 'unit' => (float)$p['register_price'], 'line' => $line, 'currency' => $p['currency']];
+    $items[] = ['domain' => $domain, 'years' => $it['years'], 'unit' => $unit, 'line' => $line, 'currency' => $currency];
 }
 $logged_in = !empty($_SESSION['client_id']);
 ?>

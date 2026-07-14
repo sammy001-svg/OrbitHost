@@ -223,25 +223,32 @@
     return '';
   }
 
+  let lastData = null;
+
+  function render() {
+    if (!lastData || !lastData.ok || !lastData.tlds.length) return; // keep the static fallback rows
+    const cur = (window.OrbitCurrency && window.OrbitCurrency.get()) || 'USD';
+    const sym = cur === 'KES' ? 'KSh' : '$';
+    tbody.innerHTML = lastData.tlds.map(t => {
+      const fmt = (usd, kes) => `${sym} ${Number(cur === 'KES' ? (kes ?? 0) : (usd ?? 0)).toFixed(2)}/yr`;
+      return `
+        <tr>
+          <td>.${t.tld}</td>
+          <td>${fmt(t.register_price_usd, t.register_price_kes)}</td>
+          <td>${fmt(t.renew_price_usd, t.renew_price_kes)}</td>
+          <td>${fmt(t.transfer_price_usd, t.transfer_price_kes)}</td>
+          <td><i class="fas fa-check"></i> Free</td>
+          <td><a href="#search" class="btn btn-green btn-sm">Register</a></td>
+        </tr>`;
+    }).join('');
+  }
+
   fetch(siteBase() + '/api/tld-pricing.php')
     .then(r => r.json())
-    .then(data => {
-      if (!data.ok || !data.tlds.length) return; // keep the static fallback rows
-      tbody.innerHTML = data.tlds.map(t => {
-        const cur = t.currency || 'USD';
-        const fmt = n => `${cur} ${Number(n).toFixed(2)}/yr`;
-        return `
-          <tr>
-            <td>.${t.tld}</td>
-            <td>${fmt(t.register_price)}</td>
-            <td>${fmt(t.renew_price)}</td>
-            <td>${fmt(t.transfer_price)}</td>
-            <td><i class="fas fa-check"></i> Free</td>
-            <td><a href="#search" class="btn btn-green btn-sm">Register</a></td>
-          </tr>`;
-      }).join('');
-    })
+    .then(data => { lastData = data; render(); })
     .catch(() => {}); // network hiccup — static rows stay as-is
+
+  document.addEventListener('orbit:currency-changed', render);
 })();
 
 // Scroll animations

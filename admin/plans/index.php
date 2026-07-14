@@ -4,9 +4,11 @@ require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 require_once '../includes/providers/Provider.php';
+require_once '../includes/Currency.php';
 
 auth_check();
 $page_title = 'Plans & Packages';
+Currency::ensureSchema();
 
 // ── Ensure the plan↔panel linking columns exist (auto-migration) ──
 $link_ok = true;
@@ -80,6 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cycle    = array_key_exists($_POST['billing_cycle'] ?? '', $cycles) ? $_POST['billing_cycle'] : 'monthly';
     $price    = (float)($_POST['price'] ?? 0);
     $setup    = (float)($_POST['setup_fee'] ?? 0);
+    $price_kes = (float)($_POST['price_kes'] ?? 0);
+    $setup_kes = (float)($_POST['setup_fee_kes'] ?? 0);
     $active   = !empty($_POST['is_active']) ? 1 : 0;
     $package  = trim($_POST['panel_package'] ?? '');
     $desc     = trim($_POST['description'] ?? '');
@@ -89,9 +93,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($name === '') {
         flash_set('error', 'Plan name is required.');
     } else {
-        $sets   = ['name=?', 'category=?', 'billing_cycle=?', 'price=?', 'setup_fee=?', 'is_active=?'];
-        $vals   = [$name, $category, $cycle, $price, $setup, $active];
-        $cols   = ['name', 'category', 'billing_cycle', 'price', 'setup_fee', 'is_active'];
+        $sets   = ['name=?', 'category=?', 'billing_cycle=?', 'price=?', 'setup_fee=?', 'price_kes=?', 'setup_fee_kes=?', 'is_active=?'];
+        $vals   = [$name, $category, $cycle, $price, $setup, $price_kes, $setup_kes, $active];
+        $cols   = ['name', 'category', 'billing_cycle', 'price', 'setup_fee', 'price_kes', 'setup_fee_kes', 'is_active'];
         if ($link_ok) {
             $sets[] = 'panel_provider=?'; $sets[] = 'panel_package=?';
             $cols[] = 'panel_provider';   $cols[] = 'panel_package';
@@ -119,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // ── Load catalogue ──
-$sel = 'SELECT id, name, category, billing_cycle, price, setup_fee, is_active'
+$sel = 'SELECT id, name, category, billing_cycle, price, setup_fee, price_kes, setup_fee_kes, is_active'
      . ($link_ok    ? ', panel_provider, panel_package' : ', NULL AS panel_provider, NULL AS panel_package')
      . ($details_ok ? ', description, features'         : ', NULL AS description, NULL AS features')
      . ' FROM services ORDER BY category, price';
@@ -138,7 +142,7 @@ require_once '../includes/header.php';
   <div class="page-header-actions">
     <a href="<?php echo APP_URL; ?>/integrations/whm/packages.php" class="btn btn-ghost"><i class="fas fa-cubes"></i> WHM Packages</a>
     <button class="btn btn-primary plan-open" data-drawer-open="drawer-plan"
-            data-plan='{"id":0,"name":"","category":"shared","billing_cycle":"monthly","price":"","setup_fee":"0","is_active":1,"panel_package":"","description":"","features":""}'>
+            data-plan='{"id":0,"name":"","category":"shared","billing_cycle":"monthly","price":"","setup_fee":"0","price_kes":"","setup_fee_kes":"0","is_active":1,"panel_package":"","description":"","features":""}'>
       <i class="fas fa-plus"></i> Add Plan
     </button>
   </div>
@@ -185,7 +189,8 @@ require_once '../includes/header.php';
       <tr>
         <th>Plan</th>
         <th>Cycle</th>
-        <th>Price</th>
+        <th>Price (USD)</th>
+        <th>Price (KES)</th>
         <th>Setup fee</th>
         <th>WHM package</th>
         <th>Status</th>
@@ -194,13 +199,14 @@ require_once '../includes/header.php';
     </thead>
     <tbody>
       <?php if (!$plans): ?>
-        <tr><td colspan="7"><div class="empty-state"><i class="fas fa-tags"></i><p>No plans yet. Add your first plan.</p></div></td></tr>
+        <tr><td colspan="8"><div class="empty-state"><i class="fas fa-tags"></i><p>No plans yet. Add your first plan.</p></div></td></tr>
       <?php else: foreach ($plans as $p):
         $pkg      = $p['panel_package'] ?? '';
         $stale    = $pkg && $panel_packages && !in_array($pkg, $panel_packages, true);
         $json     = htmlspecialchars(json_encode([
             'id' => (int)$p['id'], 'name' => $p['name'], 'category' => $p['category'],
             'billing_cycle' => $p['billing_cycle'], 'price' => $p['price'], 'setup_fee' => $p['setup_fee'],
+            'price_kes' => $p['price_kes'], 'setup_fee_kes' => $p['setup_fee_kes'],
             'is_active' => (int)$p['is_active'], 'panel_package' => $pkg,
             'description' => (string)($p['description'] ?? ''), 'features' => (string)($p['features'] ?? ''),
         ], JSON_UNESCAPED_SLASHES), ENT_QUOTES);
@@ -211,7 +217,8 @@ require_once '../includes/header.php';
             <div class="td-sub"><?php echo ucfirst($p['category']); ?></div>
           </td>
           <td><?php echo badge($p['billing_cycle']); ?></td>
-          <td class="fw-600"><?php echo format_money((float)$p['price']); ?></td>
+          <td class="fw-600">$<?php echo number_format((float)$p['price'], 2); ?></td>
+          <td class="fw-600">KSh <?php echo number_format((float)($p['price_kes'] ?? 0), 2); ?></td>
           <td><?php echo (float)$p['setup_fee'] > 0 ? format_money((float)$p['setup_fee']) : '<span class="text-muted">—</span>'; ?></td>
           <td>
             <?php if ($pkg): ?>
@@ -270,12 +277,21 @@ require_once '../includes/header.php';
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Price (<?php echo defined('CURRENCY') ? CURRENCY : 'USD'; ?>)</label>
+          <label class="form-label">Price (USD)</label>
           <input type="number" step="0.01" min="0" name="price" id="planPrice" class="form-control" />
         </div>
         <div class="form-group">
-          <label class="form-label">Setup fee</label>
+          <label class="form-label">Price (KES)</label>
+          <input type="number" step="0.01" min="0" name="price_kes" id="planPriceKes" class="form-control" />
+          <small class="form-hint">Shown to visitors detected in Kenya, or who switch the site to KSh.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Setup fee (USD)</label>
           <input type="number" step="0.01" min="0" name="setup_fee" id="planSetup" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Setup fee (KES)</label>
+          <input type="number" step="0.01" min="0" name="setup_fee_kes" id="planSetupKes" class="form-control" />
         </div>
       </div>
 
@@ -333,6 +349,8 @@ document.addEventListener('click', function (e) {
   document.getElementById('planCycle').value    = d.billing_cycle || 'monthly';
   document.getElementById('planPrice').value    = d.price || '';
   document.getElementById('planSetup').value    = d.setup_fee || 0;
+  document.getElementById('planPriceKes').value = d.price_kes || '';
+  document.getElementById('planSetupKes').value = d.setup_fee_kes || 0;
   document.getElementById('planActive').checked = !!Number(d.is_active);
   var pd = document.getElementById('planDesc');     if (pd) pd.value = d.description || '';
   var pf = document.getElementById('planFeatures'); if (pf) pf.value = d.features || '';

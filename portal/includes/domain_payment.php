@@ -7,11 +7,20 @@
 require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/providers/Provider.php';
 
-function dp_active_gateways(): array
+/**
+ * Active + configured payment gateways, optionally filtered to those that
+ * can actually settle in $currency. KopoKopo (M-Pesa) hard-codes 'KES' in
+ * its own createCheckout() regardless of what's passed to it — it cannot
+ * charge a USD amount, so it's excluded whenever the checkout is in USD
+ * to avoid silently billing a KES face-value amount instead.
+ */
+function dp_active_gateways(string $currency = 'USD'): array
 {
     $out = [];
     foreach (ProviderRegistry::byCategory('payment') as $key => $def) {
-        if (Provider::isActive($key) && Provider::isConfigured($key)) $out[$key] = $def;
+        if (!Provider::isActive($key) || !Provider::isConfigured($key)) continue;
+        if ($key === 'kopokopo' && strtoupper($currency) !== 'KES') continue;
+        $out[$key] = $def;
     }
     return $out;
 }
@@ -25,11 +34,13 @@ function dp_iso_country(string $name): string
 }
 
 /** Create a one-line invoice for a domain action and return its id. */
-function dp_create_invoice(int $client_id, string $description, float $amount): int
+function dp_create_invoice(int $client_id, string $description, float $amount, string $currency = 'USD'): int
 {
+    require_once dirname(__DIR__, 2) . '/admin/includes/Currency.php';
+    Currency::ensureSchema();
     $inv_no = generate_invoice_number();
-    db()->prepare("INSERT INTO invoices (invoice_number, client_id, subtotal, tax_rate, tax_amount, total, status, due_date) VALUES (?,?,?,0,0,?, 'sent', CURDATE())")
-        ->execute([$inv_no, $client_id, $amount, $amount]);
+    db()->prepare("INSERT INTO invoices (invoice_number, client_id, subtotal, tax_rate, tax_amount, total, status, due_date, currency) VALUES (?,?,?,0,0,?, 'sent', CURDATE(), ?)")
+        ->execute([$inv_no, $client_id, $amount, $amount, $currency]);
     $id = (int) db()->lastInsertId();
     db()->prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (?,?,?,?,?)')
         ->execute([$id, $description, 1, $amount, $amount]);

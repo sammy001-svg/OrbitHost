@@ -5,6 +5,7 @@ require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
 require_once '../../includes/providers/Provider.php';
 require_once '../../includes/DomainClient.php';
+require_once '../../includes/Currency.php';
 
 auth_check();
 $page_title = 'TLD Pricing';
@@ -35,6 +36,7 @@ try {
 } catch (\Throwable $e) {
     $schema_ok = false;
 }
+if ($schema_ok) Currency::ensureSchema();
 
 $registrar_key = Provider::activeFor('registrar');
 $site_currency = defined('CURRENCY') ? CURRENCY : 'USD';
@@ -48,9 +50,14 @@ if ($schema_ok && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'sync') {
             if (!$registrar_key) throw new RuntimeException('No active domain registrar. Enable one in Providers first.');
             $pricing  = Provider::registrar($registrar_key)->getTldPricing();
+            // Registrar APIs quote in USD; register_price_kes is left NULL so
+            // Currency::ensureSchema()'s seed backfill fills a ~130x starting
+            // value next load — admin corrects it to the real KES price.
             $ins = db()->prepare(
-                'INSERT INTO domain_tlds (tld, provider, currency, register_price, transfer_price, renew_price, register_cost, transfer_cost, renew_cost, is_active)
-                 VALUES (?,?,?,?,?,?,?,?,?,0)
+                'INSERT INTO domain_tlds (tld, provider, currency, register_price, transfer_price, renew_price,
+                                           register_price_usd, transfer_price_usd, renew_price_usd,
+                                           register_cost, transfer_cost, renew_cost, is_active)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0)
                  ON DUPLICATE KEY UPDATE provider=?, register_cost=?, transfer_cost=?, renew_cost=?'
             );
             $n = 0;
@@ -59,21 +66,26 @@ if ($schema_ok && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     $tld, $registrar_key, $site_currency,
                     $p['register'], $p['transfer'], $p['renew'],   // retail defaults = cost
                     $p['register'], $p['transfer'], $p['renew'],
+                    $p['register'], $p['transfer'], $p['renew'],
                     $registrar_key, $p['register'], $p['transfer'], $p['renew'],
                 ]);
                 $n++;
             }
             log_activity('tld_sync', 'integration', 0, "Synced {$n} TLDs from {$registrar_key}");
-            flash_set('success', "Synced {$n} TLDs from " . ucfirst($registrar_key) . ". New TLDs are inactive with retail = cost — set your prices and activate them.");
+            flash_set('success', "Synced {$n} TLDs from " . ucfirst($registrar_key) . ". New TLDs are inactive with retail = cost — set your prices (both currencies) and activate them.");
 
         } elseif ($action === 'save') {
             $id = (int)($_POST['id'] ?? 0);
-            db()->prepare('UPDATE domain_tlds SET currency=?, register_price=?, transfer_price=?, renew_price=?, is_active=?, sort_order=? WHERE id=?')
+            db()->prepare('UPDATE domain_tlds SET
+                    register_price_usd=?, register_price_kes=?,
+                    transfer_price_usd=?, transfer_price_kes=?,
+                    renew_price_usd=?,    renew_price_kes=?,
+                    is_active=?, sort_order=?
+                WHERE id=?')
                 ->execute([
-                    strtoupper(trim($_POST['currency'] ?? $site_currency)) ?: $site_currency,
-                    (float)($_POST['register_price'] ?? 0),
-                    (float)($_POST['transfer_price'] ?? 0),
-                    (float)($_POST['renew_price'] ?? 0),
+                    (float)($_POST['register_price_usd'] ?? 0), (float)($_POST['register_price_kes'] ?? 0),
+                    (float)($_POST['transfer_price_usd'] ?? 0), (float)($_POST['transfer_price_kes'] ?? 0),
+                    (float)($_POST['renew_price_usd'] ?? 0),    (float)($_POST['renew_price_kes'] ?? 0),
                     !empty($_POST['is_active']) ? 1 : 0,
                     (int)($_POST['sort_order'] ?? 100),
                     $id,
@@ -83,13 +95,17 @@ if ($schema_ok && $_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'add') {
             $tld = strtolower(trim(ltrim($_POST['tld'] ?? '', '.')));
             if (!preg_match('/^[a-z0-9.]{2,32}$/', $tld)) throw new RuntimeException('Enter a valid TLD, e.g. com or co.ke');
-            db()->prepare('INSERT INTO domain_tlds (tld, provider, currency, register_price, transfer_price, renew_price, is_active) VALUES (?,?,?,?,?,?,1)')
+            db()->prepare('INSERT INTO domain_tlds
+                    (tld, provider, currency, register_price, transfer_price, renew_price,
+                     register_price_usd, register_price_kes, transfer_price_usd, transfer_price_kes,
+                     renew_price_usd, renew_price_kes, is_active)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1)')
                 ->execute([
-                    $tld, $registrar_key,
-                    strtoupper(trim($_POST['currency'] ?? $site_currency)) ?: $site_currency,
-                    (float)($_POST['register_price'] ?? 0),
-                    (float)($_POST['transfer_price'] ?? 0),
-                    (float)($_POST['renew_price'] ?? 0),
+                    $tld, $registrar_key, $site_currency,
+                    (float)($_POST['register_price_usd'] ?? 0), (float)($_POST['transfer_price_usd'] ?? 0), (float)($_POST['renew_price_usd'] ?? 0),
+                    (float)($_POST['register_price_usd'] ?? 0), (float)($_POST['register_price_kes'] ?? 0),
+                    (float)($_POST['transfer_price_usd'] ?? 0), (float)($_POST['transfer_price_kes'] ?? 0),
+                    (float)($_POST['renew_price_usd'] ?? 0),    (float)($_POST['renew_price_kes'] ?? 0),
                 ]);
             flash_set('success', ".{$tld} added.");
 
@@ -156,10 +172,9 @@ require_once '../../includes/header.php';
     <thead>
       <tr>
         <th>TLD</th>
-        <th>Currency</th>
-        <th>Register</th>
-        <th>Transfer</th>
-        <th>Renewal</th>
+        <th>Register ($ / KSh)</th>
+        <th>Transfer ($ / KSh)</th>
+        <th>Renewal ($ / KSh)</th>
         <th>Cost (reg/trf/ren)</th>
         <th>Order</th>
         <th>Active</th>
@@ -168,7 +183,7 @@ require_once '../../includes/header.php';
     </thead>
     <tbody>
       <?php if (!$tlds): ?>
-        <tr><td colspan="9"><div class="empty-state"><i class="fas fa-globe"></i><p>No TLDs yet. Sync from your registrar or add one manually.</p></div></td></tr>
+        <tr><td colspan="8"><div class="empty-state"><i class="fas fa-globe"></i><p>No TLDs yet. Sync from your registrar or add one manually.</p></div></td></tr>
       <?php else: foreach ($tlds as $t): ?>
         <tr>
           <form method="POST">
@@ -177,10 +192,18 @@ require_once '../../includes/header.php';
           <input type="hidden" name="id" value="<?php echo $t['id']; ?>" />
           <td><span class="td-name mono">.<?php echo h($t['tld']); ?></span>
             <?php if ($t['provider']): ?><div class="td-sub"><?php echo h($t['provider']); ?></div><?php endif; ?></td>
-          <td><input type="text" name="currency" class="form-control mono" style="width:70px;padding:6px 8px" value="<?php echo h($t['currency']); ?>" /></td>
-          <td><input type="number" step="0.01" min="0" name="register_price" class="form-control" style="width:95px;padding:6px 8px" value="<?php echo h($t['register_price']); ?>" /></td>
-          <td><input type="number" step="0.01" min="0" name="transfer_price" class="form-control" style="width:95px;padding:6px 8px" value="<?php echo h($t['transfer_price']); ?>" /></td>
-          <td><input type="number" step="0.01" min="0" name="renew_price" class="form-control" style="width:95px;padding:6px 8px" value="<?php echo h($t['renew_price']); ?>" /></td>
+          <td style="display:flex;gap:5px">
+            <input type="number" step="0.01" min="0" name="register_price_usd" class="form-control" style="width:78px;padding:6px 8px" value="<?php echo h($t['register_price_usd'] ?? $t['register_price']); ?>" title="USD" />
+            <input type="number" step="0.01" min="0" name="register_price_kes" class="form-control" style="width:88px;padding:6px 8px" value="<?php echo h($t['register_price_kes'] ?? 0); ?>" title="KES" />
+          </td>
+          <td style="display:flex;gap:5px">
+            <input type="number" step="0.01" min="0" name="transfer_price_usd" class="form-control" style="width:78px;padding:6px 8px" value="<?php echo h($t['transfer_price_usd'] ?? $t['transfer_price']); ?>" title="USD" />
+            <input type="number" step="0.01" min="0" name="transfer_price_kes" class="form-control" style="width:88px;padding:6px 8px" value="<?php echo h($t['transfer_price_kes'] ?? 0); ?>" title="KES" />
+          </td>
+          <td style="display:flex;gap:5px">
+            <input type="number" step="0.01" min="0" name="renew_price_usd" class="form-control" style="width:78px;padding:6px 8px" value="<?php echo h($t['renew_price_usd'] ?? $t['renew_price']); ?>" title="USD" />
+            <input type="number" step="0.01" min="0" name="renew_price_kes" class="form-control" style="width:88px;padding:6px 8px" value="<?php echo h($t['renew_price_kes'] ?? 0); ?>" title="KES" />
+          </td>
           <td style="font-size:12px;color:var(--text-muted);white-space:nowrap">
             <?php echo $t['register_cost'] !== null
                 ? number_format((float)$t['register_cost'],2) . ' / ' . number_format((float)$t['transfer_cost'],2) . ' / ' . number_format((float)$t['renew_cost'],2)
@@ -224,15 +247,14 @@ require_once '../../includes/header.php';
         <label class="form-label">TLD <span class="req">*</span></label>
         <input type="text" name="tld" class="form-control mono" placeholder="co.ke" required />
       </div>
-      <div class="form-group">
-        <label class="form-label">Currency</label>
-        <input type="text" name="currency" class="form-control mono" value="<?php echo h($site_currency); ?>" />
-      </div>
       <div class="form-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="form-group"><label class="form-label">Register price</label><input type="number" step="0.01" min="0" name="register_price" class="form-control" /></div>
-        <div class="form-group"><label class="form-label">Transfer price</label><input type="number" step="0.01" min="0" name="transfer_price" class="form-control" /></div>
+        <div class="form-group"><label class="form-label">Register price (USD)</label><input type="number" step="0.01" min="0" name="register_price_usd" class="form-control" /></div>
+        <div class="form-group"><label class="form-label">Register price (KES)</label><input type="number" step="0.01" min="0" name="register_price_kes" class="form-control" /></div>
+        <div class="form-group"><label class="form-label">Transfer price (USD)</label><input type="number" step="0.01" min="0" name="transfer_price_usd" class="form-control" /></div>
+        <div class="form-group"><label class="form-label">Transfer price (KES)</label><input type="number" step="0.01" min="0" name="transfer_price_kes" class="form-control" /></div>
+        <div class="form-group"><label class="form-label">Renewal price (USD)</label><input type="number" step="0.01" min="0" name="renew_price_usd" class="form-control" /></div>
+        <div class="form-group"><label class="form-label">Renewal price (KES)</label><input type="number" step="0.01" min="0" name="renew_price_kes" class="form-control" /></div>
       </div>
-      <div class="form-group"><label class="form-label">Renewal price</label><input type="number" step="0.01" min="0" name="renew_price" class="form-control" /></div>
     </div>
     <div class="drawer-foot">
       <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Add TLD</button>

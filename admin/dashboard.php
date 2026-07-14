@@ -4,10 +4,18 @@ require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/providers/Provider.php';
+require_once __DIR__ . '/includes/Currency.php';
 
 auth_check();
 $page_title = 'Dashboard';
 $db = db();
+Currency::ensureSchema();
+// Every aggregate below is scoped to USD-or-legacy rows only — now that
+// orders/client_services/invoices can be billed in KES, a blind SUM(total)
+// would otherwise silently blend two currencies into one meaningless
+// number. KES figures aren't folded in here yet; see $kes_revenue_month
+// below for a separate, un-mixed KES total.
+$CUR_USD = "(currency = 'USD' OR currency IS NULL)";
 
 // Resilient scalar/rowset query — returns default if a table isn't migrated yet
 function dq($sql, $default = 0)
@@ -25,15 +33,16 @@ function dqa($sql)
 $active_services = (int) dq('SELECT COUNT(*) FROM client_services WHERE status="active"');
 $total_clients   = (int) $db->query('SELECT COUNT(*) FROM clients WHERE status="active"')->fetchColumn();
 $open_tickets    = (int) $db->query('SELECT COUNT(*) FROM tickets WHERE status IN ("open","pending")')->fetchColumn();
-$month_revenue   = (float) $db->query('SELECT COALESCE(SUM(total),0) FROM invoices WHERE status="paid" AND YEAR(paid_date)=YEAR(NOW()) AND MONTH(paid_date)=MONTH(NOW())')->fetchColumn();
+$month_revenue   = (float) dq("SELECT COALESCE(SUM(total),0) FROM invoices WHERE status='paid' AND $CUR_USD AND YEAR(paid_date)=YEAR(NOW()) AND MONTH(paid_date)=MONTH(NOW())");
+$kes_revenue_month = (float) dq("SELECT COALESCE(SUM(total),0) FROM invoices WHERE status='paid' AND currency='KES' AND YEAR(paid_date)=YEAR(NOW()) AND MONTH(paid_date)=MONTH(NOW())");
 
-// MRR from active services (annualised /12)
-$mrr = (float) dq('SELECT COALESCE(SUM(CASE WHEN billing_cycle="annual" THEN amount/12 WHEN billing_cycle="monthly" THEN amount ELSE 0 END),0) FROM client_services WHERE status="active"');
+// MRR from active services (annualised /12) — USD-denominated services only, see $CUR_USD note above
+$mrr = (float) dq("SELECT COALESCE(SUM(CASE WHEN billing_cycle='annual' THEN amount/12 WHEN billing_cycle='monthly' THEN amount ELSE 0 END),0) FROM client_services WHERE status='active' AND $CUR_USD");
 
 // Trend context for the KPI row
 $new_clients_month = (int) dq('SELECT COUNT(*) FROM clients WHERE YEAR(created_at)=YEAR(CURDATE()) AND MONTH(created_at)=MONTH(CURDATE())');
 $urgent_tickets     = (int) dq('SELECT COUNT(*) FROM tickets WHERE status IN ("open","pending") AND priority IN ("urgent","high")');
-$last_month_revenue = (float) dq('SELECT COALESCE(SUM(total),0) FROM invoices WHERE status="paid" AND YEAR(paid_date)=YEAR(CURDATE() - INTERVAL 1 MONTH) AND MONTH(paid_date)=MONTH(CURDATE() - INTERVAL 1 MONTH)');
+$last_month_revenue = (float) dq("SELECT COALESCE(SUM(total),0) FROM invoices WHERE status='paid' AND $CUR_USD AND YEAR(paid_date)=YEAR(CURDATE() - INTERVAL 1 MONTH) AND MONTH(paid_date)=MONTH(CURDATE() - INTERVAL 1 MONTH)");
 $revenue_delta = $last_month_revenue > 0 ? round((($month_revenue - $last_month_revenue) / $last_month_revenue) * 100) : null;
 
 // Attention items
@@ -74,11 +83,11 @@ foreach (dqa('SELECT provider FROM integration_settings WHERE is_active = 1') as
     ];
 }
 
-// Revenue last 6 months
+// Revenue last 6 months (USD-denominated invoices only, see $CUR_USD note above)
 $rev_labels = []; $rev_amounts = [];
 for ($i = 5; $i >= 0; $i--) {
     $ts = strtotime("-$i months"); $ym = date('Y-m', $ts);
-    $stmt = $db->prepare('SELECT COALESCE(SUM(total),0) FROM invoices WHERE status="paid" AND DATE_FORMAT(paid_date,"%Y-%m")=?');
+    $stmt = $db->prepare("SELECT COALESCE(SUM(total),0) FROM invoices WHERE status='paid' AND $CUR_USD AND DATE_FORMAT(paid_date,'%Y-%m')=?");
     $stmt->execute([$ym]);
     $rev_labels[]  = date('M', $ts);
     $rev_amounts[] = round((float)$stmt->fetchColumn(), 2);
@@ -135,6 +144,7 @@ require_once __DIR__ . '/includes/header.php';
         <?php else: ?>
           <span class="stat-delta <?php echo $revenue_delta >= 0 ? 'up' : 'down'; ?>"><i class="fas fa-arrow-<?php echo $revenue_delta >= 0 ? 'up' : 'down'; ?>"></i> <?php echo abs($revenue_delta); ?>%</span> vs last month
         <?php endif; ?>
+        <?php if ($kes_revenue_month > 0): ?><br />+ KSh <?php echo number_format($kes_revenue_month, 2); ?> (KES, shown separately)<?php endif; ?>
       </div></div>
   </div>
   <div class="stat-card">

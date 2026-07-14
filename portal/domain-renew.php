@@ -12,8 +12,10 @@ require_once __DIR__ . '/includes/domain_payment.php';
 require_once dirname(__DIR__) . '/admin/includes/DomainClient.php';
 require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
 require_once dirname(__DIR__) . '/admin/includes/Automation.php';
+require_once dirname(__DIR__) . '/admin/includes/Currency.php';
 
 portal_check();
+Currency::ensureSchema();
 $client_id = (int) current_client()['id'];
 
 $client = db()->prepare('SELECT * FROM clients WHERE id = ?');
@@ -44,9 +46,10 @@ try {
     $tld_row = $t->fetch();
 } catch (\Throwable $e) { /* table missing */ }
 
-$renewable = $registrar_ok && $tld_row && (float) $tld_row['renew_price'] > 0;
-$currency  = $tld_row['currency'] ?? (defined('CURRENCY') ? CURRENCY : 'USD');
-$gateways  = dp_active_gateways();
+$currency    = Currency::current();
+$renew_price = $tld_row ? (float) ($currency === 'KES' ? ($tld_row['renew_price_kes'] ?? 0) : ($tld_row['renew_price_usd'] ?? 0)) : 0.0;
+$renewable   = $registrar_ok && $tld_row && $renew_price > 0;
+$gateways    = dp_active_gateways($currency);
 
 $view = 'form'; $error = ''; $push_msg = ''; $pay_id = 0; $renew_ok = null; $renew_note = '';
 
@@ -93,12 +96,12 @@ if ($renewable && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? 
     portal_csrf_verify();
     $years = max(1, min(5, (int) ($_POST['years'] ?? 1)));
     $gw    = $_POST['gateway'] ?? '';
-    $total = round((float) $tld_row['renew_price'] * $years, 2);
+    $total = round($renew_price * $years, 2);
 
     if (!isset($gateways[$gw])) {
         $error = 'Please choose a payment method.';
     } else {
-        $invoice_id = dp_create_invoice($client_id, 'Domain renewal: ' . $dom['domain_name'] . ' (' . $years . ' yr)', $total);
+        $invoice_id = dp_create_invoice($client_id, 'Domain renewal: ' . $dom['domain_name'] . ' (' . $years . ' yr)', $total, $currency);
         $return = PORTAL_URL . '/domain-renew.php?id=' . $id;
         $start  = dp_start_payment(
             $client_id, $invoice_id, $total, $currency, $gw,
@@ -191,7 +194,7 @@ $days_left = $dom['expiry_date'] ? (int) ceil((strtotime($dom['expiry_date']) - 
       <div class="co-info"><i class="fas fa-circle-info"></i> This domain isn't linked to an active automated registrar, so it can't be renewed online yet.</div>
       <a href="<?php echo PORTAL_URL; ?>/tickets/add.php?subject=<?php echo urlencode('Renew ' . $dom['domain_name']); ?>" class="btn btn-primary btn-pay"><i class="fas fa-life-ring"></i> Contact Support to Renew</a>
 
-    <?php elseif (!$tld_row || (float) $tld_row['renew_price'] <= 0): ?>
+    <?php elseif (!$tld_row || $renew_price <= 0): ?>
       <div class="co-info"><i class="fas fa-circle-info"></i> Online renewal pricing isn't set up for this domain's extension yet.</div>
       <a href="<?php echo PORTAL_URL; ?>/tickets/add.php?subject=<?php echo urlencode('Renew ' . $dom['domain_name']); ?>" class="btn btn-primary btn-pay"><i class="fas fa-life-ring"></i> Contact Support to Renew</a>
 
@@ -210,7 +213,7 @@ $days_left = $dom['expiry_date'] ? (int) ceil((strtotime($dom['expiry_date']) - 
         <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Renew for</label>
         <select name="years" id="yearsSelect" class="years-select">
           <?php for ($y = 1; $y <= 5; $y++): ?>
-            <option value="<?php echo $y; ?>"><?php echo $y; ?> year<?php echo $y > 1 ? 's' : ''; ?> — <?php echo htmlspecialchars($currency); ?> <?php echo number_format($tld_row['renew_price'] * $y, 2); ?></option>
+            <option value="<?php echo $y; ?>"><?php echo $y; ?> year<?php echo $y > 1 ? 's' : ''; ?> — <?php echo htmlspecialchars($currency); ?> <?php echo number_format($renew_price * $y, 2); ?></option>
           <?php endfor; ?>
         </select>
 

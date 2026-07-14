@@ -13,19 +13,28 @@ require_once __DIR__ . '/includes/domain_payment.php';
 require_once dirname(__DIR__) . '/admin/includes/DomainClient.php';
 require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
 require_once dirname(__DIR__) . '/admin/includes/Automation.php';
+require_once dirname(__DIR__) . '/admin/includes/Currency.php';
 
 portal_check();
+Currency::ensureSchema();
 $client_id = (int) current_client()['id'];
 $client = db()->prepare('SELECT * FROM clients WHERE id = ?');
 $client->execute([$client_id]);
 $client = $client->fetch();
 
 $reg_key  = Provider::activeFor('registrar');
-$gateways = dp_active_gateways();
+$currency = Currency::current();
+$gateways = dp_active_gateways($currency);
 
 $view = 'form'; $error = ''; $push_msg = ''; $pay_id = 0; $tf_ok = null; $tf_note = '';
 $domain = trim($_POST['domain'] ?? ''); $auth_code = trim($_POST['auth_code'] ?? ''); $years = max(1, min(5, (int) ($_POST['years'] ?? 1)));
-$tld_row = null; $currency = defined('CURRENCY') ? CURRENCY : 'USD';
+$tld_row = null; $transfer_price = 0.0;
+
+function tf_resolve_price(?array $row, string $currency): float
+{
+    if (!$row) return 0.0;
+    return (float) ($currency === 'KES' ? ($row['transfer_price_kes'] ?? 0) : ($row['transfer_price_usd'] ?? 0));
+}
 
 function tf_price_lookup(string $domain): ?array
 {
@@ -91,12 +100,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'quote
         $error = 'Enter the auth/EPP code from your current registrar.';
     } else {
         $tld_row = tf_price_lookup($domain);
+        $transfer_price = tf_resolve_price($tld_row, $currency);
         if (!$reg_key) {
             $error = 'Domain transfers are temporarily unavailable — no registrar is active.';
-        } elseif (!$tld_row || (float) $tld_row['transfer_price'] <= 0) {
+        } elseif ($transfer_price <= 0) {
             $error = "We don't have online transfer pricing set up for that extension yet.";
         } else {
-            $currency = $tld_row['currency'];
             $view = 'quote';
         }
     }
@@ -106,18 +115,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'quote
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay') {
     portal_csrf_verify();
     $tld_row = tf_price_lookup($domain);
-    if (!$reg_key || !$tld_row || (float) $tld_row['transfer_price'] <= 0) {
+    $transfer_price = tf_resolve_price($tld_row, $currency);
+    if (!$reg_key || $transfer_price <= 0) {
         $error = 'This domain can no longer be quoted for transfer — please start again.';
     } else {
-        $currency = $tld_row['currency'];
         $gw = $_POST['gateway'] ?? '';
-        $total = round((float) $tld_row['transfer_price'] * $years, 2);
+        $total = round($transfer_price * $years, 2);
 
         if (!isset($gateways[$gw])) {
             $error = 'Please choose a payment method.';
             $view = 'quote';
         } else {
-            $invoice_id = dp_create_invoice($client_id, 'Domain transfer: ' . $domain . ' (' . $years . ' yr)', $total);
+            $invoice_id = dp_create_invoice($client_id, 'Domain transfer: ' . $domain . ' (' . $years . ' yr)', $total, $currency);
             $return = PORTAL_URL . '/domain-transfer.php';
             $start  = dp_start_payment(
                 $client_id, $invoice_id, $total, $currency, $gw,
@@ -218,7 +227,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
         <label class="tf-label">Years</label>
         <select name="years" class="years-select">
           <?php for ($y = 1; $y <= 5; $y++): ?>
-            <option value="<?php echo $y; ?>" <?php echo $y === $years ? 'selected' : ''; ?>><?php echo $y; ?> year<?php echo $y > 1 ? 's' : ''; ?> — <?php echo htmlspecialchars($currency); ?> <?php echo number_format($tld_row['transfer_price'] * $y, 2); ?></option>
+            <option value="<?php echo $y; ?>" <?php echo $y === $years ? 'selected' : ''; ?>><?php echo $y; ?> year<?php echo $y > 1 ? 's' : ''; ?> — <?php echo htmlspecialchars($currency); ?> <?php echo number_format($transfer_price * $y, 2); ?></option>
           <?php endfor; ?>
         </select>
 

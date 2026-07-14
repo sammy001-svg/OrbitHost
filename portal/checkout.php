@@ -10,8 +10,11 @@ require_once dirname(__DIR__) . '/admin/includes/providers/Provider.php';
 require_once dirname(__DIR__) . '/admin/includes/DomainClient.php';
 require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
 require_once dirname(__DIR__) . '/admin/includes/Automation.php';
+require_once dirname(__DIR__) . '/admin/includes/Currency.php';
+require_once __DIR__ . '/includes/domain_payment.php';
 
 portal_start();
+Currency::ensureSchema();
 
 // ── Sign-in gate: remember where to come back to ──
 if (empty($_SESSION['client_id'])) {
@@ -26,30 +29,30 @@ $client->execute([$client_id]);
 $client = $client->fetch();
 
 $cart = $_SESSION['cart_domains'] ?? [];
+$currency = Currency::current();
 
 // ── Price the cart ──
 $tld_rows = [];
 try {
-    foreach (db()->query('SELECT tld, currency, register_price FROM domain_tlds WHERE is_active = 1')->fetchAll() as $r) {
+    foreach (db()->query(
+        'SELECT tld, register_price_usd, register_price_kes FROM domain_tlds WHERE is_active = 1'
+    )->fetchAll() as $r) {
         $tld_rows[$r['tld']] = $r;
     }
 } catch (\Throwable $e) { /* handled below */ }
 
-$items = []; $total = 0.0; $currency = defined('CURRENCY') ? CURRENCY : 'USD';
+$items = []; $total = 0.0;
 foreach ($cart as $domain => $it) {
     $p = $tld_rows[$it['tld']] ?? null;
     if (!$p) continue;
-    $line = (float)$p['register_price'] * $it['years'];
+    $unit = (float) ($currency === 'KES' ? ($p['register_price_kes'] ?? 0) : ($p['register_price_usd'] ?? 0));
+    $line = $unit * $it['years'];
     $total += $line;
-    $currency = $p['currency'];
-    $items[] = ['domain' => $domain, 'years' => $it['years'], 'unit' => (float)$p['register_price'], 'line' => $line];
+    $items[] = ['domain' => $domain, 'years' => $it['years'], 'unit' => $unit, 'line' => $line];
 }
 
-// ── Active gateways ──
-$gateways = [];
-foreach (ProviderRegistry::byCategory('payment') as $key => $def) {
-    if (Provider::isActive($key) && Provider::isConfigured($key)) $gateways[$key] = $def;
-}
+// ── Active gateways (KopoKopo/M-Pesa only offered for KES — see dp_active_gateways) ──
+$gateways = dp_active_gateways($currency);
 
 function iso_country(string $name): string
 {
@@ -163,9 +166,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
             try {
                 // Invoice
                 $inv_no = generate_invoice_number();
-                db()->prepare("INSERT INTO invoices (invoice_number, client_id, subtotal, tax_rate, tax_amount, total, status, due_date)
-                               VALUES (?,?,?,0,0,?, 'sent', CURDATE())")
-                    ->execute([$inv_no, $client_id, $total, $total]);
+                db()->prepare("INSERT INTO invoices (invoice_number, client_id, subtotal, tax_rate, tax_amount, total, status, due_date, currency)
+                               VALUES (?,?,?,0,0,?, 'sent', CURDATE(), ?)")
+                    ->execute([$inv_no, $client_id, $total, $total, $currency]);
                 $invoice_id = (int)db()->lastInsertId();
                 $item_stmt = db()->prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (?,?,?,?,?)');
                 foreach ($items as $it) {

@@ -11,18 +11,29 @@ require_once dirname(__DIR__) . '/admin/includes/functions.php';
 require_once __DIR__ . '/includes/domain_payment.php';
 require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
 require_once dirname(__DIR__) . '/admin/includes/Automation.php';
+require_once dirname(__DIR__) . '/admin/includes/Currency.php';
 
 portal_check();
 $page_title = 'Order Services';
 $c   = current_client();
 $cid = (int) $c['id'];
+Currency::ensureSchema();
 
 $client_row = db()->prepare('SELECT * FROM clients WHERE id = ?');
 $client_row->execute([$cid]);
 $client_row = $client_row->fetch();
 
-$currency = defined('CURRENCY') ? CURRENCY : 'USD';
-$gateways = dp_active_gateways();
+$currency = Currency::current();
+$gateways = dp_active_gateways($currency);
+
+/** This client's price for a services row, in whatever currency they're checking out in. */
+function order_plan_amount(array $plan, string $currency): array
+{
+    if ($currency === 'KES') {
+        return ['price' => (float) ($plan['price_kes'] ?? 0), 'setup_fee' => (float) ($plan['setup_fee_kes'] ?? 0)];
+    }
+    return ['price' => (float) $plan['price'], 'setup_fee' => (float) $plan['setup_fee']];
+}
 
 $cycle_label = ['monthly' => '/mo', 'annual' => '/yr', 'one_time' => ' one-time'];
 
@@ -101,11 +112,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
             $error = 'That domain name doesn\'t look right — use e.g. example.co.ke (or leave it blank).';
             $view  = 'form';
         } else {
-            $total = (float) $sel_plan['price'] + (float) $sel_plan['setup_fee'];
+            $amt   = order_plan_amount($sel_plan, $currency);
+            $total = $amt['price'] + $amt['setup_fee'];
             $desc  = 'Service order: ' . $sel_plan['name']
                    . ' (' . str_replace('_', ' ', $sel_plan['billing_cycle']) . ')'
-                   . ((float) $sel_plan['setup_fee'] > 0 ? ' + setup fee' : '');
-            $invoice_id = dp_create_invoice($cid, $desc, $total);
+                   . ($amt['setup_fee'] > 0 ? ' + setup fee' : '');
+            $invoice_id = dp_create_invoice($cid, $desc, $total, $currency);
             $return = PORTAL_URL . '/order.php';
             $start  = dp_start_payment(
                 $cid, $invoice_id, $total, $currency, $gw,
@@ -180,7 +192,7 @@ require_once __DIR__ . '/includes/header.php';
     <a href="<?php echo PORTAL_URL; ?>/order.php" class="btn btn-primary" style="margin-top:18px"><i class="fas fa-rotate"></i> Try again</a>
   </div>
 
-<?php elseif ($view === 'form' && $sel_plan): ?>
+<?php elseif ($view === 'form' && $sel_plan): $view_amt = order_plan_amount($sel_plan, $currency); ?>
   <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start" class="order-grid">
     <div class="p-card" style="padding:26px">
       <h2 style="font-size:16px;font-weight:700;margin-bottom:16px"><i class="fas fa-credit-card" style="color:var(--green)"></i> Complete your order</h2>
@@ -211,7 +223,7 @@ require_once __DIR__ . '/includes/header.php';
           <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">M-Pesa phone number</label>
           <input type="tel" name="mpesa_phone" class="form-control" placeholder="07XX XXX XXX" value="<?php echo htmlspecialchars($client_row['phone'] ?? ''); ?>" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px" />
         </div>
-        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-weight:700"><i class="fas fa-lock"></i> Pay <?php echo htmlspecialchars($currency); ?> <?php echo number_format((float)$sel_plan['price'] + (float)$sel_plan['setup_fee'], 2); ?></button>
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-weight:700"><i class="fas fa-lock"></i> Pay <?php echo htmlspecialchars($currency); ?> <?php echo number_format($view_amt['price'] + $view_amt['setup_fee'], 2); ?></button>
       </form>
       <script>
         document.querySelectorAll('input[name="gateway"]').forEach(function (r) {
@@ -231,15 +243,15 @@ require_once __DIR__ . '/includes/header.php';
       <?php endif; ?>
       <div style="border-top:1px solid var(--border);margin:14px 0;padding-top:14px;display:flex;justify-content:space-between;font-size:13.5px">
         <span><?php echo htmlspecialchars($sel_plan['name']); ?></span>
-        <strong><?php echo htmlspecialchars($currency); ?> <?php echo number_format((float)$sel_plan['price'], 2); ?><?php echo $cycle_label[$sel_plan['billing_cycle']] ?? ''; ?></strong>
+        <strong><?php echo htmlspecialchars($currency); ?> <?php echo number_format($view_amt['price'], 2); ?><?php echo $cycle_label[$sel_plan['billing_cycle']] ?? ''; ?></strong>
       </div>
-      <?php if ((float)$sel_plan['setup_fee'] > 0): ?>
+      <?php if ($view_amt['setup_fee'] > 0): ?>
         <div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:6px">
-          <span>Setup fee</span><strong><?php echo htmlspecialchars($currency); ?> <?php echo number_format((float)$sel_plan['setup_fee'], 2); ?></strong>
+          <span>Setup fee</span><strong><?php echo htmlspecialchars($currency); ?> <?php echo number_format($view_amt['setup_fee'], 2); ?></strong>
         </div>
       <?php endif; ?>
       <div style="display:flex;justify-content:space-between;border-top:2px solid var(--border);padding-top:12px;margin-top:8px;font-size:15.5px;font-weight:800;color:var(--navy)">
-        <span>Due today</span><span><?php echo htmlspecialchars($currency); ?> <?php echo number_format((float)$sel_plan['price'] + (float)$sel_plan['setup_fee'], 2); ?></span>
+        <span>Due today</span><span><?php echo htmlspecialchars($currency); ?> <?php echo number_format($view_amt['price'] + $view_amt['setup_fee'], 2); ?></span>
       </div>
       <?php if (!empty($sel_plan['features'])): ?>
         <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px">
@@ -262,14 +274,14 @@ require_once __DIR__ . '/includes/header.php';
   <?php foreach ($by_cat as $cat => $cat_plans): ?>
     <h2 style="font-size:16px;font-weight:800;color:var(--navy);margin:26px 0 14px"><?php echo htmlspecialchars($cat_labels[$cat] ?? ucfirst($cat)); ?></h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px">
-      <?php foreach ($cat_plans as $p): ?>
+      <?php foreach ($cat_plans as $p): $p_amt = order_plan_amount($p, $currency); ?>
         <div class="p-card" style="padding:22px;display:flex;flex-direction:column">
           <div style="font-size:15.5px;font-weight:800;color:var(--navy)"><?php echo htmlspecialchars($p['name']); ?></div>
           <div style="font-size:21px;font-weight:800;color:var(--green);margin:8px 0 2px">
-            <?php echo htmlspecialchars($currency); ?> <?php echo number_format((float)$p['price'], 2); ?><span style="font-size:12px;color:var(--text-muted);font-weight:600"><?php echo $cycle_label[$p['billing_cycle']] ?? ''; ?></span>
+            <?php echo htmlspecialchars($currency); ?> <?php echo number_format($p_amt['price'], 2); ?><span style="font-size:12px;color:var(--text-muted);font-weight:600"><?php echo $cycle_label[$p['billing_cycle']] ?? ''; ?></span>
           </div>
-          <?php if ((float)$p['setup_fee'] > 0): ?>
-            <div style="font-size:11.5px;color:var(--text-muted)">+ <?php echo htmlspecialchars($currency); ?> <?php echo number_format((float)$p['setup_fee'], 2); ?> setup</div>
+          <?php if ($p_amt['setup_fee'] > 0): ?>
+            <div style="font-size:11.5px;color:var(--text-muted)">+ <?php echo htmlspecialchars($currency); ?> <?php echo number_format($p_amt['setup_fee'], 2); ?> setup</div>
           <?php endif; ?>
           <?php if (!empty($p['description'])): ?>
             <p style="font-size:12.5px;color:var(--text-muted);margin-top:8px;line-height:1.55"><?php echo htmlspecialchars(mb_strimwidth($p['description'], 0, 120, '…')); ?></p>

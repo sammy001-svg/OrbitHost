@@ -142,13 +142,14 @@ final class Automation
         db()->prepare('INSERT INTO whm_accounts (order_id, cpanel_user, domain) VALUES (?,?,?)')
             ->execute([$order_id, $username, $domain]);
         try {
+            Currency::ensureSchema();
             db()->prepare('INSERT INTO client_services
                     (client_id, service_id, order_id, label, domain, category, provider_category, provider_key,
-                     remote_id, username, package, billing_cycle, amount, status, start_date, next_due_date)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,"active",CURDATE(),?)')
+                     remote_id, username, package, billing_cycle, amount, currency, status, start_date, next_due_date)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,"active",CURDATE(),?)')
                 ->execute([$o['client_id'], $o['service_id'], $order_id,
                            $o['plan_name'] ?: ($o['service_name'] ?: 'Hosting'), $domain, 'hosting', 'panel', $panel_key,
-                           $username, $username, $package, $o['billing_cycle'], $o['amount'], $o['next_due']]);
+                           $username, $username, $package, $o['billing_cycle'], $o['amount'], $o['currency'] ?? 'USD', $o['next_due']]);
         } catch (\Throwable $e) { /* client_services not migrated — whm_accounts row is enough */ }
         db()->prepare("UPDATE orders SET status = 'active' WHERE id = ?")->execute([$order_id]);
         self::noteOrder($order_id, 'Auto-provisioned cPanel account ' . $username . ' on ' . $panel_key . '.');
@@ -415,10 +416,12 @@ final class Automation
         $next  = $cycle === 'monthly' ? date('Y-m-d', strtotime('+1 month'))
                : ($cycle === 'annual' ? date('Y-m-d', strtotime('+1 year')) : null);
 
-        db()->prepare('INSERT INTO orders (client_id, service_id, service_name, domain_name, amount, billing_cycle, status, start_date, next_due, notes)
-                       VALUES (?,?,?,?,?,?,?,CURDATE(),?,?)')
+        require_once __DIR__ . '/Currency.php';
+        Currency::ensureSchema();
+        db()->prepare('INSERT INTO orders (client_id, service_id, service_name, domain_name, amount, billing_cycle, status, start_date, next_due, notes, currency)
+                       VALUES (?,?,?,?,?,?,?,CURDATE(),?,?,?)')
             ->execute([$pay['client_id'], $plan['id'] ?? null, $name, $ctx['domain'] ?: null, (float) $pay['amount'], $cycle,
-                       'pending', $next, 'Ordered from client portal — invoice #' . $pay['invoice_id']]);
+                       'pending', $next, 'Ordered from client portal — invoice #' . $pay['invoice_id'], $pay['currency'] ?? 'USD']);
         $order_id = (int) db()->lastInsertId();
 
         // Remember we've created it, so a later call (cron overlapping the

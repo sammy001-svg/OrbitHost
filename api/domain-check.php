@@ -13,6 +13,10 @@ require_once __DIR__ . '/../admin/includes/config.php';
 require_once __DIR__ . '/../admin/includes/db.php';
 require_once __DIR__ . '/../admin/includes/providers/Provider.php';
 require_once __DIR__ . '/../admin/includes/DomainClient.php';
+require_once __DIR__ . '/../admin/includes/Currency.php';
+
+Currency::ensureSchema();
+$visitor_currency = Currency::current();
 
 function jout(array $data, int $code = 200): void
 {
@@ -35,7 +39,10 @@ if ($sld === '' || strlen($sld) < 2) jout(['ok' => false, 'error' => 'Enter at l
 
 // Active TLDs with prices (limit for speed; requested TLD always included)
 try {
-    $rows = db()->query('SELECT tld, currency, register_price, renew_price FROM domain_tlds WHERE is_active = 1 ORDER BY sort_order, tld LIMIT 10')->fetchAll();
+    $rows = db()->query(
+        'SELECT tld, register_price_usd, register_price_kes, renew_price_usd, renew_price_kes
+         FROM domain_tlds WHERE is_active = 1 ORDER BY sort_order, tld LIMIT 10'
+    )->fetchAll();
 } catch (\Throwable $e) {
     jout(['ok' => false, 'error' => 'Domain pricing is not configured yet. Please contact support.'], 503);
 }
@@ -67,13 +74,15 @@ try {
 $results = [];
 foreach ($tld_prices as $tld => $p) {
     $domain = "$sld.$tld";
+    $reg_price = $visitor_currency === 'KES' ? ($p['register_price_kes'] ?? 0) : ($p['register_price_usd'] ?? 0);
+    $ren_price = $visitor_currency === 'KES' ? ($p['renew_price_kes'] ?? 0) : ($p['renew_price_usd'] ?? 0);
     $results[] = [
         'domain'    => $domain,
         'tld'       => $tld,
         'available' => $live ? ($availability[$domain] ?? null) : null,
-        'price'     => (float)$p['register_price'],
-        'renew'     => (float)$p['renew_price'],
-        'currency'  => $p['currency'],
+        'price'     => (float) $reg_price,
+        'renew'     => (float) $ren_price,
+        'currency'  => $visitor_currency,
     ];
 }
 
