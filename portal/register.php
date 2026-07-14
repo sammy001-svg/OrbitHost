@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$data['first_name']) $errors[] = 'First name is required.';
     if (!$data['last_name'])  $errors[] = 'Last name is required.';
     if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) $errors[] = 'A valid email address is required.';
-    if (strlen($pass) < 8)   $errors[] = 'Password must be at least 8 characters.';
+    $errors = array_merge($errors, password_policy_errors($pass, [$data['email'], $data['first_name'], $data['last_name']]));
     if ($pass !== $pass2)    $errors[] = 'Passwords do not match.';
 
     if (!$errors) {
@@ -188,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label">Password <span class="req">*</span></label>
-          <input type="password" id="new_password" name="password" class="form-control" placeholder="Min 8 characters" required />
+          <input type="password" id="new_password" name="password" class="form-control" placeholder="Min 10 characters" required />
           <div style="height:3px;background:#f1f5f9;border-radius:2px;margin-top:6px"><div id="strengthBar" style="height:100%;border-radius:2px;transition:width .2s,background .2s;width:0"></div></div>
         </div>
         <div class="form-group">

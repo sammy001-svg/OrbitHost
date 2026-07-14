@@ -24,11 +24,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pass  =      $_POST['password'] ?? '';
     if (!$email || !$pass) {
         $error = 'Please enter your email and password.';
-    } elseif (portal_login($email, $pass)) {
-        header('Location: ' . PORTAL_URL . '/' . portal_after_auth());
-        exit;
     } else {
-        $error = 'Invalid email or password. If you have not set a portal password yet, please use the link in your welcome email.';
+        $r = portal_login($email, $pass);
+        if (!empty($r['ok'])) {
+            header('Location: ' . PORTAL_URL . '/' . portal_after_auth());
+            exit;
+        }
+        $error = $r['message'] ?? 'Invalid email or password.';
     }
 }
 ?>

@@ -41,10 +41,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
     $new  = $_POST['new_password']     ?? '';
     $new2 = $_POST['new_password2']    ?? '';
 
+    $policy_errors = password_policy_errors($new, [$client['email'], $client['first_name'], $client['last_name']]);
     if (!password_verify($cur, $client['portal_password'] ?? '')) {
         $errors = 'Current password is incorrect.';
-    } elseif (strlen($new) < 8) {
-        $errors = 'New password must be at least 8 characters.';
+    } elseif ($policy_errors) {
+        $errors = implode(' ', $policy_errors);
     } elseif ($new !== $new2) {
         $errors = 'New passwords do not match.';
     } else {
@@ -135,7 +136,7 @@ require_once __DIR__ . '/includes/header.php';
       <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label">New Password</label>
-          <input type="password" id="new_password" name="new_password" class="form-control" placeholder="Min 8 characters" required />
+          <input type="password" id="new_password" name="new_password" class="form-control" placeholder="Min 10 characters" required />
           <div style="height:3px;background:#f1f5f9;border-radius:2px;margin-top:6px"><div id="strengthBar" style="height:100%;border-radius:2px;transition:width .2s,background .2s;width:0"></div></div>
         </div>
         <div class="form-group">

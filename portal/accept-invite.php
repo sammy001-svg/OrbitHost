@@ -2,6 +2,7 @@
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
+require_once dirname(__DIR__) . '/admin/includes/functions.php';
 
 portal_start();
 
@@ -23,8 +24,9 @@ if ($token) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $invite) {
     $pass  = $_POST['password']  ?? '';
     $pass2 = $_POST['password2'] ?? '';
-    if (strlen($pass) < 8) {
-        $errors[] = 'Password must be at least 8 characters.';
+    $errors = password_policy_errors($pass, [$invite['email'] ?? '', $invite['first_name'] ?? '']);
+    if ($errors) {
+        // fall through — errors already populated
     } elseif ($pass !== $pass2) {
         $errors[] = 'Passwords do not match.';
     } else {
@@ -109,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $invite) {
         <input type="hidden" name="token" value="<?php echo htmlspecialchars($token); ?>" />
         <div class="form-group">
           <label class="form-label">Choose a Password</label>
-          <input type="password" name="password" id="new_password" class="form-control" placeholder="At least 8 characters" required autofocus />
+          <input type="password" name="password" id="new_password" class="form-control" placeholder="Min 10 characters" required autofocus />
           <div id="strengthBar" style="height:3px;border-radius:2px;margin-top:6px;width:0;transition:.3s"></div>
         </div>
         <div class="form-group">

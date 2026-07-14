@@ -61,13 +61,13 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
   </nav>
 
   <div class="sidebar-footer">
-    <div class="admin-mini">
+    <a href="<?php echo APP_URL; ?>/profile.php" class="admin-mini" title="My Account" style="text-decoration:none">
       <div class="admin-mini-avatar"><?php echo strtoupper(substr(current_admin()['name'], 0, 1)); ?></div>
       <div class="admin-mini-info">
         <div class="admin-mini-name"><?php echo h(current_admin()['name']); ?></div>
         <div class="admin-mini-role"><?php echo ucfirst(str_replace('_', ' ', current_admin()['role'])); ?></div>
       </div>
-    </div>
+    </a>
     <a href="<?php echo APP_URL; ?>/logout.php" class="logout-link" title="Sign Out">
       <i class="fas fa-sign-out-alt"></i>
     </a>

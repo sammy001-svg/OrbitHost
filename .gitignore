@@ -11,3 +11,8 @@ Thumbs.db
 
 # Admin-uploaded content (banner images etc.) — lives on the server, not in git
 uploads/
+
+# Automated DB backups (admin/cron/backup.php) — contains live customer
+# data and credentials; never belongs in git regardless of the .htaccess
+# deny-all the cron also writes into this directory on the server.
+backups/

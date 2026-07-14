@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../admin/includes/db.php';
+require_once __DIR__ . '/../../admin/includes/LoginGuard.php';
 
 function portal_start(): void
 {
@@ -25,15 +26,23 @@ function portal_check(): void
     $_SESSION['last_active'] = time();
 }
 
-function portal_login(string $email, string $password): bool
+/** @return array{ok:bool, message?:string} */
+function portal_login(string $email, string $password): array
 {
+    $blocked = LoginGuard::checkBlocked('portal', $email);
+    if ($blocked) return ['ok' => false, 'message' => $blocked];
+
     $stmt = db()->prepare('SELECT id, first_name, last_name, status, portal_password FROM clients WHERE email = ? LIMIT 1');
     $stmt->execute([$email]);
     $client = $stmt->fetch();
 
-    if (!$client || $client['status'] !== 'active') return false;
-    if (!$client['portal_password']) return false; // no portal password set yet
-    if (!password_verify($password, $client['portal_password'])) return false;
+    $valid = $client && $client['status'] === 'active' && $client['portal_password']
+          && password_verify($password, $client['portal_password']);
+    LoginGuard::record('portal', $email, (bool) $valid);
+
+    if (!$valid) {
+        return ['ok' => false, 'message' => 'Invalid email or password. If you have not set a portal password yet, please use the link in your welcome email.'];
+    }
 
     session_regenerate_id(true);
     $_SESSION['client_id']    = $client['id'];
@@ -42,7 +51,7 @@ function portal_login(string $email, string $password): bool
     $_SESSION['last_active']  = time();
 
     db()->prepare('UPDATE clients SET portal_login = NOW() WHERE id = ?')->execute([$client['id']]);
-    return true;
+    return ['ok' => true];
 }
 
 function portal_csrf(): string

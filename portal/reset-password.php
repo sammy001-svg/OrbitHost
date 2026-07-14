@@ -1,6 +1,7 @@
 <?php
 require_once '../admin/includes/config.php';
 require_once '../admin/includes/db.php';
+require_once '../admin/includes/functions.php';
 
 session_name('orbit_portal');
 session_start();
@@ -38,8 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $client) {
     $pass  = $_POST['password']  ?? '';
     $pass2 = $_POST['password2'] ?? '';
 
-    if (strlen($pass) < 8) {
-        $errors[] = 'Password must be at least 8 characters.';
+    $errors = password_policy_errors($pass, [$client['first_name'] ?? '']);
+    if ($errors) {
+        // fall through — errors already populated
     } elseif ($pass !== $pass2) {
         $errors[] = 'Passwords do not match.';
     } else {
@@ -98,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $client) {
         <input type="hidden" name="token" value="<?php echo htmlspecialchars($token); ?>" />
         <div class="form-group">
           <label class="form-label">New Password</label>
-          <input type="password" name="password" id="new_password" class="form-control" placeholder="At least 8 characters" required />
+          <input type="password" name="password" id="new_password" class="form-control" placeholder="Min 10 characters" required />
           <div id="strengthBar" style="height:3px;border-radius:2px;margin-top:6px;width:0;transition:.3s"></div>
         </div>
         <div class="form-group">
