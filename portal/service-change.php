@@ -10,10 +10,13 @@ require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once dirname(__DIR__) . '/admin/includes/functions.php';
 require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
+require_once dirname(__DIR__) . '/admin/includes/Currency.php';
 
 portal_check();
+Currency::ensureSchema();
 $c   = current_client();
 $cid = (int) $c['id'];
+$currency = Currency::current();
 
 try {
     db()->exec("CREATE TABLE IF NOT EXISTS service_change_requests (
@@ -127,7 +130,7 @@ require_once __DIR__ . '/includes/header.php';
   <div class="p-form-card">
     <p style="font-size:13.5px;color:var(--text-muted);margin-bottom:18px">
       Current plan: <strong style="color:var(--navy)"><?php echo htmlspecialchars($svc['package'] ?: $svc['label']); ?></strong>
-      (<?php echo format_money($current_price); ?>/<?php echo str_replace('_', ' ', $svc['billing_cycle']); ?>)
+      (<?php echo Currency::format($current_price, $svc['currency'] ?? 'USD'); ?>/<?php echo str_replace('_', ' ', $svc['billing_cycle']); ?>)
     </p>
 
     <?php if (!$plans): ?>
@@ -138,12 +141,12 @@ require_once __DIR__ . '/includes/header.php';
         <input type="hidden" name="id" value="<?php echo $id; ?>" />
 
         <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px">
-          <?php foreach ($plans as $p): $dir = (float)$p['price'] >= $current_price ? 'upgrade' : 'downgrade'; ?>
+          <?php foreach ($plans as $p): $dir = (float)$p['price'] >= $current_price ? 'upgrade' : 'downgrade'; $p_amt = Currency::planAmount($p, $currency); ?>
             <label style="display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer">
               <input type="radio" name="plan_id" value="<?php echo (int)$p['id']; ?>" required />
               <span style="flex:1">
                 <span style="font-weight:700;color:var(--navy);display:block"><?php echo htmlspecialchars($p['name']); ?></span>
-                <span style="font-size:12px;color:var(--text-muted)"><?php echo format_money($p['price']); ?>/<?php echo str_replace('_',' ',$p['billing_cycle']); ?><?php echo !empty($p['description']) ? ' — ' . htmlspecialchars(mb_strimwidth($p['description'], 0, 80, '…')) : ''; ?></span>
+                <span style="font-size:12px;color:var(--text-muted)"><?php echo Currency::format($p_amt['price'], $currency); ?>/<?php echo str_replace('_',' ',$p['billing_cycle']); ?><?php echo !empty($p['description']) ? ' — ' . htmlspecialchars(mb_strimwidth($p['description'], 0, 80, '…')) : ''; ?></span>
               </span>
               <span class="badge <?php echo $dir === 'upgrade' ? 'badge-success' : 'badge-secondary'; ?>"><?php echo ucfirst($dir); ?></span>
             </label>

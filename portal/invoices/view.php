@@ -36,12 +36,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay_c
         db()->prepare('INSERT INTO client_credits (client_id, amount, reason, invoice_id) VALUES (?,?,?,?)')
             ->execute([$cid, -1 * (float) $inv['total'], 'Applied to invoice ' . $inv['invoice_number'], $id]);
         db()->prepare("INSERT INTO payments (invoice_id, client_id, gateway, gateway_ref, amount, currency, status) VALUES (?,?,?,?,?,?,'completed')")
-            ->execute([$id, $cid, 'credit', 'CREDIT-' . strtoupper(bin2hex(random_bytes(4))), $inv['total'], defined('CURRENCY') ? CURRENCY : 'USD']);
+            ->execute([$id, $cid, 'credit', 'CREDIT-' . strtoupper(bin2hex(random_bytes(4))), $inv['total'], $inv['currency'] ?? 'USD']);
         db()->prepare("UPDATE invoices SET status='paid', paid_date=CURDATE(), payment_method='Account Credit' WHERE id=?")->execute([$id]);
         Automation::invoicePaid($id);
         Notifier::send('invoice_paid', $cid, [
             'client_name' => trim($inv['first_name'] . ' ' . $inv['last_name']),
-            'invoice_number' => $inv['invoice_number'], 'amount' => format_money((float) $inv['total']),
+            'invoice_number' => $inv['invoice_number'], 'amount' => format_money((float) $inv['total'], $inv['currency'] ?? null),
             'gateway' => 'Account Credit', 'email' => $inv['client_email'],
             'link' => PORTAL_URL . '/invoices/view.php?id=' . $id,
         ]);
@@ -129,8 +129,8 @@ require_once '../includes/header.php';
           <tr style="border-bottom:1px solid #f1f5f9">
             <td style="padding:12px 14px;font-size:13.5px"><?php echo htmlspecialchars($it['description']); ?></td>
             <td style="padding:12px 14px;text-align:center;font-size:13.5px"><?php echo $it['quantity']; ?></td>
-            <td style="padding:12px 14px;text-align:right;font-size:13.5px"><?php echo format_money($it['unit_price']); ?></td>
-            <td style="padding:12px 14px;text-align:right;font-weight:600;font-size:13.5px"><?php echo format_money($it['total']); ?></td>
+            <td style="padding:12px 14px;text-align:right;font-size:13.5px"><?php echo format_money($it['unit_price'], $inv['currency'] ?? null); ?></td>
+            <td style="padding:12px 14px;text-align:right;font-weight:600;font-size:13.5px"><?php echo format_money($it['total'], $inv['currency'] ?? null); ?></td>
           </tr>
         <?php endforeach; ?>
         </tbody>
@@ -141,17 +141,17 @@ require_once '../includes/header.php';
         <table style="width:260px">
           <tr>
             <td style="padding:5px 10px;color:var(--text-muted);font-size:13px">Subtotal</td>
-            <td style="padding:5px 10px;text-align:right;font-size:13px"><?php echo format_money($inv['subtotal']); ?></td>
+            <td style="padding:5px 10px;text-align:right;font-size:13px"><?php echo format_money($inv['subtotal'], $inv['currency'] ?? null); ?></td>
           </tr>
           <?php if ($inv['tax_rate'] > 0): ?>
           <tr>
             <td style="padding:5px 10px;color:var(--text-muted);font-size:13px">VAT (<?php echo $inv['tax_rate']; ?>%)</td>
-            <td style="padding:5px 10px;text-align:right;font-size:13px"><?php echo format_money($inv['tax_amount']); ?></td>
+            <td style="padding:5px 10px;text-align:right;font-size:13px"><?php echo format_money($inv['tax_amount'], $inv['currency'] ?? null); ?></td>
           </tr>
           <?php endif; ?>
           <tr style="border-top:2px solid var(--border)">
             <td style="padding:12px 10px;font-weight:800;font-size:16px;color:var(--navy)">Total</td>
-            <td style="padding:12px 10px;text-align:right;font-weight:800;font-size:16px;color:var(--navy)"><?php echo format_money($inv['total']); ?></td>
+            <td style="padding:12px 10px;text-align:right;font-weight:800;font-size:16px;color:var(--navy)"><?php echo format_money($inv['total'], $inv['currency'] ?? null); ?></td>
           </tr>
         </table>
       </div>

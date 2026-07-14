@@ -26,15 +26,6 @@ $client_row = $client_row->fetch();
 $currency = Currency::current();
 $gateways = dp_active_gateways($currency);
 
-/** This client's price for a services row, in whatever currency they're checking out in. */
-function order_plan_amount(array $plan, string $currency): array
-{
-    if ($currency === 'KES') {
-        return ['price' => (float) ($plan['price_kes'] ?? 0), 'setup_fee' => (float) ($plan['setup_fee_kes'] ?? 0)];
-    }
-    return ['price' => (float) $plan['price'], 'setup_fee' => (float) $plan['setup_fee']];
-}
-
 $cycle_label = ['monthly' => '/mo', 'annual' => '/yr', 'one_time' => ' one-time'];
 
 // Catalogue (description/features columns may not be migrated yet)
@@ -112,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
             $error = 'That domain name doesn\'t look right — use e.g. example.co.ke (or leave it blank).';
             $view  = 'form';
         } else {
-            $amt   = order_plan_amount($sel_plan, $currency);
+            $amt   = Currency::planAmount($sel_plan, $currency);
             $total = $amt['price'] + $amt['setup_fee'];
             $desc  = 'Service order: ' . $sel_plan['name']
                    . ' (' . str_replace('_', ' ', $sel_plan['billing_cycle']) . ')'
@@ -192,7 +183,7 @@ require_once __DIR__ . '/includes/header.php';
     <a href="<?php echo PORTAL_URL; ?>/order.php" class="btn btn-primary" style="margin-top:18px"><i class="fas fa-rotate"></i> Try again</a>
   </div>
 
-<?php elseif ($view === 'form' && $sel_plan): $view_amt = order_plan_amount($sel_plan, $currency); ?>
+<?php elseif ($view === 'form' && $sel_plan): $view_amt = Currency::planAmount($sel_plan, $currency); ?>
   <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start" class="order-grid">
     <div class="p-card" style="padding:26px">
       <h2 style="font-size:16px;font-weight:700;margin-bottom:16px"><i class="fas fa-credit-card" style="color:var(--green)"></i> Complete your order</h2>
@@ -274,7 +265,7 @@ require_once __DIR__ . '/includes/header.php';
   <?php foreach ($by_cat as $cat => $cat_plans): ?>
     <h2 style="font-size:16px;font-weight:800;color:var(--navy);margin:26px 0 14px"><?php echo htmlspecialchars($cat_labels[$cat] ?? ucfirst($cat)); ?></h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px">
-      <?php foreach ($cat_plans as $p): $p_amt = order_plan_amount($p, $currency); ?>
+      <?php foreach ($cat_plans as $p): $p_amt = Currency::planAmount($p, $currency); ?>
         <div class="p-card" style="padding:22px;display:flex;flex-direction:column">
           <div style="font-size:15.5px;font-weight:800;color:var(--navy)"><?php echo htmlspecialchars($p['name']); ?></div>
           <div style="font-size:21px;font-weight:800;color:var(--green);margin:8px 0 2px">

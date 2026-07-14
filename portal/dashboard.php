@@ -175,7 +175,7 @@ require_once __DIR__ . '/includes/header.php';
         <?php if ($recent_invoices): foreach ($recent_invoices as $inv): ?>
           <tr>
             <td><a href="<?php echo PORTAL_URL; ?>/invoices/view.php?id=<?php echo $inv['id']; ?>" style="color:var(--navy);font-weight:600"><?php echo htmlspecialchars($inv['invoice_number']); ?></a></td>
-            <td><?php echo format_money($inv['total']); ?></td>
+            <td><?php echo format_money($inv['total'], $inv['currency'] ?? null); ?></td>
             <td><?php echo format_date($inv['due_date']); ?></td>
             <td><?php echo badge($inv['status']); ?></td>
           </tr>

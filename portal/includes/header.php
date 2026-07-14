@@ -61,9 +61,17 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
       <?php pnav(PORTAL_URL . '/order.php',     'Order',      'order.php'); ?>
       <?php pnav(PORTAL_URL . '/invoices/',      'Invoices',   'index.php', 'invoices'); ?>
       <?php pnav(PORTAL_URL . '/tickets/',       'Support',    'index.php', 'tickets'); ?>
+      <div class="currency-toggle-mobile" role="group" aria-label="Currency">
+        <button type="button" data-cur="USD">USD</button>
+        <button type="button" data-cur="KES">KSh</button>
+      </div>
     </nav>
 
     <div class="ph-right">
+      <div class="currency-toggle" role="group" aria-label="Currency">
+        <button type="button" data-cur="USD">USD</button>
+        <button type="button" data-cur="KES">KSh</button>
+      </div>
       <div class="notif-menu" id="notifMenu">
         <button type="button" class="notif-bell" id="notifToggle" title="Notifications">
           <i class="fas fa-bell"></i>

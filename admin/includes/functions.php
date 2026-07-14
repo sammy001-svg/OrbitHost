@@ -18,9 +18,18 @@ function h(string $value): string
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 }
 
-function format_money(float $amount): string
+/**
+ * $currency defaults to the site's reporting currency (the CURRENCY
+ * constant) — every existing call site keeps behaving exactly as before.
+ * Pass a record's own `currency` column (invoices, client_services, etc.)
+ * to label a historical amount in whatever it was actually billed in,
+ * now that those can be KES as well as USD.
+ */
+function format_money(float $amount, ?string $currency = null): string
 {
-    return CURRENCY . ' ' . number_format($amount, 2);
+    $currency = $currency ?: CURRENCY;
+    $symbol = strtoupper($currency) === 'KES' ? 'KSh' : $currency;
+    return $symbol . ' ' . number_format($amount, 2);
 }
 
 function format_date(?string $date): string

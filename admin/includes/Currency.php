@@ -154,4 +154,19 @@ final class Currency
         $currency = $currency ?: self::current();
         return self::symbol($currency) . ' ' . number_format($amount, 2);
     }
+
+    /**
+     * A `services` catalogue row's price/setup_fee in a given currency
+     * (defaults to the visitor's current one). Shared by every page that
+     * shows a live plan price — order.php, service-change.php, etc. —
+     * so "what a plan costs" is resolved exactly one way sitewide.
+     */
+    public static function planAmount(array $plan, ?string $currency = null): array
+    {
+        $currency = $currency ?: self::current();
+        if ($currency === 'KES') {
+            return ['price' => (float) ($plan['price_kes'] ?? 0), 'setup_fee' => (float) ($plan['setup_fee_kes'] ?? 0)];
+        }
+        return ['price' => (float) ($plan['price'] ?? 0), 'setup_fee' => (float) ($plan['setup_fee'] ?? 0)];
+    }
 }

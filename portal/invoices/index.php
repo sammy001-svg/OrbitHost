@@ -60,7 +60,7 @@ require_once '../includes/header.php';
           <td><a href="<?php echo PORTAL_URL; ?>/invoices/view.php?id=<?php echo $inv['id']; ?>" style="font-weight:700;color:var(--navy)"><?php echo htmlspecialchars($inv['invoice_number']); ?></a></td>
           <td><?php echo format_date($inv['created_at']); ?></td>
           <td><?php echo format_date($inv['due_date']); ?></td>
-          <td><strong><?php echo format_money($inv['total']); ?></strong></td>
+          <td><strong><?php echo format_money($inv['total'], $inv['currency'] ?? null); ?></strong></td>
           <td><?php echo badge($inv['status']); ?></td>
           <td>
             <a href="<?php echo PORTAL_URL; ?>/invoices/view.php?id=<?php echo $inv['id']; ?>" class="btn btn-ghost btn-sm">View</a>

@@ -100,7 +100,7 @@ require_once __DIR__ . '/includes/header.php';
     <div style="border-top:1px solid var(--border);padding:16px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
       <div>
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Amount</div>
-        <div style="font-weight:700;color:var(--navy)"><?php echo format_money($o['amount']); ?> / <?php echo str_replace('_',' ',$o['billing_cycle']); ?></div>
+        <div style="font-weight:700;color:var(--navy)"><?php echo format_money($o['amount'], $o['currency'] ?? null); ?> / <?php echo str_replace('_',' ',$o['billing_cycle']); ?></div>
       </div>
       <div>
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Start Date</div>
