@@ -39,6 +39,13 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
 </head>
 <body>
 
+<?php if (!empty($_SESSION['impersonated_by_admin_id'])): ?>
+<div style="background:#7c2d12;color:#fff;padding:10px 20px;text-align:center;font-size:13.5px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap">
+  <span><i class="fas fa-user-secret"></i> Viewing as <?php echo htmlspecialchars($_c['name']); ?> — impersonated by <?php echo htmlspecialchars($_SESSION['impersonated_by_admin_name'] ?? 'staff'); ?></span>
+  <a href="<?php echo PORTAL_URL; ?>/end-impersonation.php" style="background:#fff;color:#7c2d12;padding:5px 14px;border-radius:6px;text-decoration:none;font-weight:700;font-size:12.5px;white-space:nowrap">Return to Admin</a>
+</div>
+<?php endif; ?>
+
 <header class="portal-header">
   <div class="ph-inner">
     <a href="<?php echo PORTAL_URL; ?>/dashboard.php" class="portal-logo">

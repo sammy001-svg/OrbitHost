@@ -100,6 +100,15 @@ require_once '../includes/header.php';
     <a href="<?php echo APP_URL; ?>/clients/invite.php?id=<?php echo $id; ?>" class="btn btn-ghost btn-sm" title="Send portal invite">
       <i class="fas fa-envelope"></i> Portal Invite
     </a>
+    <?php if (can('admin')): ?>
+    <form method="POST" action="<?php echo APP_URL; ?>/clients/impersonate.php" style="display:inline">
+      <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+      <input type="hidden" name="id" value="<?php echo $id; ?>" />
+      <button type="submit" class="btn btn-ghost btn-sm" data-confirm="View the portal as <?php echo h($client['first_name'] . ' ' . $client['last_name']); ?>? You'll be acting as this client until you click &quot;Return to Admin&quot;.">
+        <i class="fas fa-user-secret"></i> Impersonate
+      </button>
+    </form>
+    <?php endif; ?>
     <a href="<?php echo APP_URL; ?>/clients/edit.php?id=<?php echo $id; ?>" class="btn btn-primary btn-sm">
       <i class="fas fa-edit"></i> Edit
     </a>

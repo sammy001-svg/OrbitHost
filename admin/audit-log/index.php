@@ -76,6 +76,7 @@ function audit_icon(string $action): string
         str_contains($action, 'approve') => 'fa-circle-check',
         str_contains($action, 'payment') => 'fa-credit-card',
         str_contains($action, 'password') => 'fa-key',
+        str_contains($action, 'impersonate') => 'fa-user-secret',
         default => 'fa-pen',
     };
 }
