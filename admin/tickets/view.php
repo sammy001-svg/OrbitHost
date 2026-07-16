@@ -4,6 +4,7 @@ require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 require_once '../includes/Notifier.php';
+require_once '../includes/TicketAttachment.php';
 
 auth_check();
 
@@ -61,6 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reply'])) {
     if ($message) {
         db()->prepare('INSERT INTO ticket_replies (ticket_id,sender_type,sender_name,message) VALUES (?,?,?,?)')
             ->execute([$id, 'admin', current_admin()['name'], $message]);
+        $reply_id = (int) db()->lastInsertId();
+        $upload = TicketAttachment::store($_FILES['attachment'] ?? [], $id, $reply_id);
 
         $update_status = in_array($new_status, ['open','pending','answered','closed']) ? $new_status : 'answered';
         db()->prepare('UPDATE tickets SET status=?, updated_at=NOW() WHERE id=?')
@@ -82,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reply'])) {
         }
 
         log_activity('reply_ticket', 'ticket', $id, "Replied to ticket {$ticket['ticket_number']}");
-        flash_set('success', 'Reply sent.');
+        flash_set($upload['ok'] ? 'success' : 'error', $upload['ok'] ? 'Reply sent.' : 'Reply sent, but the attachment failed: ' . $upload['message']);
         header('Location: ' . APP_URL . '/tickets/view.php?id=' . $id);
         exit;
     }
@@ -167,6 +170,14 @@ require_once '../includes/header.php';
             <span class="msg-time"><?php echo format_datetime($r['created_at']); ?></span>
           </div>
           <div class="msg-body"><?php echo nl2br(h($r['message'])); ?></div>
+          <?php foreach (TicketAttachment::forReply((int) $r['id']) as $a): ?>
+            <a href="<?php echo APP_URL; ?>/tickets/attachment.php?id=<?php echo (int) $a['id']; ?>" target="_blank" rel="noopener"
+               style="display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:6px 11px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:600;color:var(--navy);text-decoration:none;background:#fff">
+              <i class="fas <?php echo TicketAttachment::icon($a['mime_type']); ?>" style="color:var(--green)"></i>
+              <?php echo h($a['original_name']); ?>
+              <span style="color:var(--text-muted);font-weight:400"><?php echo format_bytes((int) $a['size_bytes']); ?></span>
+            </a>
+          <?php endforeach; ?>
         </div>
       <?php endforeach; else: ?>
         <div class="empty-state"><i class="fas fa-comment-slash"></i><p>No messages yet.</p></div>
@@ -177,12 +188,16 @@ require_once '../includes/header.php';
     <div class="card">
       <div class="card-header"><div class="card-title"><i class="fas fa-reply" style="color:var(--green);margin-right:6px"></i>Send Reply</div></div>
       <div class="card-body">
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
           <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
           <input type="hidden" name="reply"      value="1" />
           <div class="form-group">
             <textarea name="message" class="form-textarea" rows="5"
                       placeholder="Type your reply here…" required></textarea>
+          </div>
+          <div class="form-group">
+            <input type="file" name="attachment" class="form-control" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.zip" style="max-width:320px" />
+            <small class="form-hint">Optional — images, PDF, TXT or ZIP, up to 8 MB.</small>
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Send Reply</button>

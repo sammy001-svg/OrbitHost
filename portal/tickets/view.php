@@ -3,6 +3,7 @@ require_once '../includes/config.php';
 require_once '../includes/auth.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/Notifier.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/TicketAttachment.php';
 
 portal_check();
 $cid = current_client()['id'];
@@ -28,6 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = current_client()['name'];
         db()->prepare('INSERT INTO ticket_replies (ticket_id,sender_type,sender_name,message) VALUES (?,?,?,?)')
             ->execute([$id, 'client', $name, $msg]);
+        $reply_id = (int) db()->lastInsertId();
+        $upload = TicketAttachment::store($_FILES['attachment'] ?? [], $id, $reply_id);
+
         db()->prepare('UPDATE tickets SET status="pending", updated_at=NOW() WHERE id=?')
             ->execute([$id]);
 
@@ -38,7 +42,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'link'          => APP_URL . '/tickets/view.php?id=' . $id,
         ]);
 
-        portal_flash_set('success', 'Your reply has been sent.');
+        portal_flash_set(
+            $upload['ok'] ? 'success' : 'error',
+            $upload['ok'] ? 'Your reply has been sent.' : "Your reply was sent, but the attachment didn't upload: " . $upload['message']
+        );
         header('Location: ' . PORTAL_URL . '/tickets/view.php?id=' . $id);
         exit;
     }
@@ -83,6 +90,14 @@ require_once '../includes/header.php';
               <span class="msg-time"><?php echo format_datetime($r['created_at']); ?></span>
             </div>
             <div class="msg-body"><?php echo htmlspecialchars($r['message']); ?></div>
+            <?php foreach (TicketAttachment::forReply((int) $r['id']) as $a): ?>
+              <a href="<?php echo PORTAL_URL; ?>/tickets/attachment.php?id=<?php echo (int) $a['id']; ?>" target="_blank" rel="noopener"
+                 style="display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:6px 11px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:600;color:var(--navy);text-decoration:none;background:#fff">
+                <i class="fas <?php echo TicketAttachment::icon($a['mime_type']); ?>" style="color:var(--green)"></i>
+                <?php echo htmlspecialchars($a['original_name']); ?>
+                <span style="color:var(--text-muted);font-weight:400"><?php echo format_bytes((int) $a['size_bytes']); ?></span>
+              </a>
+            <?php endforeach; ?>
           </div>
         <?php endforeach; ?>
       </div>
@@ -92,11 +107,15 @@ require_once '../includes/header.php';
       <div class="p-card">
         <div class="p-card-header"><div class="p-card-title"><i class="fas fa-reply" style="color:var(--green);margin-right:7px"></i>Send a Reply</div></div>
         <div class="p-card-body">
-          <form method="POST">
+          <form method="POST" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
             <div class="form-group">
               <textarea name="message" class="form-textarea" rows="5"
                         placeholder="Add more details or follow up…" required></textarea>
+            </div>
+            <div class="form-group">
+              <input type="file" name="attachment" class="form-control" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.zip" />
+              <small class="form-hint">Optional — images, PDF, TXT or ZIP, up to 8 MB.</small>
             </div>
             <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Send Reply</button>
           </form>

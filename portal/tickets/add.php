@@ -3,6 +3,7 @@ require_once '../includes/config.php';
 require_once '../includes/auth.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/Notifier.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/TicketAttachment.php';
 
 portal_check();
 $page_title = 'New Support Ticket';
@@ -34,6 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = current_client()['name'];
         db()->prepare('INSERT INTO ticket_replies (ticket_id,sender_type,sender_name,message) VALUES (?,?,?,?)')
             ->execute([$tid, 'client', $name, $data['message']]);
+        $reply_id = (int) db()->lastInsertId();
+
+        $upload = TicketAttachment::store($_FILES['attachment'] ?? [], (int) $tid, $reply_id);
 
         Notifier::sendToAllAdmins('ticket_opened_admin', [
             'client_name'    => $name,
@@ -43,7 +47,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'link'           => APP_URL . '/tickets/view.php?id=' . $tid,
         ]);
 
-        portal_flash_set('success', "Ticket $num submitted. We'll respond within 24 hours.");
+        portal_flash_set(
+            $upload['ok'] ? 'success' : 'error',
+            $upload['ok'] ? "Ticket $num submitted. We'll respond within 24 hours." : "Ticket $num submitted, but the attachment didn't upload: " . $upload['message']
+        );
         header('Location: ' . PORTAL_URL . '/tickets/view.php?id=' . $tid);
         exit;
     }
@@ -68,7 +75,7 @@ require_once '../includes/header.php';
   </div>
 
   <div class="p-form-card">
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
 
       <div class="form-group">
@@ -103,6 +110,12 @@ require_once '../includes/header.php';
         <label class="form-label">Message <span class="req">*</span></label>
         <textarea name="message" class="form-textarea" rows="7" required
                   placeholder="Describe your issue in detail. Include any error messages, domain names, or other relevant information…"><?php echo htmlspecialchars($data['message']); ?></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Attachment <span style="color:var(--text-muted);font-weight:400">(optional — screenshot, log file, etc.)</span></label>
+        <input type="file" name="attachment" class="form-control" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.zip" />
+        <small class="form-hint">Images, PDF, TXT or ZIP — up to 8 MB.</small>
       </div>
 
       <div class="form-actions">
