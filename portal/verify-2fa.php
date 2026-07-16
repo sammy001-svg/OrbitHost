@@ -5,30 +5,28 @@ require_once dirname(__DIR__) . '/admin/includes/SiteSettings.php';
 
 portal_start();
 
-// Where to land after auth (e.g. checkout) — whitelist of portal pages only
-$next = $_GET['next'] ?? '';
-if ($next === 'checkout') { $_SESSION['post_login_redirect'] = 'checkout.php'; }
+if (!empty($_SESSION['client_id'])) {
+    header('Location: ' . PORTAL_URL . '/' . portal_after_auth());
+    exit;
+}
+if (empty($_SESSION['client_2fa_pending_id'])) {
+    header('Location: ' . PORTAL_URL . '/login.php');
+    exit;
+}
 
-if (!empty($_SESSION['client_id'])) { header('Location: ' . PORTAL_URL . '/' . portal_after_auth()); exit; }
-
-$error   = '';
-$timeout = isset($_GET['timeout']);
+$error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email']    ?? '');
-    $pass  =      $_POST['password'] ?? '';
-    if (!$email || !$pass) {
-        $error = 'Please enter your email and password.';
+    $code = trim($_POST['code'] ?? '');
+    if (!$code) {
+        $error = 'Enter the 6-digit code from your authenticator app.';
     } else {
-        $r = portal_login($email, $pass);
-        if (!empty($r['needs_2fa'])) {
-            header('Location: ' . PORTAL_URL . '/verify-2fa.php');
-            exit;
-        } elseif (!empty($r['ok'])) {
+        $r = portal_verify_2fa($code);
+        if (!empty($r['ok'])) {
             header('Location: ' . PORTAL_URL . '/' . portal_after_auth());
             exit;
         }
-        $error = $r['message'] ?? 'Invalid email or password.';
+        $error = $r['message'] ?? 'Incorrect code.';
     }
 }
 
@@ -39,7 +37,7 @@ $_brand_logo = SiteSettings::logoImgTag(44, 170);
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Client Portal — Orbit Cloud</title>
+  <title>Verify — Orbit Cloud Client Portal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css" />
   <style>
@@ -86,15 +84,12 @@ $_brand_logo = SiteSettings::logoImgTag(44, 170);
     .auth-card { padding: 0; }
     .auth-card h2  { font-size: 18px; font-weight: 700; margin-bottom: 3px; }
     .auth-card .sub { font-size: 13px; color: var(--text-muted); margin-bottom: 22px; }
-    .auth-error   { background: #fee2e2; color: #991b1b; padding: 11px 14px; border-radius: 7px; font-size: 13px; margin-bottom: 16px; }
-    .auth-timeout { background: #fffbeb; color: #92400e; padding: 11px 14px; border-radius: 7px; font-size: 13px; margin-bottom: 16px; }
+    .auth-error { background: #fee2e2; color: #991b1b; padding: 11px 14px; border-radius: 7px; font-size: 13px; margin-bottom: 16px; }
+    .code-input { text-align: center; font-size: 26px; letter-spacing: 8px; font-family: ui-monospace, Menlo, monospace; }
     .auth-card .form-group { margin-bottom: 16px; }
     .btn-login { width: 100%; justify-content: center; padding: 11px; font-size: 14px; font-weight: 600; margin-top: 6px; }
-    .auth-footer { display: flex; justify-content: space-between; margin-top: 16px; font-size: 12.5px; }
-    .auth-footer a { color: var(--text-muted); text-decoration: none; }
-    .auth-footer a:hover { color: var(--navy); }
-    .register-link { text-align: center; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); font-size: 13px; }
-    .register-link a { color: var(--green); font-weight: 600; }
+    .back-link { display: block; text-align: center; margin-top: 16px; font-size: 12.5px; color: var(--text-muted); text-decoration: none; }
+    .back-link:hover { color: var(--navy); }
 
     @media (max-width: 900px) {
       .auth-visual { display: none; }
@@ -144,44 +139,26 @@ $_brand_logo = SiteSettings::logoImgTag(44, 170);
           <?php if ($_brand_logo): ?>
             <?php echo $_brand_logo; ?>
           <?php else: ?>
-            <div class="auth-orb">O</div>
+            <div class="auth-orb"><i class="fas fa-shield-halved"></i></div>
             <h1>Orbit Cloud</h1>
           <?php endif; ?>
         </div>
-        <p>Client Portal</p>
+        <p>Two-Factor Verification</p>
       </div>
       <div class="auth-card">
-        <h2>Sign in to your account</h2>
-        <p class="sub">Manage your services, invoices, and support</p>
+        <h2>Enter your code</h2>
+        <p class="sub">Open your authenticator app and enter the current 6-digit code, or use a backup code.</p>
 
-        <?php if ($timeout): ?><div class="auth-timeout"><i class="fas fa-clock"></i> Your session expired. Please sign in again.</div><?php endif; ?>
-        <?php if ($error):   ?><div class="auth-error"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?></div><?php endif; ?>
+        <?php if ($error): ?><div class="auth-error"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?></div><?php endif; ?>
 
         <form method="POST">
           <div class="form-group">
-            <label class="form-label">Email Address</label>
-            <input type="email" name="email" class="form-control"
-                   value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>"
-                   placeholder="you@example.com" required autofocus autocomplete="email" />
+            <input type="text" name="code" class="form-control code-input" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required autofocus />
           </div>
-          <div class="form-group">
-            <label class="form-label">Password</label>
-            <input type="password" name="password" class="form-control"
-                   placeholder="••••••••" required autocomplete="current-password" />
-          </div>
-          <button type="submit" class="btn btn-primary btn-login">
-            <i class="fas fa-sign-in-alt"></i> Sign In
-          </button>
+          <button type="submit" class="btn btn-primary btn-login"><i class="fas fa-check"></i> Verify</button>
         </form>
-
-        <div class="register-link">
-          Don't have an account? <a href="<?php echo PORTAL_URL; ?>/register.php">Create one →</a>
-        </div>
       </div>
-      <div class="auth-footer">
-        <a href="<?php echo PORTAL_URL; ?>/forgot-password.php">Forgot password?</a>
-        <a href="../index.html">← Back to website</a>
-      </div>
+      <a href="<?php echo PORTAL_URL; ?>/login.php" class="back-link">← Back to sign in</a>
     </div>
   </div>
 </div>

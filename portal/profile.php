@@ -8,12 +8,14 @@ portal_check();
 $page_title = 'My Profile';
 $cid = current_client()['id'];
 ensure_client_notification_prefs();
+ensure_client_2fa_columns();
 
 $client = db()->prepare('SELECT * FROM clients WHERE id=?');
 $client->execute([$cid]);
 $client = $client->fetch();
 
 $errors = $success_pw = false;
+$new_backup_codes = null; $new_secret_setup = null;
 
 // ── Update profile ─────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
@@ -71,6 +73,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         header('Location: ' . PORTAL_URL . '/profile.php');
         exit;
     }
+}
+
+// ── Two-factor authentication ───────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && str_starts_with($_POST['action'], '2fa_')) {
+    portal_csrf_verify();
+    $action = $_POST['action'];
+
+    if ($action === '2fa_start_setup') {
+        // Generate a pending secret, held in session only until confirmed —
+        // nothing is written to the client's row (and 2FA isn't required)
+        // until they prove they can actually generate a matching code.
+        $_SESSION['portal_2fa_setup_secret'] = TOTP::generateSecret();
+        header('Location: ' . PORTAL_URL . '/profile.php#twofactor');
+        exit;
+
+    } elseif ($action === '2fa_confirm_setup') {
+        $secret = $_SESSION['portal_2fa_setup_secret'] ?? '';
+        $code   = trim($_POST['code'] ?? '');
+        if (!$secret) {
+            $errors = 'Setup session expired — click "Set up 2FA" again.';
+        } elseif (!TOTP::verify($secret, $code)) {
+            $errors = 'That code didn\'t match — check your authenticator app and try again.';
+        } else {
+            $codes = TOTP::generateBackupCodes();
+            $hashed = array_map(fn($c) => password_hash($c, PASSWORD_BCRYPT), $codes);
+            db()->prepare('UPDATE clients SET totp_secret = ?, totp_enabled = 1, totp_backup_codes = ? WHERE id = ?')
+                ->execute([$secret, json_encode($hashed), $cid]);
+            unset($_SESSION['portal_2fa_setup_secret']);
+            Notifier::send('two_factor_enabled', (int) $cid, [
+                'client_name' => $client['first_name'],
+                'email'       => $client['email'],
+                'link'        => PORTAL_URL . '/profile.php',
+            ]);
+            $new_backup_codes = $codes; // shown once, right now
+            $client['totp_enabled'] = 1;
+            portal_flash_set('success', 'Two-factor authentication is now enabled. Save your backup codes below — they won\'t be shown again.');
+        }
+
+    } elseif ($action === '2fa_disable') {
+        if (!password_verify($_POST['confirm_password'] ?? '', $client['portal_password'] ?? '')) {
+            $errors = 'Incorrect password — 2FA was not disabled.';
+        } else {
+            db()->prepare('UPDATE clients SET totp_secret = NULL, totp_enabled = 0, totp_backup_codes = NULL WHERE id = ?')
+                ->execute([$cid]);
+            Notifier::send('two_factor_disabled', (int) $cid, [
+                'client_name' => $client['first_name'],
+                'email'       => $client['email'],
+                'link'        => PORTAL_URL . '/profile.php',
+            ]);
+            portal_flash_set('success', 'Two-factor authentication disabled.');
+            header('Location: ' . PORTAL_URL . '/profile.php');
+            exit;
+        }
+    }
+}
+
+if (!empty($_SESSION['portal_2fa_setup_secret']) && empty($client['totp_enabled'])) {
+    $new_secret_setup = $_SESSION['portal_2fa_setup_secret'];
 }
 
 require_once __DIR__ . '/includes/header.php';
@@ -159,6 +219,53 @@ require_once __DIR__ . '/includes/header.php';
         <button type="submit" class="btn btn-primary"><i class="fas fa-key"></i> Update Password</button>
       </div>
     </form>
+  </div>
+
+  <!-- Two-factor authentication -->
+  <div class="p-form-card" style="margin-top:20px" id="twofactor">
+    <h2 style="font-size:16px;font-weight:700;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+      <i class="fas fa-shield-halved" style="color:var(--green);margin-right:8px"></i>Two-Factor Authentication
+    </h2>
+    <?php if ($new_backup_codes): ?>
+      <div class="p-alert p-alert-warning" style="margin-bottom:16px"><i class="fas fa-triangle-exclamation"></i> Save these backup codes now — each works once if you lose access to your authenticator app. They will not be shown again.</div>
+      <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;display:block;padding:14px;font-size:14px;line-height:2;text-align:center;font-family:ui-monospace,Menlo,monospace">
+        <?php echo implode('&nbsp;&nbsp;&nbsp;', array_map('htmlspecialchars', $new_backup_codes)); ?>
+      </div>
+
+    <?php elseif (!empty($client['totp_enabled'])): ?>
+      <p style="font-size:13.5px;color:var(--text-muted);margin-bottom:16px"><i class="fas fa-circle-check" style="color:var(--green)"></i> Two-factor authentication is <strong>enabled</strong> on your account.</p>
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
+        <input type="hidden" name="action" value="2fa_disable" />
+        <div class="form-group">
+          <label class="form-label">Confirm your password to disable</label>
+          <input type="password" name="confirm_password" class="form-control" required />
+        </div>
+        <button type="submit" class="btn" style="background:var(--danger);color:#fff" data-confirm="Disable two-factor authentication on your account?"><i class="fas fa-lock-open"></i> Disable 2FA</button>
+      </form>
+
+    <?php elseif ($new_secret_setup): ?>
+      <p style="font-size:13.5px;color:var(--text-muted);margin-bottom:14px">Scan this into your authenticator app (Google Authenticator, Authy, 1Password, …) using "enter a setup key manually" — no camera needed:</p>
+      <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px;font-size:15px;letter-spacing:2px;text-align:center;margin-bottom:14px;font-family:ui-monospace,Menlo,monospace"><?php echo htmlspecialchars(chunk_split($new_secret_setup, 4, ' ')); ?></div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Account name: <code><?php echo htmlspecialchars($client['email']); ?></code> · Issuer: <code>Orbit Cloud</code></p>
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
+        <input type="hidden" name="action" value="2fa_confirm_setup" />
+        <div class="form-group">
+          <label class="form-label">Enter the code your app shows now</label>
+          <input type="text" name="code" class="form-control" inputmode="numeric" maxlength="6" placeholder="000000" required autofocus />
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Confirm &amp; Enable</button>
+      </form>
+
+    <?php else: ?>
+      <p style="font-size:13.5px;color:var(--text-muted);margin-bottom:16px">Not enabled. Adds a 6-digit code from your phone to sign-in, on top of your password.</p>
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
+        <input type="hidden" name="action" value="2fa_start_setup" />
+        <button type="submit" class="btn btn-primary"><i class="fas fa-shield-halved"></i> Set Up 2FA</button>
+      </form>
+    <?php endif; ?>
   </div>
 
   <!-- Notification preferences -->

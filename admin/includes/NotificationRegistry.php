@@ -211,6 +211,21 @@ final class NotificationRegistry
                 'email_body'    => '<p>Hi {client_name},</p><p>This is a confirmation that the password for your Orbit Cloud client portal account was just changed.</p><p style="color:#64748b;font-size:13px">If you did not make this change, please contact support immediately.</p>',
             ],
 
+            'two_factor_enabled' => [
+                'audience' => 'client', 'icon' => 'fa-shield-halved', 'color' => '#2563eb', 'email' => true,
+                'title'   => 'Two-factor authentication turned on',
+                'message' => 'Your account now requires a code at sign-in. If this wasn\'t you, contact support immediately.',
+                'email_subject' => 'Security alert: two-factor authentication enabled on your account',
+                'email_body'    => '<p>Hi {client_name},</p><p>Two-factor authentication was just turned on for your Orbit Cloud client portal account. Sign-in now requires a code from your authenticator app in addition to your password.</p><p style="color:#64748b;font-size:13px">If you did not make this change, please contact support immediately.</p>',
+            ],
+            'two_factor_disabled' => [
+                'audience' => 'client', 'icon' => 'fa-shield-halved', 'color' => '#d97706', 'email' => true,
+                'title'   => 'Two-factor authentication turned off',
+                'message' => 'If this wasn\'t you, contact support immediately.',
+                'email_subject' => 'Security alert: two-factor authentication disabled on your account',
+                'email_body'    => '<p>Hi {client_name},</p><p>Two-factor authentication was just turned off for your Orbit Cloud client portal account.</p><p style="color:#64748b;font-size:13px">If you did not make this change, please contact support immediately.</p>',
+            ],
+
             /* ══════════════ ADMIN ANNOUNCEMENTS ══════════════ */
             'admin_announcement' => [
                 // {subject}/{body_html} are the admin's own composed content
