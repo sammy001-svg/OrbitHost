@@ -7,6 +7,7 @@ require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
 portal_check();
 $page_title = 'My Profile';
 $cid = current_client()['id'];
+ensure_client_notification_prefs();
 
 $client = db()->prepare('SELECT * FROM clients WHERE id=?');
 $client->execute([$cid]);
@@ -32,6 +33,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
         header('Location: ' . PORTAL_URL . '/profile.php');
         exit;
     }
+}
+
+// ── Notification preferences ───────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_notify_prefs'])) {
+    portal_csrf_verify();
+    db()->prepare('UPDATE clients SET notify_reminders=?, notify_announcements=? WHERE id=?')
+        ->execute([!empty($_POST['notify_reminders']) ? 1 : 0, !empty($_POST['notify_announcements']) ? 1 : 0, $cid]);
+    portal_flash_set('success', 'Notification preferences updated.');
+    header('Location: ' . PORTAL_URL . '/profile.php');
+    exit;
 }
 
 // ── Change password ────────────────────────────────────────────
@@ -146,6 +157,35 @@ require_once __DIR__ . '/includes/header.php';
       </div>
       <div class="form-actions">
         <button type="submit" class="btn btn-primary"><i class="fas fa-key"></i> Update Password</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Notification preferences -->
+  <div class="p-form-card" style="margin-top:20px">
+    <h2 style="font-size:16px;font-weight:700;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+      <i class="fas fa-bell" style="color:var(--green);margin-right:8px"></i>Notification Preferences
+    </h2>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Invoices, tickets, and account/security alerts always send — these two are the only ones you can turn off.</p>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
+      <input type="hidden" name="update_notify_prefs" value="1" />
+      <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <div style="font-weight:600;font-size:13.5px">Renewal reminders</div>
+          <div style="font-size:12px;color:var(--text-muted)">Early heads-up (30/14 days out) that a service or domain is due. Urgent last-chance warnings always send regardless.</div>
+        </div>
+        <label class="switch"><input type="checkbox" name="notify_reminders" <?php echo $client['notify_reminders'] ? 'checked' : ''; ?> /><span class="track"></span></label>
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <div style="font-weight:600;font-size:13.5px">Announcements &amp; promotions</div>
+          <div style="font-size:12px;color:var(--text-muted)">Occasional news, maintenance notices, and offers from our team.</div>
+        </div>
+        <label class="switch"><input type="checkbox" name="notify_announcements" <?php echo $client['notify_announcements'] ? 'checked' : ''; ?> /><span class="track"></span></label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Preferences</button>
       </div>
     </form>
   </div>

@@ -518,6 +518,14 @@ a.p-stat:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
   .invoice-doc { padding: 24px 18px; }
 }
 
+/* ══════════════ Toggle switch (notification preferences) ══════════════ */
+.switch { position: relative; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; flex-shrink: 0; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch .track { width: 40px; height: 22px; border-radius: 20px; background: var(--border-2); transition: background .18s; flex-shrink: 0; position: relative; }
+.switch .track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .18s; }
+.switch input:checked + .track { background: var(--green); }
+.switch input:checked + .track::after { transform: translateX(18px); }
+
 /* ══════════════ Currency toggle ══════════════ */
 .currency-toggle { display: flex; align-items: center; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.14); border-radius: 8px; padding: 2px; gap: 2px; }
 .currency-toggle button { border: none; background: none; color: rgba(255,255,255,.65); font-size: 11.5px; font-weight: 700; padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: background .14s, color .14s; font-family: inherit; }

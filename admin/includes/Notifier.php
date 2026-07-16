@@ -72,6 +72,10 @@ final class Notifier
         if (!$def || !$recipientId) return;
         self::ensureTables();
 
+        if ($def['audience'] === 'client' && !empty($def['category']) && self::clientOptedOut($recipientId, $def['category'])) {
+            return; // renewal/expiry-heads-up or announcement — this client turned it off in Notification Preferences
+        }
+
         $title   = self::render($def['title'], $vars);
         $message = self::render($def['message'], $vars);
         $link    = $vars['link'] ?? null;
@@ -167,6 +171,23 @@ final class Notifier
             // email is best-effort — never fatal the caller — but the reason
             // is still worth keeping, not discarding.
             return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    private const CATEGORY_COLUMNS = ['reminder' => 'notify_reminders', 'announcement' => 'notify_announcements'];
+
+    private static function clientOptedOut(int $clientId, string $category): bool
+    {
+        $col = self::CATEGORY_COLUMNS[$category] ?? null;
+        if (!$col) return false; // unknown category — fail open, never silently swallow a notification
+        try {
+            ensure_client_notification_prefs();
+            $stmt = db()->prepare("SELECT {$col} FROM clients WHERE id = ?");
+            $stmt->execute([$clientId]);
+            $val = $stmt->fetchColumn();
+            return $val !== false && (int) $val === 0;
+        } catch (\Throwable $e) {
+            return false; // column not migrated yet — fail open
         }
     }
 

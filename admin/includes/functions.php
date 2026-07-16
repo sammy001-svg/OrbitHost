@@ -177,6 +177,31 @@ function ensure_client_verify_columns(): void
 }
 
 /**
+ * Opt-out columns for the two notification categories that are ever
+ * skippable (renewal/expiry reminders, admin announcements) — everything
+ * else (invoices, tickets, security, service status) always sends
+ * regardless, so there's no full per-type matrix here, just these two.
+ * Default 1 (opted in) so nothing changes for existing clients until they
+ * visit Notification Preferences themselves.
+ */
+function ensure_client_notification_prefs(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        $col = db()->query("SHOW COLUMNS FROM clients LIKE 'notify_reminders'")->fetch();
+        if (!$col) {
+            db()->exec("ALTER TABLE clients
+                ADD COLUMN notify_reminders     TINYINT(1) NOT NULL DEFAULT 1,
+                ADD COLUMN notify_announcements TINYINT(1) NOT NULL DEFAULT 1");
+        }
+    } catch (\Throwable $e) {
+        // no ALTER privilege — every client stays opted in until schema is added manually
+    }
+}
+
+/**
  * Absolute webhook callback URL for a specific payment. Embedding the
  * payment id directly (rather than trying to parse it back out of
  * whatever a gateway's callback payload happens to contain) means the

@@ -185,7 +185,12 @@ final class NotificationRegistry
                 'email_body'    => '<p>Hi {client_name},</p><p>Good news — your service <strong>{service_label}</strong> has been reactivated and is live again.</p>',
             ],
             'service_renewal_reminder' => [
-                'audience' => 'client', 'icon' => 'fa-clock', 'color' => '#d97706', 'email' => true,
+                // Skippable via Notification Preferences — unlike
+                // service_expiry_reminder (the urgent "about to lose this"
+                // variant fired at 7/3/1/0 days), which always sends
+                // regardless, this is the earlier, informational 30/14-day
+                // heads-up and safe to opt out of.
+                'audience' => 'client', 'icon' => 'fa-clock', 'color' => '#d97706', 'email' => true, 'category' => 'reminder',
                 'title'   => '{item} renews in {days_left} days',
                 'message' => 'Renew before {expiry_date} to avoid interruption.',
                 'email_subject' => 'Reminder: {item} renews in {days_left} days',
@@ -212,7 +217,7 @@ final class NotificationRegistry
                 // (admin/clients/announce.php) — every other type's copy
                 // lives in this registry, but an announcement's whole point
                 // is that admin writes it fresh each time.
-                'audience' => 'client', 'icon' => 'fa-bullhorn', 'color' => '#2563eb', 'email' => true,
+                'audience' => 'client', 'icon' => 'fa-bullhorn', 'color' => '#2563eb', 'email' => true, 'category' => 'announcement',
                 'title'   => '{subject}',
                 'message' => '{excerpt}',
                 'email_subject' => '{subject}',
