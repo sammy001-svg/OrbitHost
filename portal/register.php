@@ -109,100 +109,183 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css" />
   <style>
-    body { background: var(--navy); min-height: 100vh; padding: 32px 16px; }
-    .auth-wrap  { max-width: 500px; margin: 0 auto; }
+    html, body { height: 100%; }
+    body { margin: 0; display: flex; min-height: 100vh; background: #fff; }
+
+    .auth-split { display: flex; width: 100%; min-height: 100vh; }
+
+    /* ── Visual / carousel panel ── */
+    .auth-visual { position: relative; flex: 1 1 48%; overflow: hidden; background: var(--navy); }
+    .auth-slide {
+      position: absolute; inset: 0; opacity: 0;
+      background-size: cover; background-position: center;
+      transition: opacity 1.4s ease;
+    }
+    .auth-slide.active { opacity: 1; }
+    .auth-slide::after {
+      content: ''; position: absolute; inset: 0; z-index: 1;
+      background: linear-gradient(180deg, rgba(11,31,58,.20) 0%, rgba(11,31,58,.45) 55%, rgba(11,31,58,.94) 100%);
+    }
+    .auth-slide-copy { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 48px 56px 78px; color: #fff; }
+    .auth-slide-copy h2 { font-size: 27px; font-weight: 800; line-height: 1.28; margin-bottom: 10px; }
+    .auth-slide-copy p  { font-size: 14.5px; color: rgba(255,255,255,.8); max-width: 420px; line-height: 1.6; }
+    .auth-dots { position: absolute; left: 56px; bottom: 40px; z-index: 3; display: flex; gap: 8px; }
+    .auth-dot { width: 22px; height: 4px; border-radius: 2px; border: none; background: rgba(255,255,255,.35); cursor: pointer; padding: 0; transition: background .2s; }
+    .auth-dot.active { background: var(--green); }
+
+    /* ── Form panel ── */
+    .auth-form-side { flex: 1 1 52%; display: flex; align-items: center; justify-content: center; padding: 32px 16px; overflow-y: auto; }
+    .auth-wrap  { width: 100%; max-width: 480px; }
     .auth-brand { text-align: center; margin-bottom: 24px; }
     .auth-orb   { width: 50px; height: 50px; background: var(--green); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #fff; margin: 0 auto 12px; }
-    .auth-brand h1 { color: #fff; font-size: 20px; font-weight: 700; }
-    .auth-brand p  { color: rgba(255,255,255,.4); font-size: 13px; }
-    .auth-card  { background: #fff; border-radius: 16px; padding: 30px 28px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+    .auth-brand h1 { color: var(--navy); font-size: 20px; font-weight: 700; }
+    .auth-brand p  { color: var(--text-muted); font-size: 13px; }
+    .auth-card  { padding: 0; }
     .auth-card h2 { font-size: 17px; font-weight: 700; margin-bottom: 20px; }
     .auth-error { background: #fee2e2; color: #991b1b; padding: 11px 14px; border-radius: 7px; font-size: 13px; margin-bottom: 16px; }
     .btn-register { width: 100%; justify-content: center; padding: 11px; font-size: 14px; font-weight: 600; }
     .login-link { text-align: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 13px; }
     .login-link a { color: var(--green); font-weight: 600; }
-    .back-link  { display: block; text-align: center; margin-top: 14px; font-size: 12.5px; color: rgba(255,255,255,.4); }
+    .back-link  { display: block; text-align: center; margin-top: 14px; font-size: 12.5px; color: var(--text-muted); }
+
+    @media (max-width: 900px) {
+      .auth-visual { display: none; }
+      .auth-form-side { flex: 1 1 100%; }
+    }
   </style>
 </head>
 <body>
-<div class="auth-wrap">
-  <div class="auth-brand">
-    <div class="auth-orb">O</div>
-    <h1>Orbit Cloud</h1>
-    <p>Client Portal — Create Account</p>
+<div class="auth-split">
+  <div class="auth-visual">
+    <div class="auth-slide active" style="background-image:url('https://picsum.photos/seed/orbithost-portal-1/1200/1600')">
+      <div class="auth-slide-copy">
+        <h2>99.9% Uptime Guaranteed</h2>
+        <p>Enterprise-grade infrastructure, monitored around the clock, so your site never sleeps.</p>
+      </div>
+    </div>
+    <div class="auth-slide" style="background-image:url('https://picsum.photos/seed/orbithost-portal-2/1200/1600')">
+      <div class="auth-slide-copy">
+        <h2>Bank-Grade Security</h2>
+        <p>Free SSL, daily backups, and proactive protection included on every plan.</p>
+      </div>
+    </div>
+    <div class="auth-slide" style="background-image:url('https://picsum.photos/seed/orbithost-portal-3/1200/1600')">
+      <div class="auth-slide-copy">
+        <h2>Live in Minutes</h2>
+        <p>Order hosting or a domain and go live fast — priced in KSh or USD, whichever you prefer.</p>
+      </div>
+    </div>
+    <div class="auth-slide" style="background-image:url('https://picsum.photos/seed/orbithost-portal-4/1200/1600')">
+      <div class="auth-slide-copy">
+        <h2>Real Humans, 24/7</h2>
+        <p>Tickets, live chat, and a full knowledge base — help is always one click away.</p>
+      </div>
+    </div>
+    <div class="auth-dots">
+      <button type="button" class="auth-dot active" data-i="0" aria-label="Slide 1"></button>
+      <button type="button" class="auth-dot" data-i="1" aria-label="Slide 2"></button>
+      <button type="button" class="auth-dot" data-i="2" aria-label="Slide 3"></button>
+      <button type="button" class="auth-dot" data-i="3" aria-label="Slide 4"></button>
+    </div>
   </div>
-  <div class="auth-card">
-    <h2>Create Your Account</h2>
-    <?php if ($errors): ?>
-      <div class="auth-error"><?php echo htmlspecialchars(implode(' ', $errors)); ?></div>
-    <?php endif; ?>
 
-    <?php if ($plan_label): ?>
-      <div style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;padding:11px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;line-height:1.5">
-        <i class="fas fa-circle-check"></i>
-        You're getting started with <strong><?php echo htmlspecialchars($plan_label); ?></strong>. Create your account and our team will set it up.
+  <div class="auth-form-side">
+    <div class="auth-wrap">
+      <div class="auth-brand">
+        <div class="auth-orb">O</div>
+        <h1>Orbit Cloud</h1>
+        <p>Client Portal — Create Account</p>
       </div>
-    <?php endif; ?>
-    <?php if ($selected_domain): ?>
-      <div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:11px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;line-height:1.5">
-        <i class="fas fa-globe"></i>
-        Domain of interest: <strong><?php echo htmlspecialchars($selected_domain); ?></strong>
-      </div>
-    <?php endif; ?>
+      <div class="auth-card">
+        <h2>Create Your Account</h2>
+        <?php if ($errors): ?>
+          <div class="auth-error"><?php echo htmlspecialchars(implode(' ', $errors)); ?></div>
+        <?php endif; ?>
 
-    <form method="POST">
-      <?php if ($selected_plan): ?><input type="hidden" name="plan" value="<?php echo htmlspecialchars($selected_plan); ?>" /><?php endif; ?>
-      <?php if ($selected_domain): ?><input type="hidden" name="domain" value="<?php echo htmlspecialchars($selected_domain); ?>" /><?php endif; ?>
-      <div class="form-grid-2">
-        <div class="form-group">
-          <label class="form-label">First Name <span class="req">*</span></label>
-          <input type="text" name="first_name" class="form-control" value="<?php echo htmlspecialchars($data['first_name']); ?>" required autofocus />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Last Name <span class="req">*</span></label>
-          <input type="text" name="last_name" class="form-control" value="<?php echo htmlspecialchars($data['last_name']); ?>" required />
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Email Address <span class="req">*</span></label>
-        <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars($data['email']); ?>" required />
-      </div>
-      <div class="form-grid-2">
-        <div class="form-group">
-          <label class="form-label">Phone</label>
-          <input type="tel" name="phone" class="form-control" value="<?php echo htmlspecialchars($data['phone']); ?>" placeholder="+254 7XX XXX XXX" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Country</label>
-          <select name="country" class="form-select">
-            <?php foreach (['Kenya','Uganda','Tanzania','Rwanda','Nigeria','Ghana','South Africa','USA','United Kingdom','Other'] as $c): ?>
-              <option <?php echo $data['country']===$c?'selected':''; ?>><?php echo $c; ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Company (optional)</label>
-        <input type="text" name="company" class="form-control" value="<?php echo htmlspecialchars($data['company']); ?>" />
-      </div>
-      <div class="form-grid-2">
-        <div class="form-group">
-          <label class="form-label">Password <span class="req">*</span></label>
-          <input type="password" id="new_password" name="password" class="form-control" placeholder="Min 10 characters" required />
-          <div style="height:3px;background:#f1f5f9;border-radius:2px;margin-top:6px"><div id="strengthBar" style="height:100%;border-radius:2px;transition:width .2s,background .2s;width:0"></div></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Confirm Password <span class="req">*</span></label>
-          <input type="password" name="password2" class="form-control" placeholder="Repeat password" required />
-        </div>
-      </div>
-      <button type="submit" class="btn btn-primary btn-register"><i class="fas fa-user-plus"></i> Create Account</button>
-    </form>
+        <?php if ($plan_label): ?>
+          <div style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;padding:11px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;line-height:1.5">
+            <i class="fas fa-circle-check"></i>
+            You're getting started with <strong><?php echo htmlspecialchars($plan_label); ?></strong>. Create your account and our team will set it up.
+          </div>
+        <?php endif; ?>
+        <?php if ($selected_domain): ?>
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:11px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;line-height:1.5">
+            <i class="fas fa-globe"></i>
+            Domain of interest: <strong><?php echo htmlspecialchars($selected_domain); ?></strong>
+          </div>
+        <?php endif; ?>
 
-    <div class="login-link">Already have an account? <a href="<?php echo PORTAL_URL; ?>/login.php">Sign in →</a></div>
+        <form method="POST">
+          <?php if ($selected_plan): ?><input type="hidden" name="plan" value="<?php echo htmlspecialchars($selected_plan); ?>" /><?php endif; ?>
+          <?php if ($selected_domain): ?><input type="hidden" name="domain" value="<?php echo htmlspecialchars($selected_domain); ?>" /><?php endif; ?>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">First Name <span class="req">*</span></label>
+              <input type="text" name="first_name" class="form-control" value="<?php echo htmlspecialchars($data['first_name']); ?>" required autofocus />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Last Name <span class="req">*</span></label>
+              <input type="text" name="last_name" class="form-control" value="<?php echo htmlspecialchars($data['last_name']); ?>" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address <span class="req">*</span></label>
+            <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars($data['email']); ?>" required />
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Phone</label>
+              <input type="tel" name="phone" class="form-control" value="<?php echo htmlspecialchars($data['phone']); ?>" placeholder="+254 7XX XXX XXX" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Country</label>
+              <select name="country" class="form-select">
+                <?php foreach (['Kenya','Uganda','Tanzania','Rwanda','Nigeria','Ghana','South Africa','USA','United Kingdom','Other'] as $c): ?>
+                  <option <?php echo $data['country']===$c?'selected':''; ?>><?php echo $c; ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Company (optional)</label>
+            <input type="text" name="company" class="form-control" value="<?php echo htmlspecialchars($data['company']); ?>" />
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Password <span class="req">*</span></label>
+              <input type="password" id="new_password" name="password" class="form-control" placeholder="Min 10 characters" required />
+              <div style="height:3px;background:#f1f5f9;border-radius:2px;margin-top:6px"><div id="strengthBar" style="height:100%;border-radius:2px;transition:width .2s,background .2s;width:0"></div></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm Password <span class="req">*</span></label>
+              <input type="password" name="password2" class="form-control" placeholder="Repeat password" required />
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-register"><i class="fas fa-user-plus"></i> Create Account</button>
+        </form>
+
+        <div class="login-link">Already have an account? <a href="<?php echo PORTAL_URL; ?>/login.php">Sign in →</a></div>
+      </div>
+      <a href="../index.html" class="back-link">← Back to Orbit Cloud website</a>
+    </div>
   </div>
-  <a href="../index.html" class="back-link">← Back to Orbit Cloud website</a>
 </div>
+<script>
+(function () {
+  var slides = document.querySelectorAll('.auth-slide');
+  var dots   = document.querySelectorAll('.auth-dot');
+  if (!slides.length) return;
+  var i = 0, timer;
+  function show(n) {
+    slides.forEach(function (s, idx) { s.classList.toggle('active', idx === n); });
+    dots.forEach(function (d, idx) { d.classList.toggle('active', idx === n); });
+    i = n;
+  }
+  function restart() { clearInterval(timer); timer = setInterval(function () { show((i + 1) % slides.length); }, 6000); }
+  dots.forEach(function (d) { d.addEventListener('click', function () { show(parseInt(d.dataset.i, 10)); restart(); }); });
+  restart();
+})();
+</script>
 <script src="<?php echo PORTAL_URL; ?>/js/portal.js"></script>
 </body>
 </html>
