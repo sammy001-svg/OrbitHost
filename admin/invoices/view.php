@@ -5,8 +5,10 @@ require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 require_once '../includes/SiteSettings.php';
 require_once '../includes/Automation.php';
+require_once '../includes/Coupon.php';
 
 auth_check();
+Coupon::ensureInvoiceColumns();
 $_invoice_logo = SiteSettings::logoOnNavy(60, 240);
 
 $id = (int)($_GET['id'] ?? 0);
@@ -159,6 +161,12 @@ require_once '../includes/header.php';
         <tr>
           <td style="padding:6px 10px;color:var(--text-muted);font-size:13px">VAT (<?php echo $inv['tax_rate']; ?>%)</td>
           <td style="padding:6px 10px;text-align:right;font-size:13px"><?php echo format_money($inv['tax_amount']); ?></td>
+        </tr>
+        <?php endif; ?>
+        <?php if (!empty($inv['discount_amount']) && $inv['discount_amount'] > 0): ?>
+        <tr>
+          <td style="padding:6px 10px;color:var(--text-muted);font-size:13px">Discount<?php echo $inv['coupon_code'] ? ' (' . h($inv['coupon_code']) . ')' : ''; ?></td>
+          <td style="padding:6px 10px;text-align:right;font-size:13px">-<?php echo format_money($inv['discount_amount']); ?></td>
         </tr>
         <?php endif; ?>
         <tr style="border-top:2px solid var(--border)">

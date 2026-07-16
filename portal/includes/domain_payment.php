@@ -33,17 +33,32 @@ function dp_iso_country(string $name): string
     return $map[$name] ?? 'KE';
 }
 
-/** Create a one-line invoice for a domain action and return its id. */
-function dp_create_invoice(int $client_id, string $description, float $amount, string $currency = 'USD'): int
+/**
+ * Create a one-line invoice for a domain/service action and return its
+ * id. $subtotal, when greater than $amount, records a coupon discount:
+ * the invoice's subtotal/total split accordingly and a second, negative
+ * line item shows the deduction. Existing callers that don't pass a
+ * discount get the original one-line, no-discount invoice unchanged.
+ */
+function dp_create_invoice(int $client_id, string $description, float $amount, string $currency = 'USD', float $subtotal = 0.0, string $couponCode = ''): int
 {
     require_once dirname(__DIR__, 2) . '/admin/includes/Currency.php';
+    require_once dirname(__DIR__, 2) . '/admin/includes/Coupon.php';
     Currency::ensureSchema();
+    Coupon::ensureInvoiceColumns();
+    $subtotal = $subtotal > $amount ? $subtotal : $amount;
+    $discount = round($subtotal - $amount, 2);
+
     $inv_no = generate_invoice_number();
-    db()->prepare("INSERT INTO invoices (invoice_number, client_id, subtotal, tax_rate, tax_amount, total, status, due_date, currency) VALUES (?,?,?,0,0,?, 'sent', CURDATE(), ?)")
-        ->execute([$inv_no, $client_id, $amount, $amount, $currency]);
+    db()->prepare("INSERT INTO invoices (invoice_number, client_id, subtotal, tax_rate, tax_amount, total, status, due_date, currency, coupon_code, discount_amount) VALUES (?,?,?,0,0,?, 'sent', CURDATE(), ?, ?, ?)")
+        ->execute([$inv_no, $client_id, $subtotal, $amount, $currency, $couponCode ?: null, $discount]);
     $id = (int) db()->lastInsertId();
     db()->prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (?,?,?,?,?)')
-        ->execute([$id, $description, 1, $amount, $amount]);
+        ->execute([$id, $description, 1, $subtotal, $subtotal]);
+    if ($discount > 0) {
+        db()->prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (?,?,?,?,?)')
+            ->execute([$id, 'Discount' . ($couponCode ? " ({$couponCode})" : ''), 1, -$discount, -$discount]);
+    }
     return $id;
 }
 

@@ -12,6 +12,19 @@ require_once __DIR__ . '/includes/domain_payment.php';
 require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
 require_once dirname(__DIR__) . '/admin/includes/Automation.php';
 require_once dirname(__DIR__) . '/admin/includes/Currency.php';
+require_once dirname(__DIR__) . '/admin/includes/Coupon.php';
+
+/** Validate a coupon code against $plan/$subtotal/$currency; never throws. */
+function order_apply_coupon(?array $plan, float $subtotal, string $currency, string $code): array
+{
+    $code = trim($code);
+    if ($code === '' || !$plan) return ['coupon' => null, 'discount' => 0.0, 'error' => ''];
+    $coupon = Coupon::find($code);
+    if (!$coupon) return ['coupon' => null, 'discount' => 0.0, 'error' => 'That coupon code was not found.'];
+    $check = Coupon::validate($coupon, $subtotal, $currency, $plan['category']);
+    if (!$check['ok']) return ['coupon' => null, 'discount' => 0.0, 'error' => $check['message']];
+    return ['coupon' => $coupon, 'discount' => Coupon::discountFor($coupon, $subtotal, $currency), 'error' => ''];
+}
 
 portal_check();
 $page_title = 'Order Services';
@@ -42,6 +55,7 @@ $cat_labels = ['shared'=>'Shared Hosting','vps'=>'VPS Hosting','dedicated'=>'Ded
                'wordpress'=>'WordPress Hosting','reseller'=>'Reseller Hosting','ssl'=>'SSL Certificates','email'=>'Email Hosting','domain'=>'Domain Services'];
 
 $view = 'catalogue'; $error = ''; $push_msg = ''; $pay_id = 0; $sel_plan = null; $order_note = '';
+$coupon_code = trim($_POST['coupon'] ?? $_GET['coupon'] ?? '');
 
 // ── Verify a returning payment ──
 // settlePayment() verifies with the gateway and, on success, creates +
@@ -98,17 +112,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
         $error = 'Please choose a payment method.';
         $view  = 'form';
     } else {
-        $domain = strtolower(trim($_POST['domain'] ?? ''));
+        $domain   = strtolower(trim($_POST['domain'] ?? ''));
+        $amt      = Currency::planAmount($sel_plan, $currency);
+        $subtotal = $amt['price'] + $amt['setup_fee'];
+        $coupon_result = order_apply_coupon($sel_plan, $subtotal, $currency, $coupon_code);
+
         if ($domain !== '' && !preg_match('/^[a-z0-9][a-z0-9.-]{2,253}$/', $domain)) {
             $error = 'That domain name doesn\'t look right — use e.g. example.co.ke (or leave it blank).';
             $view  = 'form';
+        } elseif ($coupon_code !== '' && $coupon_result['error']) {
+            $error = $coupon_result['error'];
+            $view  = 'form';
         } else {
-            $amt   = Currency::planAmount($sel_plan, $currency);
-            $total = $amt['price'] + $amt['setup_fee'];
+            $discount = $coupon_result['discount'];
+            $total    = $subtotal - $discount;
             $desc  = 'Service order: ' . $sel_plan['name']
                    . ' (' . str_replace('_', ' ', $sel_plan['billing_cycle']) . ')'
                    . ($amt['setup_fee'] > 0 ? ' + setup fee' : '');
-            $invoice_id = dp_create_invoice($cid, $desc, $total, $currency);
+            $invoice_id = dp_create_invoice($cid, $desc, $total, $currency, $subtotal, $coupon_result['coupon']['code'] ?? '');
+            if ($coupon_result['coupon']) Coupon::redeem((int) $coupon_result['coupon']['id']);
             $return = PORTAL_URL . '/order.php';
             $start  = dp_start_payment(
                 $cid, $invoice_id, $total, $currency, $gw,
@@ -183,10 +205,32 @@ require_once __DIR__ . '/includes/header.php';
     <a href="<?php echo PORTAL_URL; ?>/order.php" class="btn btn-primary" style="margin-top:18px"><i class="fas fa-rotate"></i> Try again</a>
   </div>
 
-<?php elseif ($view === 'form' && $sel_plan): $view_amt = Currency::planAmount($sel_plan, $currency); ?>
+<?php elseif ($view === 'form' && $sel_plan):
+  $view_amt      = Currency::planAmount($sel_plan, $currency);
+  $view_subtotal = $view_amt['price'] + $view_amt['setup_fee'];
+  $view_coupon   = order_apply_coupon($sel_plan, $view_subtotal, $currency, $coupon_code);
+  $view_discount = $view_coupon['discount'];
+  $view_total    = $view_subtotal - $view_discount;
+?>
   <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start" class="order-grid">
     <div class="p-card" style="padding:26px">
       <h2 style="font-size:16px;font-weight:700;margin-bottom:16px"><i class="fas fa-credit-card" style="color:var(--green)"></i> Complete your order</h2>
+
+      <form method="GET" style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="hidden" name="plan" value="<?php echo (int) $sel_plan['id']; ?>" />
+        <input type="text" name="coupon" class="form-control" placeholder="Coupon code" value="<?php echo htmlspecialchars($coupon_code); ?>" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:8px;text-transform:uppercase" />
+        <button type="submit" class="btn btn-ghost" style="border:1px solid var(--border);white-space:nowrap">Apply</button>
+      </form>
+      <?php if ($coupon_code !== ''): ?>
+        <?php if ($view_coupon['error']): ?>
+          <div class="p-alert p-alert-error" style="padding:9px 12px;font-size:12.5px;margin-bottom:16px"><i class="fas fa-circle-exclamation"></i> <?php echo htmlspecialchars($view_coupon['error']); ?></div>
+        <?php elseif ($view_coupon['coupon']): ?>
+          <div class="p-alert p-alert-success" style="padding:9px 12px;font-size:12.5px;margin-bottom:16px"><i class="fas fa-circle-check"></i> Coupon "<?php echo htmlspecialchars($view_coupon['coupon']['code']); ?>" applied — <?php echo htmlspecialchars($currency); ?> <?php echo number_format($view_discount, 2); ?> off.</div>
+        <?php endif; ?>
+      <?php else: ?>
+        <div style="margin-bottom:16px"></div>
+      <?php endif; ?>
+
       <?php if (!$gateways): ?>
         <div class="p-alert p-alert-info"><i class="fas fa-circle-info"></i> Online payment is being set up. Please contact us to complete this order.</div>
       <?php else: ?>
@@ -199,6 +243,7 @@ require_once __DIR__ . '/includes/header.php';
           <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Domain for this service <span style="color:var(--text-muted);font-weight:400">(optional — you can tell us later)</span></label>
           <input type="text" name="domain" class="form-control" placeholder="example.co.ke" value="<?php echo htmlspecialchars($_POST['domain'] ?? ''); ?>" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:16px" />
         <?php endif; ?>
+        <input type="hidden" name="coupon" value="<?php echo htmlspecialchars($coupon_code); ?>" />
 
         <div style="font-size:13px;font-weight:600;margin-bottom:8px">Pay with</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
@@ -214,7 +259,7 @@ require_once __DIR__ . '/includes/header.php';
           <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">M-Pesa phone number</label>
           <input type="tel" name="mpesa_phone" class="form-control" placeholder="07XX XXX XXX" value="<?php echo htmlspecialchars($client_row['phone'] ?? ''); ?>" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px" />
         </div>
-        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-weight:700"><i class="fas fa-lock"></i> Pay <?php echo htmlspecialchars($currency); ?> <?php echo number_format($view_amt['price'] + $view_amt['setup_fee'], 2); ?></button>
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-weight:700"><i class="fas fa-lock"></i> Pay <?php echo htmlspecialchars($currency); ?> <?php echo number_format($view_total, 2); ?></button>
       </form>
       <script>
         document.querySelectorAll('input[name="gateway"]').forEach(function (r) {
@@ -241,8 +286,13 @@ require_once __DIR__ . '/includes/header.php';
           <span>Setup fee</span><strong><?php echo htmlspecialchars($currency); ?> <?php echo number_format($view_amt['setup_fee'], 2); ?></strong>
         </div>
       <?php endif; ?>
+      <?php if ($view_coupon['coupon']): ?>
+        <div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:6px;color:var(--green)">
+          <span>Discount (<?php echo htmlspecialchars($view_coupon['coupon']['code']); ?>)</span><strong>-<?php echo htmlspecialchars($currency); ?> <?php echo number_format($view_discount, 2); ?></strong>
+        </div>
+      <?php endif; ?>
       <div style="display:flex;justify-content:space-between;border-top:2px solid var(--border);padding-top:12px;margin-top:8px;font-size:15.5px;font-weight:800;color:var(--navy)">
-        <span>Due today</span><span><?php echo htmlspecialchars($currency); ?> <?php echo number_format($view_amt['price'] + $view_amt['setup_fee'], 2); ?></span>
+        <span>Due today</span><span><?php echo htmlspecialchars($currency); ?> <?php echo number_format($view_total, 2); ?></span>
       </div>
       <?php if (!empty($sel_plan['features'])): ?>
         <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px">

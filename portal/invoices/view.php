@@ -15,11 +15,13 @@ require_once dirname(__DIR__, 2) . '/admin/includes/SiteSettings.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/Notifier.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/Automation.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/Currency.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/Coupon.php';
 require_once __DIR__ . '/../includes/domain_payment.php';
 $_invoice_logo = SiteSettings::logoOnNavy(60, 240);
 
 portal_check();
 Currency::ensureSchema();
+Coupon::ensureInvoiceColumns();
 $cid = current_client()['id'];
 
 $id   = (int)($_GET['id'] ?? 0);
@@ -252,6 +254,9 @@ require_once '../includes/header.php';
           <tr><td class="k">Subtotal</td><td class="v"><?php echo format_money($inv['subtotal'], $inv_currency); ?></td></tr>
           <?php if ($inv['tax_rate'] > 0): ?>
           <tr><td class="k">VAT (<?php echo $inv['tax_rate']; ?>%)</td><td class="v"><?php echo format_money($inv['tax_amount'], $inv_currency); ?></td></tr>
+          <?php endif; ?>
+          <?php if (!empty($inv['discount_amount']) && $inv['discount_amount'] > 0): ?>
+          <tr><td class="k">Discount<?php echo $inv['coupon_code'] ? ' (' . htmlspecialchars($inv['coupon_code']) . ')' : ''; ?></td><td class="v">-<?php echo format_money($inv['discount_amount'], $inv_currency); ?></td></tr>
           <?php endif; ?>
           <tr class="total-row"><td>Total</td><td class="v"><?php echo format_money($inv['total'], $inv_currency); ?></td></tr>
         </table>

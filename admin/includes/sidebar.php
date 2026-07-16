@@ -50,6 +50,9 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <div class="nav-label">Billing</div>
     <?php _nav(APP_URL . '/invoices/index.php',  'fa-file-invoice', 'Invoices',  'invoices'); ?>
     <?php _nav(APP_URL . '/billing/index.php',   'fa-credit-card',  'Payments',  'billing'); ?>
+    <?php if (can('admin')): ?>
+      <?php _nav(APP_URL . '/coupons/index.php', 'fa-tags', 'Coupons', 'coupons'); ?>
+    <?php endif; ?>
 
     <div class="nav-label">Support</div>
     <?php _nav(APP_URL . '/tickets/index.php',       'fa-ticket',   'Tickets',        'tickets'); ?>
