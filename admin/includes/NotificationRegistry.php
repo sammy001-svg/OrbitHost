@@ -205,6 +205,19 @@ final class NotificationRegistry
                 'email_subject' => 'Security alert: your Orbit Cloud password was changed',
                 'email_body'    => '<p>Hi {client_name},</p><p>This is a confirmation that the password for your Orbit Cloud client portal account was just changed.</p><p style="color:#64748b;font-size:13px">If you did not make this change, please contact support immediately.</p>',
             ],
+
+            /* ══════════════ ADMIN ANNOUNCEMENTS ══════════════ */
+            'admin_announcement' => [
+                // {subject}/{body_html} are the admin's own composed content
+                // (admin/clients/announce.php) — every other type's copy
+                // lives in this registry, but an announcement's whole point
+                // is that admin writes it fresh each time.
+                'audience' => 'client', 'icon' => 'fa-bullhorn', 'color' => '#2563eb', 'email' => true,
+                'title'   => '{subject}',
+                'message' => '{excerpt}',
+                'email_subject' => '{subject}',
+                'email_body'    => '<p>Hi {client_name},</p>{body_html}',
+            ],
         ];
     }
 

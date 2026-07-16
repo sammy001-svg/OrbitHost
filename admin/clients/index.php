@@ -79,9 +79,16 @@ require_once '../includes/header.php';
     <span class="table-count">Showing <?php echo count($clients); ?> of <?php echo number_format($total); ?></span>
   </div>
 
+  <div id="bulkBar" style="display:none;align-items:center;gap:10px;padding:10px 20px;background:var(--green-light);border-bottom:1px solid var(--border);font-size:13px">
+    <span id="bulkCount" style="font-weight:600;color:var(--navy)"></span>
+    <button type="button" class="btn btn-primary btn-sm" id="bulkAnnounceBtn"><i class="fas fa-bullhorn"></i> Send Announcement</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="bulkClearBtn">Clear selection</button>
+  </div>
+
   <table>
     <thead>
       <tr>
+        <th style="width:34px"><input type="checkbox" id="selectAll" /></th>
         <th>Client</th>
         <th>Company</th>
         <th>Country</th>
@@ -95,6 +102,7 @@ require_once '../includes/header.php';
     <tbody>
     <?php if ($clients): foreach ($clients as $c): ?>
       <tr>
+        <td><input type="checkbox" class="row-check" value="<?php echo (int) $c['id']; ?>" /></td>
         <td>
           <a href="<?php echo APP_URL; ?>/clients/view.php?id=<?php echo $c['id']; ?>" style="text-decoration:none">
             <div class="td-name"><?php echo h($c['first_name'] . ' ' . $c['last_name']); ?></div>
@@ -122,7 +130,7 @@ require_once '../includes/header.php';
       </tr>
     <?php endforeach; else: ?>
       <tr>
-        <td colspan="8">
+        <td colspan="9">
           <div class="empty-state">
             <i class="fas fa-users"></i>
             <p>No clients found<?php echo $search ? " for \"$search\"" : ''; ?>.</p>
@@ -135,5 +143,42 @@ require_once '../includes/header.php';
 
   <?php echo paginate($total, $page, PER_PAGE, APP_URL . '/clients/?q=' . urlencode($search) . '&status=' . urlencode($status)); ?>
 </div>
+
+<script>
+(function () {
+  var selectAll = document.getElementById('selectAll');
+  var rowChecks = Array.prototype.slice.call(document.querySelectorAll('.row-check'));
+  var bar = document.getElementById('bulkBar');
+  var countEl = document.getElementById('bulkCount');
+
+  function selected() { return rowChecks.filter(function (c) { return c.checked; }); }
+
+  function refresh() {
+    var n = selected().length;
+    bar.style.display = n ? 'flex' : 'none';
+    countEl.textContent = n + ' client' + (n === 1 ? '' : 's') + ' selected';
+    if (selectAll) selectAll.checked = n > 0 && n === rowChecks.length;
+  }
+
+  rowChecks.forEach(function (c) { c.addEventListener('change', refresh); });
+  if (selectAll) {
+    selectAll.addEventListener('change', function () {
+      rowChecks.forEach(function (c) { c.checked = selectAll.checked; });
+      refresh();
+    });
+  }
+
+  document.getElementById('bulkClearBtn').addEventListener('click', function () {
+    rowChecks.forEach(function (c) { c.checked = false; });
+    refresh();
+  });
+
+  document.getElementById('bulkAnnounceBtn').addEventListener('click', function () {
+    var ids = selected().map(function (c) { return c.value; });
+    if (!ids.length) return;
+    location.href = <?php echo json_encode(APP_URL . '/clients/announce.php'); ?> + '?ids=' + ids.join(',');
+  });
+})();
+</script>
 
 <?php require_once '../includes/footer.php'; ?>
