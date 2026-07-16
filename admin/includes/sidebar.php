@@ -53,6 +53,7 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <?php _nav(APP_URL . '/chat/',          'fa-comments', 'Live Chat',      'chat'); ?>
     <?php _nav(APP_URL . '/kb/',            'fa-book',     'Knowledge Base', 'kb'); ?>
     <?php _nav(APP_URL . '/notifications/', 'fa-bell',     'Notifications',  'notifications'); ?>
+    <?php _nav(APP_URL . '/audit-log/',     'fa-clock-rotate-left', 'Audit Log', 'audit-log'); ?>
 
     <div class="nav-label">Integrations</div>
     <?php _nav(APP_URL . '/integrations/',         'fa-plug',   'Providers',    'integrations', 'index.php'); ?>
