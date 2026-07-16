@@ -64,7 +64,7 @@ require_once __DIR__ . '/includes/header.php';
       <p>Domain names registered with Orbit Cloud</p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <a href="<?php echo PORTAL_URL; ?>/domain-transfer.php" class="btn btn-ghost" style="border:1px solid rgba(255,255,255,.3);color:#fff"><i class="fas fa-right-left"></i> Transfer a Domain</a>
+      <a href="<?php echo PORTAL_URL; ?>/domain-transfer.php" class="btn btn-ghost" style="background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff"><i class="fas fa-right-left"></i> Transfer a Domain</a>
       <a href="<?php echo PORTAL_URL; ?>/domain-search.php" class="btn btn-white"><i class="fas fa-plus"></i> Register a Domain</a>
     </div>
   </div>
