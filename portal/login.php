@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once dirname(__DIR__) . '/admin/includes/SiteSettings.php';
 
 portal_start();
 
@@ -33,6 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = $r['message'] ?? 'Invalid email or password.';
     }
 }
+
+$_brand_logo = SiteSettings::logoImgTag(44, 170);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -71,13 +74,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .auth-form-side { flex: 1 1 48%; display: flex; align-items: center; justify-content: center; padding: 40px 24px; overflow-y: auto; }
     .auth-wrap { width: 100%; max-width: 420px; padding: 20px; }
     .auth-brand { text-align: center; margin-bottom: 28px; }
-    .auth-orb {
-      width: 60px; height: 60px; background: var(--green); border-radius: 16px;
-      display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; color: #fff;
-      margin: 0 auto 14px;
+    .auth-brand-card {
+      display: inline-flex; align-items: center; gap: 12px;
+      background: var(--navy); border-radius: 14px; padding: 16px 26px;
+      margin-bottom: 14px;
     }
-    .auth-brand h1 { color: var(--navy); font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-    .auth-brand p  { color: var(--text-muted); font-size: 13px; }
+    .auth-orb {
+      width: 44px; height: 44px; background: var(--green); border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: #fff;
+      flex-shrink: 0;
+    }
+    .auth-brand-card h1 { color: #fff; font-size: 20px; font-weight: 700; }
+    .auth-brand p { color: var(--text-muted); font-size: 13px; }
     .auth-card { padding: 0; }
     .auth-card h2  { font-size: 18px; font-weight: 700; margin-bottom: 3px; }
     .auth-card .sub { font-size: 13px; color: var(--text-muted); margin-bottom: 22px; }
@@ -135,8 +143,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="auth-form-side">
     <div class="auth-wrap">
       <div class="auth-brand">
-        <div class="auth-orb">O</div>
-        <h1>Orbit Cloud</h1>
+        <div class="auth-brand-card">
+          <?php if ($_brand_logo): ?>
+            <?php echo $_brand_logo; ?>
+          <?php else: ?>
+            <div class="auth-orb">O</div>
+            <h1>Orbit Cloud</h1>
+          <?php endif; ?>
+        </div>
         <p>Client Portal</p>
       </div>
       <div class="auth-card">

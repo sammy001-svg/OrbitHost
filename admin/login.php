@@ -2,6 +2,7 @@
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/SiteSettings.php';
 
 auth_start();
 
@@ -36,6 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$_brand_logo = SiteSettings::logoImgTag(44, 170);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -75,16 +78,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .login-page { width: 100%; max-width: 400px; padding: 20px; }
 
     .login-brand { text-align: center; margin-bottom: 28px; }
-    .login-orb {
-      width: 58px; height: 58px;
-      background: var(--green);
-      border-radius: 16px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 24px; font-weight: 800; color: #fff;
-      margin: 0 auto 14px;
+    .login-brand-card {
+      display: inline-flex; align-items: center; gap: 12px;
+      background: var(--navy); border-radius: 14px; padding: 16px 26px;
+      margin-bottom: 14px;
     }
-    .login-brand h1 { color: var(--navy); font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-    .login-brand p  { color: var(--text-muted); font-size: 13px; }
+    .login-orb {
+      width: 44px; height: 44px;
+      background: var(--green);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 800; color: #fff;
+      flex-shrink: 0;
+    }
+    .login-brand-card h1 { color: #fff; font-size: 20px; font-weight: 700; }
+    .login-brand p { color: var(--text-muted); font-size: 13px; }
 
     .login-card { padding: 0; }
 
@@ -147,8 +155,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="auth-form-side">
     <div class="login-page">
       <div class="login-brand">
-        <div class="login-orb">O</div>
-        <h1>Orbit Cloud</h1>
+        <div class="login-brand-card">
+          <?php if ($_brand_logo): ?>
+            <?php echo $_brand_logo; ?>
+          <?php else: ?>
+            <div class="login-orb">O</div>
+            <h1>Orbit Cloud</h1>
+          <?php endif; ?>
+        </div>
         <p>Admin Control Panel</p>
       </div>
 

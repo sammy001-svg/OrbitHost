@@ -3,6 +3,7 @@ require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once dirname(__DIR__) . '/admin/includes/functions.php';
 require_once dirname(__DIR__) . '/admin/includes/Notifier.php';
+require_once dirname(__DIR__) . '/admin/includes/SiteSettings.php';
 
 portal_start();
 if (!empty($_SESSION['client_id'])) { header('Location: ' . PORTAL_URL . '/dashboard.php'); exit; }
@@ -99,6 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$_brand_logo = SiteSettings::logoImgTag(40, 160);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -137,9 +140,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .auth-form-side { flex: 1 1 52%; display: flex; align-items: center; justify-content: center; padding: 32px 16px; overflow-y: auto; }
     .auth-wrap  { width: 100%; max-width: 480px; }
     .auth-brand { text-align: center; margin-bottom: 24px; }
-    .auth-orb   { width: 50px; height: 50px; background: var(--green); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #fff; margin: 0 auto 12px; }
-    .auth-brand h1 { color: var(--navy); font-size: 20px; font-weight: 700; }
-    .auth-brand p  { color: var(--text-muted); font-size: 13px; }
+    .auth-brand-card {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--navy); border-radius: 14px; padding: 14px 22px;
+      margin-bottom: 12px;
+    }
+    .auth-orb { width: 40px; height: 40px; background: var(--green); border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; color: #fff; flex-shrink: 0; }
+    .auth-brand-card h1 { color: #fff; font-size: 19px; font-weight: 700; }
+    .auth-brand p { color: var(--text-muted); font-size: 13px; }
     .auth-card  { padding: 0; }
     .auth-card h2 { font-size: 17px; font-weight: 700; margin-bottom: 20px; }
     .auth-error { background: #fee2e2; color: #991b1b; padding: 11px 14px; border-radius: 7px; font-size: 13px; margin-bottom: 16px; }
@@ -192,8 +200,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="auth-form-side">
     <div class="auth-wrap">
       <div class="auth-brand">
-        <div class="auth-orb">O</div>
-        <h1>Orbit Cloud</h1>
+        <div class="auth-brand-card">
+          <?php if ($_brand_logo): ?>
+            <?php echo $_brand_logo; ?>
+          <?php else: ?>
+            <div class="auth-orb">O</div>
+            <h1>Orbit Cloud</h1>
+          <?php endif; ?>
+        </div>
         <p>Client Portal — Create Account</p>
       </div>
       <div class="auth-card">
