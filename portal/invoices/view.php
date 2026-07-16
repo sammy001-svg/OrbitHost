@@ -29,7 +29,7 @@ $inv = $stmt->fetch();
 
 if (!$inv) {
     portal_flash_set('error', 'Invoice not found.');
-    header('Location: ' . PORTAL_URL . '/invoices/');
+    header('Location: ' . PORTAL_URL . '/invoices/index.php');
     exit;
 }
 

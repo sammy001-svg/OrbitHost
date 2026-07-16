@@ -7,12 +7,12 @@ require_once '../includes/functions.php';
 auth_check();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ' . APP_URL . '/invoices/');
+    header('Location: ' . APP_URL . '/invoices/index.php');
     exit;
 }
 
 csrf_verify();
-require_role('admin', APP_URL . '/invoices/');
+require_role('admin', APP_URL . '/invoices/index.php');
 
 $id = (int)($_POST['id'] ?? 0);
 if ($id) {
@@ -26,5 +26,5 @@ if ($id) {
     }
 }
 
-header('Location: ' . APP_URL . '/invoices/');
+header('Location: ' . APP_URL . '/invoices/index.php');
 exit;

@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             log_activity('plan_delete', 'service', $id, $name);
             flash_set('success', 'Plan "' . $name . '" deleted. Existing client services on it are unaffected.');
         }
-        header('Location: ' . APP_URL . '/plans/');
+        header('Location: ' . APP_URL . '/plans/index.php');
         exit;
     }
 
@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash_set('success', 'Plan "' . $name . '" saved.');
     }
 
-    header('Location: ' . APP_URL . '/plans/');
+    header('Location: ' . APP_URL . '/plans/index.php');
     exit;
 }
 

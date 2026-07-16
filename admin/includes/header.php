@@ -61,7 +61,7 @@ $_notifs = Notifier::listFor('admin', (int) $_admin['id'], 8);
               </a>
             <?php endforeach; endif; ?>
           </div>
-          <a href="<?php echo APP_URL; ?>/notifications/" class="notif-dd-foot">View all notifications</a>
+          <a href="<?php echo APP_URL; ?>/notifications/index.php" class="notif-dd-foot">View all notifications</a>
         </div>
       </div>
 

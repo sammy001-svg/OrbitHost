@@ -15,7 +15,7 @@ $ticket = $stmt->fetch();
 
 if (!$ticket) {
     portal_flash_set('error', 'Ticket not found.');
-    header('Location: ' . PORTAL_URL . '/tickets/');
+    header('Location: ' . PORTAL_URL . '/tickets/index.php');
     exit;
 }
 

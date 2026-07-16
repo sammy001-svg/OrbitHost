@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reche
     $r = Automation::settlePayment($pid);
     $labels = ['completed' => 'success', 'already' => 'success', 'failed' => 'error', 'pending' => 'info', 'not_found' => 'error'];
     flash_set($labels[$r['status']] ?? 'info', 'Re-check: ' . ($r['message'] ?? $r['status']));
-    header('Location: ' . APP_URL . '/billing/');
+    header('Location: ' . APP_URL . '/billing/index.php');
     exit;
 }
 

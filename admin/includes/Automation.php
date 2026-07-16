@@ -581,7 +581,7 @@ final class Automation
             'client_name' => trim($client['first_name'] . ' ' . $client['last_name']),
             'amount' => ($pay['currency'] ?: 'USD') . ' ' . number_format((float) $pay['amount'], 2),
             'gateway' => ucfirst($pay['gateway']), 'reason' => $message,
-            'email' => $client['email'], 'link' => portal_base_url() . '/invoices/',
+            'email' => $client['email'], 'link' => portal_base_url() . '/invoices/index.php',
         ]);
     }
 
@@ -620,7 +620,7 @@ final class Automation
             'service_label' => $o['service_name'] ?: 'Your service',
             'reason'        => $reason . ' — pay the outstanding invoice to restore service.',
             'email'         => $o['email'] ?? '',
-            'link'          => portal_base_url() . '/invoices/',
+            'link'          => portal_base_url() . '/invoices/index.php',
         ]);
         return ['status' => 'suspended', 'message' => 'Order suspended' . ($did_panel ? ' (panel too)' : '') . '.'];
     }
@@ -683,7 +683,7 @@ final class Automation
             'service_label' => $cs['label'] ?: 'Your service',
             'reason'        => $reason . ' — pay the outstanding invoice to restore service.',
             'email'         => $cs['email'] ?? '',
-            'link'          => portal_base_url() . '/invoices/',
+            'link'          => portal_base_url() . '/invoices/index.php',
         ]);
         return ['status' => 'suspended', 'message' => 'Service suspended' . ($did_panel ? ' (panel too)' : '') . '.'];
     }

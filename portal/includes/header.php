@@ -59,8 +59,8 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
       <?php pnav(PORTAL_URL . '/services.php',  'Services',   'services.php'); ?>
       <?php pnav(PORTAL_URL . '/domains.php',   'Domains',    'domains.php'); ?>
       <?php pnav(PORTAL_URL . '/order.php',     'Order',      'order.php'); ?>
-      <?php pnav(PORTAL_URL . '/invoices/',      'Invoices',   'index.php', 'invoices'); ?>
-      <?php pnav(PORTAL_URL . '/tickets/',       'Support',    'index.php', 'tickets'); ?>
+      <?php pnav(PORTAL_URL . '/invoices/index.php', 'Invoices', 'index.php', 'invoices'); ?>
+      <?php pnav(PORTAL_URL . '/tickets/index.php',  'Support',  'index.php', 'tickets'); ?>
       <div class="currency-toggle-mobile" role="group" aria-label="Currency">
         <button type="button" data-cur="USD">USD</button>
         <button type="button" data-cur="KES">KSh</button>

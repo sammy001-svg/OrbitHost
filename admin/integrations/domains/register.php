@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm'])) {
 
                 log_activity('domain_register', "Registered {$domain} via {$provider}");
                 flash_set('success', "{$domain} registered successfully!");
-                header('Location: ' . APP_URL . '/integrations/domains/');
+                header('Location: ' . APP_URL . '/integrations/domains/index.php');
                 exit;
             } else {
                 $errors[] = 'Registration failed: ' . htmlspecialchars($result['error'] ?? 'Unknown error');

@@ -17,7 +17,7 @@ $inv = $stmt->fetch();
 
 if (!$inv) {
     flash_set('error', 'Invoice not found.');
-    header('Location: ' . APP_URL . '/billing/');
+    header('Location: ' . APP_URL . '/billing/index.php');
     exit;
 }
 
@@ -107,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $auto = Automation::invoicePaid($invoice_id);
         flash_set('success', ($pending_id ? 'Offline payment confirmed — invoice marked as paid.' : 'Payment recorded and invoice marked as paid.')
             . (in_array($auto['status'], ['provisioned', 'reactivated', 'renewed'], true) ? ' ' . $auto['message'] : ''));
-        header('Location: ' . APP_URL . '/billing/');
+        header('Location: ' . APP_URL . '/billing/index.php');
         exit;
     }
 

@@ -3,5 +3,5 @@
 require_once '../includes/config.php';
 require_once '../includes/auth.php';
 auth_check();
-header('Location: ' . APP_URL . '/integrations/');
+header('Location: ' . APP_URL . '/integrations/index.php');
 exit;

@@ -13,7 +13,7 @@ $order = $stmt->fetch();
 
 if (!$order) {
     flash_set('error', 'Order not found.');
-    header('Location: ' . APP_URL . '/orders/');
+    header('Location: ' . APP_URL . '/orders/index.php');
     exit;
 }
 

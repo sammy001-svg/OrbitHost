@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         log_activity('bulk_announcement', 'client', 0, "Sent \"$subject\" to $sent client(s)");
         flash_set('success', "Announcement sent to $sent client(s).");
-        header('Location: ' . APP_URL . '/clients/');
+        header('Location: ' . APP_URL . '/clients/index.php');
         exit;
     }
 }
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $ids = announce_client_ids($_GET['ids'] ?? $_POST['ids'] ?? '');
 if (!$ids) {
     flash_set('error', 'No clients selected. Select at least one client from the list first.');
-    header('Location: ' . APP_URL . '/clients/');
+    header('Location: ' . APP_URL . '/clients/index.php');
     exit;
 }
 

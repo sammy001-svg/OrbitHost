@@ -26,7 +26,18 @@ if (isset($_GET['open'])) {
     $stmt = db()->prepare('SELECT link FROM notifications WHERE id = ? AND audience = "client" AND recipient_id = ?');
     $stmt->execute([$id, $client_id]);
     $link = $stmt->fetchColumn();
-    header('Location: ' . ($link ?: PORTAL_URL . '/notifications.php'));
+    if ($link) {
+        // Some notifications (older rows, or a bare-directory link that
+        // depended on Apache's DirectoryIndex resolving it) may point at a
+        // directory with no filename — normalize to its index.php so the
+        // redirect always lands on a real page instead of risking a 404.
+        if (substr($link, -1) === '/') {
+            $link = rtrim($link, '/') . '/index.php';
+        }
+        header('Location: ' . $link);
+        exit;
+    }
+    header('Location: ' . PORTAL_URL . '/notifications.php');
     exit;
 }
 

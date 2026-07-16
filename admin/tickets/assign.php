@@ -7,7 +7,7 @@ require_once '../includes/functions.php';
 auth_check();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ' . APP_URL . '/tickets/');
+    header('Location: ' . APP_URL . '/tickets/index.php');
     exit;
 }
 

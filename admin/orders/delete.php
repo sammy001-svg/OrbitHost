@@ -7,7 +7,7 @@ require_once '../includes/functions.php';
 auth_check();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ' . APP_URL . '/orders/');
+    header('Location: ' . APP_URL . '/orders/index.php');
     exit;
 }
 
@@ -20,5 +20,5 @@ if ($id) {
     flash_set('success', 'Order deleted.');
 }
 
-header('Location: ' . APP_URL . '/orders/');
+header('Location: ' . APP_URL . '/orders/index.php');
 exit;

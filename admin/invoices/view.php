@@ -23,7 +23,7 @@ $inv = $stmt->fetch();
 
 if (!$inv) {
     flash_set('error', 'Invoice not found.');
-    header('Location: ' . APP_URL . '/invoices/');
+    header('Location: ' . APP_URL . '/invoices/index.php');
     exit;
 }
 

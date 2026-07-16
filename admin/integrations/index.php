@@ -25,13 +25,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$def) {
         flash_set('error', 'Unknown provider.');
-        header('Location: ' . APP_URL . '/integrations/');
+        header('Location: ' . APP_URL . '/integrations/index.php');
         exit;
     }
 
     try {
         if (in_array($action, ['save', 'toggle'], true)) {
-            require_role('admin', APP_URL . '/integrations/');
+            require_role('admin', APP_URL . '/integrations/index.php');
         }
         if ($action === 'save') {
             $data = [];
@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash_set('error', $def['name'] . ' error: ' . $e->getMessage());
     }
 
-    header('Location: ' . APP_URL . '/integrations/#prov-' . $provider);
+    header('Location: ' . APP_URL . '/integrations/index.php#prov-' . $provider);
     exit;
 }
 

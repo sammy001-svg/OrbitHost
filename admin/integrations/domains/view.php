@@ -19,7 +19,7 @@ $dom = $stmt->fetch();
 
 if (!$dom) {
     flash_set('error', 'Domain record not found.');
-    header('Location: ' . APP_URL . '/integrations/domains/');
+    header('Location: ' . APP_URL . '/integrations/domains/index.php');
     exit;
 }
 

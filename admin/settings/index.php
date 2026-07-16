@@ -13,7 +13,7 @@ $sections = SiteSettings::sections();
 
 if ($table_ok && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
-    require_role('admin', APP_URL . '/settings/');
+    require_role('admin', APP_URL . '/settings/index.php');
     $section = $_POST['section'] ?? '';
     $def     = $sections[$section] ?? null;
 
@@ -66,7 +66,7 @@ if ($table_ok && $_SERVER['REQUEST_METHOD'] === 'POST') {
             flash_set('success', $def['label'] . ' settings saved.');
         }
     }
-    header('Location: ' . APP_URL . '/settings/#sec-' . $section);
+    header('Location: ' . APP_URL . '/settings/index.php#sec-' . $section);
     exit;
 }
 

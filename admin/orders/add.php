@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $oid = db()->lastInsertId();
         log_activity('create_order', 'order', $oid, "Created order for client #{$data['client_id']}");
         flash_set('success', 'Order created successfully.');
-        $redir = $data['client_id'] ? APP_URL . '/clients/view.php?id=' . $data['client_id'] . '#orders-tab' : APP_URL . '/orders/';
+        $redir = $data['client_id'] ? APP_URL . '/clients/view.php?id=' . $data['client_id'] . '#orders-tab' : APP_URL . '/orders/index.php';
         header('Location: ' . $redir);
         exit;
     }

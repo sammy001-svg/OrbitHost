@@ -24,10 +24,10 @@ try {
 }
 
 if (!$error && empty($whm_cfg['host'])) {
-    $error = 'WHM host is not set. <a href="' . APP_URL . '/integrations/#prov-whm">Add your WHM host</a>'
+    $error = 'WHM host is not set. <a href="' . APP_URL . '/integrations/index.php#prov-whm">Add your WHM host</a>'
            . ' <small style="opacity:.6">(DB row ' . (empty($whm_cfg) ? 'missing — run schema_v2.sql' : 'exists but host is empty') . ')</small>';
 } elseif (!$error && empty($whm_cfg['token'])) {
-    $error = 'WHM API token is not set. <a href="' . APP_URL . '/integrations/#prov-whm">Add your API token</a> — generate one in WHM › Development › Manage API Tokens.';
+    $error = 'WHM API token is not set. <a href="' . APP_URL . '/integrations/index.php#prov-whm">Add your API token</a> — generate one in WHM › Development › Manage API Tokens.';
 } else {
     try {
         $whm = new WHMClient(
@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'sync'
         $synced++;
     }
     flash_set('success', "Synced {$synced} accounts.");
-    header('Location: ' . APP_URL . '/integrations/whm/');
+    header('Location: ' . APP_URL . '/integrations/whm/index.php');
     exit;
 }
 
@@ -138,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'link'
     } catch (\Throwable $e) {
         flash_set('error', 'Link failed: ' . $e->getMessage());
     }
-    header('Location: ' . APP_URL . '/integrations/whm/');
+    header('Location: ' . APP_URL . '/integrations/whm/index.php');
     exit;
 }
 

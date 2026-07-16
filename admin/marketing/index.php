@@ -107,7 +107,7 @@ if ($schema_ok && $_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (\Throwable $e) {
         flash_set('error', $e->getMessage());
     }
-    header('Location: ' . APP_URL . '/marketing/');
+    header('Location: ' . APP_URL . '/marketing/index.php');
     exit;
 }
 

@@ -113,7 +113,7 @@ if ($schema_ok && $_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (\Throwable $e) {
         flash_set('error', $e->getMessage());
     }
-    header('Location: ' . APP_URL . '/kb/');
+    header('Location: ' . APP_URL . '/kb/index.php');
     exit;
 }
 

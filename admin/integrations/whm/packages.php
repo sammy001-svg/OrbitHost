@@ -17,7 +17,7 @@ $error    = null;
 $packages = [];
 
 if (empty($whm_cfg['host']) || empty($whm_cfg['token'])) {
-    $error = 'WHM is not configured. <a href="' . APP_URL . '/integrations/#prov-whm">Configure it in Providers</a>.';
+    $error = 'WHM is not configured. <a href="' . APP_URL . '/integrations/index.php#prov-whm">Configure it in Providers</a>.';
 } else {
     $whm = new WHMClient(
         $whm_cfg['host'],

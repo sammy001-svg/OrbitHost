@@ -35,33 +35,33 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <?php _nav(APP_URL . '/dashboard.php', 'fa-gauge-high', 'Dashboard', '', 'dashboard.php'); ?>
 
     <div class="nav-label">Website</div>
-    <?php _nav(APP_URL . '/settings/',  'fa-swatchbook', 'Site Settings', 'settings'); ?>
-    <?php _nav(APP_URL . '/marketing/', 'fa-bullhorn',   'Portal Banners', 'marketing'); ?>
+    <?php _nav(APP_URL . '/settings/index.php',  'fa-swatchbook', 'Site Settings', 'settings'); ?>
+    <?php _nav(APP_URL . '/marketing/index.php', 'fa-bullhorn',   'Portal Banners', 'marketing'); ?>
     <?php if (can('super_admin')): ?>
-      <?php _nav(APP_URL . '/staff/', 'fa-users-gear', 'Staff Accounts', 'staff'); ?>
+      <?php _nav(APP_URL . '/staff/index.php', 'fa-users-gear', 'Staff Accounts', 'staff'); ?>
     <?php endif; ?>
 
     <div class="nav-label">Operations</div>
-    <?php _nav(APP_URL . '/services/',  'fa-layer-group',  'Services',  'services'); ?>
-    <?php _nav(APP_URL . '/plans/',     'fa-tags',         'Plans & Packages', 'plans'); ?>
-    <?php _nav(APP_URL . '/clients/',   'fa-users',        'Clients',   'clients'); ?>
-    <?php _nav(APP_URL . '/orders/',    'fa-box',          'Orders',    'orders'); ?>
+    <?php _nav(APP_URL . '/services/index.php',  'fa-layer-group',  'Services',  'services'); ?>
+    <?php _nav(APP_URL . '/plans/index.php',     'fa-tags',         'Plans & Packages', 'plans'); ?>
+    <?php _nav(APP_URL . '/clients/index.php',   'fa-users',        'Clients',   'clients'); ?>
+    <?php _nav(APP_URL . '/orders/index.php',    'fa-box',          'Orders',    'orders'); ?>
 
     <div class="nav-label">Billing</div>
-    <?php _nav(APP_URL . '/invoices/',  'fa-file-invoice', 'Invoices',  'invoices'); ?>
-    <?php _nav(APP_URL . '/billing/',   'fa-credit-card',  'Payments',  'billing'); ?>
+    <?php _nav(APP_URL . '/invoices/index.php',  'fa-file-invoice', 'Invoices',  'invoices'); ?>
+    <?php _nav(APP_URL . '/billing/index.php',   'fa-credit-card',  'Payments',  'billing'); ?>
 
     <div class="nav-label">Support</div>
-    <?php _nav(APP_URL . '/tickets/',       'fa-ticket',   'Tickets',        'tickets'); ?>
-    <?php _nav(APP_URL . '/chat/',          'fa-comments', 'Live Chat',      'chat'); ?>
-    <?php _nav(APP_URL . '/kb/',            'fa-book',     'Knowledge Base', 'kb'); ?>
-    <?php _nav(APP_URL . '/notifications/', 'fa-bell',     'Notifications',  'notifications'); ?>
-    <?php _nav(APP_URL . '/audit-log/',     'fa-clock-rotate-left', 'Audit Log', 'audit-log'); ?>
+    <?php _nav(APP_URL . '/tickets/index.php',       'fa-ticket',   'Tickets',        'tickets'); ?>
+    <?php _nav(APP_URL . '/chat/index.php',          'fa-comments', 'Live Chat',      'chat'); ?>
+    <?php _nav(APP_URL . '/kb/index.php',            'fa-book',     'Knowledge Base', 'kb'); ?>
+    <?php _nav(APP_URL . '/notifications/index.php', 'fa-bell',     'Notifications',  'notifications'); ?>
+    <?php _nav(APP_URL . '/audit-log/index.php',     'fa-clock-rotate-left', 'Audit Log', 'audit-log'); ?>
 
     <div class="nav-label">Integrations</div>
-    <?php _nav(APP_URL . '/integrations/',         'fa-plug',   'Providers',    'integrations', 'index.php'); ?>
-    <?php _nav(APP_URL . '/integrations/whm/',     'fa-server', 'WHM / Servers', 'whm', '', 'integrations'); ?>
-    <?php _nav(APP_URL . '/integrations/domains/', 'fa-globe',  'Domains',       'domains', '', 'integrations'); ?>
+    <?php _nav(APP_URL . '/integrations/index.php',         'fa-plug',   'Providers',    'integrations', 'index.php'); ?>
+    <?php _nav(APP_URL . '/integrations/whm/index.php',     'fa-server', 'WHM / Servers', 'whm', '', 'integrations'); ?>
+    <?php _nav(APP_URL . '/integrations/domains/index.php', 'fa-globe',  'Domains',       'domains', '', 'integrations'); ?>
   </nav>
 
   <div class="sidebar-footer">

@@ -22,7 +22,7 @@ $ticket = $stmt->fetch();
 
 if (!$ticket) {
     flash_set('error', 'Ticket not found.');
-    header('Location: ' . APP_URL . '/tickets/');
+    header('Location: ' . APP_URL . '/tickets/index.php');
     exit;
 }
 

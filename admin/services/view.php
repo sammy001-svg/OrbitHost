@@ -19,7 +19,7 @@ $svc = $stmt->fetch();
 
 if (!$svc) {
     flash_set('error', 'Service not found.');
-    header('Location: ' . APP_URL . '/services/');
+    header('Location: ' . APP_URL . '/services/index.php');
     exit;
 }
 

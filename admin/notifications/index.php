@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         Notifier::markAllRead('admin', $admin_id);
         flash_set('success', 'All notifications marked as read.');
     }
-    header('Location: ' . APP_URL . '/notifications/');
+    header('Location: ' . APP_URL . '/notifications/index.php');
     exit;
 }
 
@@ -40,7 +40,7 @@ if (isset($_GET['open'])) {
         header('Location: ' . $link);
         exit;
     }
-    header('Location: ' . APP_URL . '/notifications/');
+    header('Location: ' . APP_URL . '/notifications/index.php');
     exit;
 }
 

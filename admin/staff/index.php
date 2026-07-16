@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
-        header('Location: ' . APP_URL . '/staff/');
+        header('Location: ' . APP_URL . '/staff/index.php');
         exit;
     }
 
@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    header('Location: ' . APP_URL . '/staff/');
+    header('Location: ' . APP_URL . '/staff/index.php');
     exit;
 }
 

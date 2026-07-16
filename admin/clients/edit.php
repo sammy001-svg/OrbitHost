@@ -13,7 +13,7 @@ $client = $stmt->fetch();
 
 if (!$client) {
     flash_set('error', 'Client not found.');
-    header('Location: ' . APP_URL . '/clients/');
+    header('Location: ' . APP_URL . '/clients/index.php');
     exit;
 }
 
