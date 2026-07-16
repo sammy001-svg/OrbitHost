@@ -37,6 +37,9 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <div class="nav-label">Website</div>
     <?php _nav(APP_URL . '/settings/',  'fa-swatchbook', 'Site Settings', 'settings'); ?>
     <?php _nav(APP_URL . '/marketing/', 'fa-bullhorn',   'Portal Banners', 'marketing'); ?>
+    <?php if (can('super_admin')): ?>
+      <?php _nav(APP_URL . '/staff/', 'fa-users-gear', 'Staff Accounts', 'staff'); ?>
+    <?php endif; ?>
 
     <div class="nav-label">Operations</div>
     <?php _nav(APP_URL . '/services/',  'fa-layer-group',  'Services',  'services'); ?>

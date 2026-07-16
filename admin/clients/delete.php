@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 csrf_verify();
+require_role('admin', APP_URL . '/clients/');
 
 $id = (int)($_POST['id'] ?? 0);
 if ($id) {

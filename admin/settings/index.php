@@ -13,6 +13,7 @@ $sections = SiteSettings::sections();
 
 if ($table_ok && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
+    require_role('admin', APP_URL . '/settings/');
     $section = $_POST['section'] ?? '';
     $def     = $sections[$section] ?? null;
 

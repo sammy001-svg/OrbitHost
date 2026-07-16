@@ -185,3 +185,25 @@ function can(string $role): bool
     $need = $hierarchy[$role] ?? 1;
     return $mine >= $need;
 }
+
+/**
+ * Gate a sensitive action/page behind a minimum role. With $redirectTo,
+ * fails soft (flash error + bounce back) for actions reachable from a
+ * shared listing page; without it, fails hard with a 403 for a page a
+ * lower-privileged admin should never have landed on in the first place.
+ */
+function require_role(string $role, string $redirectTo = ''): void
+{
+    if (can($role)) return;
+    $label = ucwords(str_replace('_', ' ', $role));
+    if ($redirectTo !== '') {
+        flash_set('error', "You don't have permission to do that — it requires the {$label} role or higher.");
+        header('Location: ' . $redirectTo);
+        exit;
+    }
+    http_response_code(403);
+    die('<div style="font-family:-apple-system,Segoe UI,sans-serif;padding:60px 40px;max-width:520px;margin:0 auto;text-align:center">'
+        . '<h1 style="font-size:22px;margin-bottom:8px">403 — Access denied</h1>'
+        . '<p style="color:#64748b">This page requires the ' . $label . ' role or higher. Ask a super admin if you need access.</p>'
+        . '</div>');
+}

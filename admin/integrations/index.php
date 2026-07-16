@@ -30,6 +30,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
+        if (in_array($action, ['save', 'toggle'], true)) {
+            require_role('admin', APP_URL . '/integrations/');
+        }
         if ($action === 'save') {
             $data = [];
             foreach ($def['fields'] as $f) {
