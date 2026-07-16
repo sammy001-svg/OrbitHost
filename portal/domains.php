@@ -2,10 +2,53 @@
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once dirname(__DIR__) . '/admin/includes/functions.php';
+require_once dirname(__DIR__) . '/admin/includes/DomainClient.php';
 
 portal_check();
 $page_title = 'My Domains';
 $cid = (int) current_client()['id'];
+
+// ── Update nameservers ──────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'set_nameservers') {
+    portal_csrf_verify();
+    $id   = (int) ($_POST['id'] ?? 0);
+    $stmt = db()->prepare('SELECT * FROM domain_registrations WHERE id = ? AND client_id = ?');
+    $stmt->execute([$id, $cid]);
+    $dom = $stmt->fetch();
+
+    if (!$dom) {
+        portal_flash_set('error', 'Domain not found.');
+    } elseif ($dom['status'] !== 'active') {
+        portal_flash_set('error', 'Nameservers can only be changed for active domains.');
+    } else {
+        $ns = array_values(array_filter(array_map('trim', explode("\n", $_POST['nameservers'] ?? ''))));
+        $host_re = '/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i';
+
+        if (count($ns) < 2) {
+            portal_flash_set('error', 'Enter at least 2 nameservers.');
+        } elseif (count($ns) > 12) {
+            portal_flash_set('error', 'Too many nameservers — most registrars accept up to 12.');
+        } elseif (array_filter($ns, fn($h) => !preg_match($host_re, $h))) {
+            portal_flash_set('error', "One or more nameservers don't look like valid hostnames.");
+        } else {
+            try {
+                $dc     = DomainClient::fromDB($dom['registrar']);
+                $result = $dc->setNameservers($dom['domain_name'], $ns);
+                if ($result['success'] ?? false) {
+                    db()->prepare('UPDATE domain_registrations SET nameservers=? WHERE id=?')
+                        ->execute([json_encode($ns), $id]);
+                    portal_flash_set('success', 'Nameservers updated. DNS changes can take up to 24-48 hours to fully propagate.');
+                } else {
+                    portal_flash_set('error', 'Failed: ' . ($result['error'] ?? $result['message'] ?? 'Unknown error from the registrar.'));
+                }
+            } catch (\Throwable $e) {
+                portal_flash_set('error', 'Failed: ' . $e->getMessage());
+            }
+        }
+    }
+    header('Location: ' . PORTAL_URL . '/domains.php');
+    exit;
+}
 
 $stmt = db()->prepare('SELECT * FROM domain_registrations WHERE client_id = ? ORDER BY status = "active" DESC, expiry_date ASC');
 $stmt->execute([$cid]);
@@ -80,8 +123,30 @@ require_once __DIR__ . '/includes/header.php';
         <div style="font-size:12.5px;font-family:ui-monospace,Menlo,monospace;color:var(--navy)">
           <?php echo $ns ? htmlspecialchars(implode('<br>', array_slice($ns, 0, 2)) ?: '') : '<span style="color:var(--text-muted)">Default</span>'; ?>
         </div>
+        <?php if ($d['status'] === 'active'): ?>
+          <button type="button" onclick="toggleNsForm(<?php echo (int) $d['id']; ?>)" style="margin-top:6px;background:none;border:none;padding:0;font-size:12px;color:var(--green);font-weight:600;cursor:pointer">
+            <i class="fas fa-pen"></i> Edit
+          </button>
+        <?php endif; ?>
       </div>
     </div>
+
+    <?php if ($d['status'] === 'active'): ?>
+    <div id="ns-form-<?php echo (int) $d['id']; ?>" style="display:none;border-top:1px solid var(--border);padding:16px 24px">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
+        <input type="hidden" name="action" value="set_nameservers" />
+        <input type="hidden" name="id" value="<?php echo (int) $d['id']; ?>" />
+        <label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:6px">Nameservers <span style="color:var(--text-muted);font-weight:400">(one per line, at least 2)</span></label>
+        <textarea name="nameservers" rows="4" class="form-control" style="width:100%;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;padding:10px;border:1px solid var(--border);border-radius:8px" placeholder="ns1.orbitcloud.co.ke&#10;ns2.orbitcloud.co.ke"><?php echo htmlspecialchars(implode("\n", $ns)); ?></textarea>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px">DNS changes can take up to 24-48 hours to propagate worldwide.</div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save"></i> Save Nameservers</button>
+          <button type="button" class="btn btn-ghost btn-sm" style="border:1px solid var(--border)" onclick="toggleNsForm(<?php echo (int) $d['id']; ?>)">Cancel</button>
+        </div>
+      </form>
+    </div>
+    <?php endif; ?>
   </div>
 <?php endforeach; else: ?>
 
@@ -96,5 +161,12 @@ require_once __DIR__ . '/includes/header.php';
 
 </div>
 </div>
+
+<script>
+function toggleNsForm(id) {
+  var el = document.getElementById('ns-form-' + id);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+</script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
