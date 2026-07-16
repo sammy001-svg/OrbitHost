@@ -124,12 +124,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .auth-slide.active { opacity: 1; }
     .auth-slide::after {
       content: ''; position: absolute; inset: 0; z-index: 1;
-      background: linear-gradient(180deg, rgba(11,31,58,.20) 0%, rgba(11,31,58,.45) 55%, rgba(11,31,58,.94) 100%);
+      background: radial-gradient(ellipse at center, rgba(11,31,58,.68) 0%, rgba(11,31,58,.38) 100%);
     }
-    .auth-slide-copy { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 48px 56px 78px; color: #fff; }
-    .auth-slide-copy h2 { font-size: 27px; font-weight: 800; line-height: 1.28; margin-bottom: 10px; }
-    .auth-slide-copy p  { font-size: 14.5px; color: rgba(255,255,255,.8); max-width: 420px; line-height: 1.6; }
-    .auth-dots { position: absolute; left: 56px; bottom: 40px; z-index: 3; display: flex; gap: 8px; }
+    .auth-slide-copy { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 48px 64px; color: #fff; }
+    .auth-slide-copy h2 { font-size: 42px; font-weight: 800; line-height: 1.2; margin-bottom: 18px; text-shadow: 0 2px 24px rgba(0,0,0,.4); }
+    .auth-slide-copy p  { font-size: 18px; color: rgba(255,255,255,.9); max-width: 460px; line-height: 1.7; text-shadow: 0 1px 14px rgba(0,0,0,.35); }
+    .auth-dots { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); z-index: 3; display: flex; gap: 8px; }
     .auth-dot { width: 22px; height: 4px; border-radius: 2px; border: none; background: rgba(255,255,255,.35); cursor: pointer; padding: 0; transition: background .2s; }
     .auth-dot.active { background: var(--green); }
 
