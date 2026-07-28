@@ -68,9 +68,17 @@ checkout_head('Configure your domain', 3);
             After checkout we'll send you the nameservers to set at your current registrar. Your website goes live once those changes propagate — usually within a few hours.
           </div>
         <?php elseif ($mode === 'transfer'): ?>
-          <div class="p-alert p-alert-info" style="margin:16px 0 0">
-            <i class="fas fa-circle-info"></i>
-            Make sure the domain is unlocked at your current registrar and you have its EPP/auth code ready. We'll request it once your order is confirmed.
+          <?php $epp = (string) OrderCart::get('epp_code', ''); ?>
+          <div class="p-alert p-alert-<?php echo $epp !== '' ? 'success' : 'warning'; ?>" style="margin:16px 0 0">
+            <i class="fas fa-<?php echo $epp !== '' ? 'circle-check' : 'triangle-exclamation'; ?>"></i>
+            <?php if ($epp !== ''): ?>
+              EPP/auth code received (<?php echo h(substr($epp, 0, 2) . str_repeat('•', max(2, strlen($epp) - 2))); ?>).
+              We'll lodge the transfer with your registrar once payment clears — make sure the domain is unlocked.
+              <a href="<?php echo checkout_url('index.php'); ?>" style="font-weight:600">Change it</a>
+            <?php else: ?>
+              We still need the EPP/auth code from your current registrar.
+              <a href="<?php echo checkout_url('index.php'); ?>" style="font-weight:600">Add it now</a>
+            <?php endif; ?>
           </div>
         <?php endif; ?>
       </div>
