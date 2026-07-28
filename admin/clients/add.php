@@ -5,6 +5,7 @@ require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 
 auth_check();
+require_role('admin', APP_URL . '/clients/index.php');
 
 $page_title = 'Add Client';
 $errors = [];

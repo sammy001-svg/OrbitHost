@@ -187,11 +187,18 @@ require_once __DIR__ . '/includes/header.php';
     <div class="card-header"><div class="card-title"><i class="fas fa-bolt" style="color:var(--green)"></i> Quick Actions</div></div>
     <div class="card-body">
       <div class="qa-grid">
-        <a class="qa-tile" href="<?php echo APP_URL; ?>/services/create.php"><i class="fas fa-layer-group"></i> New Service</a>
-        <a class="qa-tile" href="<?php echo APP_URL; ?>/clients/add.php"><i class="fas fa-user-plus"></i> New Client</a>
-        <a class="qa-tile" href="<?php echo APP_URL; ?>/invoices/add.php"><i class="fas fa-file-invoice"></i> New Invoice</a>
+        <?php if (can('admin')): ?>
+          <a class="qa-tile" href="<?php echo APP_URL; ?>/services/create.php"><i class="fas fa-layer-group"></i> New Service</a>
+          <a class="qa-tile" href="<?php echo APP_URL; ?>/clients/add.php"><i class="fas fa-user-plus"></i> New Client</a>
+          <a class="qa-tile" href="<?php echo APP_URL; ?>/invoices/add.php"><i class="fas fa-file-invoice"></i> New Invoice</a>
+        <?php endif; ?>
         <a class="qa-tile" href="<?php echo APP_URL; ?>/tickets/" ><i class="fas fa-headset"></i> Support Queue</a>
-        <a class="qa-tile" href="<?php echo APP_URL; ?>/integrations/"><i class="fas fa-plug"></i> Providers</a>
+        <?php if (can('admin')): ?>
+          <a class="qa-tile" href="<?php echo APP_URL; ?>/integrations/"><i class="fas fa-plug"></i> Providers</a>
+        <?php else: ?>
+          <a class="qa-tile" href="<?php echo APP_URL; ?>/chat/"><i class="fas fa-comments"></i> Live Chat</a>
+          <a class="qa-tile" href="<?php echo APP_URL; ?>/kb/"><i class="fas fa-book"></i> Knowledge Base</a>
+        <?php endif; ?>
       </div>
     </div>
   </div>
@@ -199,7 +206,7 @@ require_once __DIR__ . '/includes/header.php';
   <div class="card">
     <div class="card-header">
       <div class="card-title"><i class="fas fa-heart-pulse" style="color:var(--green)"></i> Platform Health</div>
-      <a href="<?php echo APP_URL; ?>/integrations/" class="btn btn-ghost btn-sm">Manage</a>
+      <?php if (can('admin')): ?><a href="<?php echo APP_URL; ?>/integrations/" class="btn btn-ghost btn-sm">Manage</a><?php endif; ?>
     </div>
     <div class="card-body">
       <?php if ($health_rows): ?>
@@ -215,7 +222,7 @@ require_once __DIR__ . '/includes/header.php';
         <div class="empty-state" style="padding:20px">
           <i class="fas fa-plug"></i>
           <p>No providers active yet.</p>
-          <a href="<?php echo APP_URL; ?>/integrations/" class="btn btn-primary btn-sm" style="margin-top:10px">Connect a Provider</a>
+          <?php if (can('admin')): ?><a href="<?php echo APP_URL; ?>/integrations/" class="btn btn-primary btn-sm" style="margin-top:10px">Connect a Provider</a><?php endif; ?>
         </div>
       <?php endif; ?>
     </div>

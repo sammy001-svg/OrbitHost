@@ -6,6 +6,8 @@ require_once '../../includes/functions.php';
 require_once '../../includes/WHMClient.php';
 
 auth_check();
+// Creates real cPanel accounts on the server.
+require_role('admin', APP_URL . '/dashboard.php');
 $page_title = 'Provision cPanel Account';
 
 // Load WHM config

@@ -51,9 +51,11 @@ require_once '../includes/header.php';
     <div class="breadcrumb"><a href="<?php echo APP_URL; ?>/dashboard.php">Dashboard</a><span class="breadcrumb-sep">›</span> Invoices</div>
     <h1>Invoices <span style="font-size:15px;font-weight:400;color:var(--text-muted)">(<?php echo number_format($total); ?>)</span></h1>
   </div>
+  <?php if (can('admin')): ?>
   <a href="<?php echo APP_URL; ?>/invoices/add.php" class="btn btn-primary">
     <i class="fas fa-plus"></i> New Invoice
   </a>
+  <?php endif; ?>
 </div>
 
 <!-- Summary cards -->
@@ -133,12 +135,14 @@ require_once '../includes/header.php';
         <td class="actions">
           <a href="<?php echo APP_URL; ?>/invoices/view.php?id=<?php echo $inv['id']; ?>"   class="action-link view">View</a>
           <a href="<?php echo APP_URL; ?>/invoices/view.php?id=<?php echo $inv['id']; ?>&print=1" class="action-link" target="_blank">Print</a>
+          <?php if (can('admin')): ?>
           <form method="POST" action="<?php echo APP_URL; ?>/invoices/delete.php" style="display:inline">
             <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
             <input type="hidden" name="id"         value="<?php echo $inv['id']; ?>" />
             <button type="submit" class="action-link danger"
                     data-confirm="Delete invoice <?php echo h($inv['invoice_number']); ?>?">Delete</button>
           </form>
+          <?php endif; ?>
         </td>
       </tr>
     <?php endforeach; else: ?>

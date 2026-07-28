@@ -37,6 +37,9 @@ try {
 
 if ($schema_ok && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
+    // Approving changes the client's package on the panel and reprices
+    // their service — support can read the queue but not decide it.
+    require_role('admin', APP_URL . '/services/change-requests.php');
     $id     = (int)($_POST['id'] ?? 0);
     $action = $_POST['action'] ?? '';
 
@@ -152,7 +155,7 @@ require_once '../includes/header.php';
           </td>
           <td><?php echo time_ago($r['created_at']); ?></td>
           <td>
-            <?php if ($r['status'] === 'pending'): ?>
+            <?php if ($r['status'] === 'pending' && can('admin')): ?>
               <div class="actions" style="justify-content:flex-end">
                 <form method="POST" style="margin:0">
                   <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
@@ -173,6 +176,7 @@ require_once '../includes/header.php';
   </div>
 </div>
 
+<?php if (can('admin')): ?>
 <!-- Decline reason drawer -->
 <div class="drawer-scrim" id="drawer-decline-scrim"></div>
 <div class="drawer" id="drawer-decline">
@@ -206,7 +210,8 @@ document.addEventListener('click', function (e) {
   document.body.style.overflow = 'hidden';
 });
 </script>
+<?php endif; // can('admin') — decline drawer ?>
 
-<?php endif; ?>
+<?php endif; // $schema_ok ?>
 
 <?php require_once '../includes/footer.php'; ?>

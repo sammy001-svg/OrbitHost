@@ -8,6 +8,9 @@ require_once '../includes/Notifier.php';
 require_once '../includes/Automation.php';
 
 auth_check();
+// Whole page moves money — charging a card, pushing an M-Pesa prompt,
+// recording a manual payment, issuing a refund. Support never opens it.
+require_role('admin', APP_URL . '/billing/index.php');
 $page_title = 'Collect Payment';
 
 $invoice_id = (int)($_GET['invoice_id'] ?? $_POST['invoice_id'] ?? 0);

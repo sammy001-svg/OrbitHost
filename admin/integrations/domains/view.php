@@ -6,6 +6,8 @@ require_once '../../includes/functions.php';
 require_once '../../includes/DomainClient.php';
 
 auth_check();
+// Exposes EPP/auth codes and edits live nameservers.
+require_role('admin', APP_URL . '/dashboard.php');
 
 $id   = (int)($_GET['id'] ?? 0);
 $stmt = db()->prepare(

@@ -74,7 +74,9 @@ require_once '../includes/header.php';
       <i class="fas fa-arrows-up-down"></i> Change Requests
       <?php if ($pending_changes): ?><span class="badge badge-warning" style="margin-left:6px"><?php echo $pending_changes; ?></span><?php endif; ?>
     </a>
+    <?php if (can('admin')): ?>
     <a href="<?php echo APP_URL; ?>/services/create.php" class="btn btn-primary"><i class="fas fa-plus"></i> Create Service</a>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -114,7 +116,7 @@ require_once '../includes/header.php';
         <tr><td colspan="7">
           <div class="empty-state">
             <i class="fas fa-layer-group"></i>
-            <p>No services yet. <a href="<?php echo APP_URL; ?>/services/create.php" style="color:var(--green);font-weight:600">Create your first service</a>.</p>
+            <p>No services yet.<?php if (can('admin')): ?> <a href="<?php echo APP_URL; ?>/services/create.php" style="color:var(--green);font-weight:600">Create your first service</a>.<?php endif; ?></p>
           </div>
         </td></tr>
       <?php else: foreach ($rows as $r):

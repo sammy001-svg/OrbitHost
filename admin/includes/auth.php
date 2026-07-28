@@ -189,6 +189,30 @@ function current_admin(): array
     ];
 }
 
+/**
+ * Role policy — what each level is trusted with.
+ *
+ *   support     Front-line helpdesk. Reads every operational screen so they
+ *               can answer questions (clients, services, orders, invoices,
+ *               plans, payments) and fully works the support desk: tickets,
+ *               live chat, notifications, their own profile. Changes nothing
+ *               else — no money movement, no provisioning, no catalogue,
+ *               no website content, no provider credentials.
+ *   admin       Everything above plus all day-to-day writes: clients,
+ *               services, orders, invoices, payments/refunds, plans,
+ *               coupons, KB, banners, site settings, domains, WHM and
+ *               provider configuration.
+ *   super_admin Everything above plus staff accounts.
+ *
+ * Enforcement pattern used throughout the panel:
+ *   - a page that exists only to change something gates the whole request
+ *     right after auth_check();
+ *   - a page that mixes reading and writing gates inside its POST handler
+ *     with a redirect back to itself, and wraps the matching buttons in
+ *     `if (can('admin'))` so support never sees a control that would bounce.
+ * Hiding a control is presentation only — the server-side gate is what
+ * actually enforces this, so every hidden control has one behind it.
+ */
 function can(string $role): bool
 {
     $hierarchy = ['support' => 1, 'admin' => 2, 'super_admin' => 3];

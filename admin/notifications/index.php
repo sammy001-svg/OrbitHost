@@ -156,7 +156,7 @@ require_once '../includes/header.php';
     </table>
     </div>
   </div>
-  <?php if ($email_failed_count): ?>
+  <?php if ($email_failed_count && can('admin')): ?>
     <div class="alert alert-info" style="margin-top:16px"><i class="fas fa-circle-info"></i> If emails keep failing, check your SMTP settings in <a href="<?php echo APP_URL; ?>/integrations/#prov-smtp" style="font-weight:600">Providers</a> — the error column above usually says exactly why (bad credentials, blocked port, DNS failure, etc.).</div>
   <?php endif; ?>
 </div>

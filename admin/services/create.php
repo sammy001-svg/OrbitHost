@@ -7,6 +7,8 @@ require_once '../includes/providers/Provider.php';
 require_once '../includes/Notifier.php';
 
 auth_check();
+// Provisions a real cPanel/panel account and starts billing for it.
+require_role('admin', APP_URL . '/services/index.php');
 $page_title = 'Create Service';
 
 $clients = db()->query('SELECT id, first_name, last_name, email, phone FROM clients ORDER BY first_name, last_name')->fetchAll();

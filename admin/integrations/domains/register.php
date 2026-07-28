@@ -6,6 +6,8 @@ require_once '../../includes/functions.php';
 require_once '../../includes/DomainClient.php';
 
 auth_check();
+// Registrar section — registering and transferring domains costs money.
+require_role('admin', APP_URL . '/dashboard.php');
 $page_title = 'Register Domain';
 
 $domain   = trim($_GET['domain'] ?? $_POST['domain'] ?? '');

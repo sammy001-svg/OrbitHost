@@ -50,14 +50,17 @@ $clients = $stmt->fetchAll();
 require_once '../includes/header.php';
 ?>
 
+<?php $can_write = can('admin'); // support browses the client list read-only ?>
 <div class="page-header">
   <div>
     <div class="breadcrumb"><a href="<?php echo APP_URL; ?>/dashboard.php">Dashboard</a><span class="breadcrumb-sep">›</span> Clients</div>
     <h1>Clients <span style="font-size:15px;font-weight:400;color:var(--text-muted)">(<?php echo number_format($total); ?>)</span></h1>
   </div>
+  <?php if (can('admin')): ?>
   <a href="<?php echo APP_URL; ?>/clients/add.php" class="btn btn-primary">
     <i class="fas fa-plus"></i> Add Client
   </a>
+  <?php endif; ?>
 </div>
 
 <div class="table-wrap">
@@ -79,16 +82,18 @@ require_once '../includes/header.php';
     <span class="table-count">Showing <?php echo count($clients); ?> of <?php echo number_format($total); ?></span>
   </div>
 
+  <?php if ($can_write): ?>
   <div id="bulkBar" style="display:none;align-items:center;gap:10px;padding:10px 20px;background:var(--green-light);border-bottom:1px solid var(--border);font-size:13px">
     <span id="bulkCount" style="font-weight:600;color:var(--navy)"></span>
     <button type="button" class="btn btn-primary btn-sm" id="bulkAnnounceBtn"><i class="fas fa-bullhorn"></i> Send Announcement</button>
     <button type="button" class="btn btn-ghost btn-sm" id="bulkClearBtn">Clear selection</button>
   </div>
+  <?php endif; ?>
 
   <table>
     <thead>
       <tr>
-        <th style="width:34px"><input type="checkbox" id="selectAll" /></th>
+        <?php if ($can_write): ?><th style="width:34px"><input type="checkbox" id="selectAll" /></th><?php endif; ?>
         <th>Client</th>
         <th>Company</th>
         <th>Country</th>
@@ -102,7 +107,7 @@ require_once '../includes/header.php';
     <tbody>
     <?php if ($clients): foreach ($clients as $c): ?>
       <tr>
-        <td><input type="checkbox" class="row-check" value="<?php echo (int) $c['id']; ?>" /></td>
+        <?php if ($can_write): ?><td><input type="checkbox" class="row-check" value="<?php echo (int) $c['id']; ?>" /></td><?php endif; ?>
         <td>
           <a href="<?php echo APP_URL; ?>/clients/view.php?id=<?php echo $c['id']; ?>" style="text-decoration:none">
             <div class="td-name"><?php echo h($c['first_name'] . ' ' . $c['last_name']); ?></div>
@@ -117,6 +122,7 @@ require_once '../includes/header.php';
         <td><?php echo format_date($c['created_at']); ?></td>
         <td class="actions">
           <a href="<?php echo APP_URL; ?>/clients/view.php?id=<?php echo $c['id']; ?>" class="action-link view">View</a>
+          <?php if ($can_write): ?>
           <a href="<?php echo APP_URL; ?>/clients/edit.php?id=<?php echo $c['id']; ?>" class="action-link edit">Edit</a>
           <form method="POST" action="<?php echo APP_URL; ?>/clients/delete.php" style="display:inline">
             <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
@@ -126,11 +132,12 @@ require_once '../includes/header.php';
               Delete
             </button>
           </form>
+          <?php endif; ?>
         </td>
       </tr>
     <?php endforeach; else: ?>
       <tr>
-        <td colspan="9">
+        <td colspan="<?php echo $can_write ? 9 : 8; ?>">
           <div class="empty-state">
             <i class="fas fa-users"></i>
             <p>No clients found<?php echo $search ? " for \"$search\"" : ''; ?>.</p>
@@ -144,6 +151,7 @@ require_once '../includes/header.php';
   <?php echo paginate($total, $page, PER_PAGE, APP_URL . '/clients/?q=' . urlencode($search) . '&status=' . urlencode($status)); ?>
 </div>
 
+<?php if ($can_write): // bulk-select markup only exists for admins ?>
 <script>
 (function () {
   var selectAll = document.getElementById('selectAll');
@@ -180,5 +188,6 @@ require_once '../includes/header.php';
   });
 })();
 </script>
+<?php endif; ?>
 
 <?php require_once '../includes/footer.php'; ?>

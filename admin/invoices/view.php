@@ -38,6 +38,9 @@ $items = $items->fetchAll();
 // Handle status update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     csrf_verify();
+    // Marking an invoice paid settles it and can reactivate a suspended
+    // service via Automation::invoicePaid() — a billing decision.
+    require_role('admin', APP_URL . '/invoices/view.php?id=' . $id);
     $ns = $_POST['new_status'] ?? '';
     if (in_array($ns, ['draft','sent','paid','overdue','cancelled'])) {
         $newly_paid = $ns === 'paid' && $inv['status'] !== 'paid';
@@ -70,6 +73,7 @@ require_once '../includes/header.php';
   </div>
   <div class="page-header-actions">
     <!-- Status update -->
+    <?php if (can('admin')): ?>
     <form method="POST" style="display:flex;gap:8px;align-items:center">
       <input type="hidden" name="csrf_token"   value="<?php echo csrf_token(); ?>" />
       <input type="hidden" name="update_status" value="1" />
@@ -80,6 +84,7 @@ require_once '../includes/header.php';
       </select>
       <button type="submit" class="btn btn-ghost btn-sm">Update Status</button>
     </form>
+    <?php endif; ?>
     <button onclick="window.print()" class="btn btn-ghost btn-sm"><i class="fas fa-print"></i> Print</button>
     <a href="<?php echo APP_URL; ?>/invoices/" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Back</a>
   </div>

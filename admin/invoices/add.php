@@ -6,6 +6,7 @@ require_once '../includes/functions.php';
 require_once '../includes/Notifier.php';
 
 auth_check();
+require_role('admin', APP_URL . '/invoices/index.php');
 $page_title = 'New Invoice';
 
 $preselect_client = (int)($_GET['client_id'] ?? 0);

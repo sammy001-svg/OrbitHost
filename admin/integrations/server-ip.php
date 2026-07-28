@@ -21,6 +21,13 @@ require_once '../includes/providers/Provider.php';
 
 auth_check();
 header('Content-Type: application/json');
+// JSON endpoint — answer in JSON rather than letting require_role() emit
+// its HTML 403, so the caller's error path shows a sensible message.
+if (!can('admin')) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'Requires the Admin role or higher.']);
+    exit;
+}
 
 function probe(string $url, bool $forceV4 = true): array
 {

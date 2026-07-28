@@ -34,6 +34,9 @@ function record_action(int $svc_id, string $action, bool $ok, string $message): 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
+    // Every action here reaches the hosting panel — suspend, unsuspend,
+    // terminate, change password, sync. Support diagnoses; admin acts.
+    require_role('admin', APP_URL . '/services/view.php?id=' . $id);
     $action = $_POST['action'] ?? '';
 
     try {
@@ -187,6 +190,7 @@ require_once '../includes/header.php';
   <div style="display:flex;flex-direction:column;gap:18px">
 
     <!-- Lifecycle actions -->
+    <?php if (can('admin')): ?>
     <div class="card">
       <div class="card-header"><span class="card-title"><i class="fas fa-bolt"></i> Lifecycle</span>
         <?php if ($is_panel): ?><span class="code-chip"><?php echo h($reg['name'] ?? $svc['provider_key']); ?></span><?php endif; ?>
@@ -237,6 +241,7 @@ require_once '../includes/header.php';
         </div>
       </div>
     </div>
+    <?php endif; ?>
 
     <!-- Usage -->
     <?php if ($is_panel): ?>
@@ -315,7 +320,7 @@ require_once '../includes/header.php';
 </div>
 
 <!-- ── Action drawers ── -->
-<?php if ($is_panel): ?>
+<?php if ($is_panel && can('admin')): ?>
   <div class="drawer-scrim" id="drawer-provision-scrim"></div>
   <div class="drawer" id="drawer-provision">
     <div class="drawer-head"><div style="font-weight:700">Provision account</div><button class="drawer-close" data-drawer-close>&times;</button></div>

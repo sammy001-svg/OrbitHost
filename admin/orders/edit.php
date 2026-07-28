@@ -17,6 +17,8 @@ if (!$order) {
     exit;
 }
 
+require_role('admin', APP_URL . '/orders/index.php');
+
 $page_title = 'Edit Order #' . $id;
 $errors = [];
 $data   = $order;

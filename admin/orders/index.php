@@ -52,9 +52,11 @@ require_once '../includes/header.php';
     <div class="breadcrumb"><a href="<?php echo APP_URL; ?>/dashboard.php">Dashboard</a><span class="breadcrumb-sep">›</span> Orders</div>
     <h1>Orders <span style="font-size:15px;font-weight:400;color:var(--text-muted)">(<?php echo number_format($total); ?>)</span></h1>
   </div>
+  <?php if (can('admin')): ?>
   <a href="<?php echo APP_URL; ?>/orders/add.php" class="btn btn-primary">
     <i class="fas fa-plus"></i> New Order
   </a>
+  <?php endif; ?>
 </div>
 
 <div class="table-wrap">
@@ -106,6 +108,7 @@ require_once '../includes/header.php';
         <td><?php echo badge($o['status']); ?></td>
         <td><?php echo format_date($o['next_due']); ?></td>
         <td class="actions">
+          <?php if (can('admin')): ?>
           <a href="<?php echo APP_URL; ?>/orders/edit.php?id=<?php echo $o['id']; ?>" class="action-link edit">Edit</a>
           <form method="POST" action="<?php echo APP_URL; ?>/orders/delete.php" style="display:inline">
             <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
@@ -113,6 +116,9 @@ require_once '../includes/header.php';
             <button type="submit" class="action-link danger"
                     data-confirm="Delete this order? This cannot be undone.">Delete</button>
           </form>
+          <?php else: ?>
+          <span class="text-muted" style="font-size:12px">—</span>
+          <?php endif; ?>
         </td>
       </tr>
     <?php endforeach; else: ?>

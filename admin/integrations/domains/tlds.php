@@ -8,6 +8,8 @@ require_once '../../includes/DomainClient.php';
 require_once '../../includes/Currency.php';
 
 auth_check();
+// Sets the TLD prices clients are charged.
+require_role('admin', APP_URL . '/dashboard.php');
 $page_title = 'TLD Pricing';
 
 // ── Auto-migration (schema_v5.sql as manual fallback) ──

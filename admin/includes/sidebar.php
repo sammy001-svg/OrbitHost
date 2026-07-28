@@ -61,10 +61,12 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <?php _nav(APP_URL . '/notifications/index.php', 'fa-bell',     'Notifications',  'notifications'); ?>
     <?php _nav(APP_URL . '/audit-log/index.php',     'fa-clock-rotate-left', 'Audit Log', 'audit-log'); ?>
 
+    <?php if (can('admin')): // whole section is provider credentials + live server control ?>
     <div class="nav-label">Integrations</div>
     <?php _nav(APP_URL . '/integrations/index.php',         'fa-plug',   'Providers',    'integrations', 'index.php'); ?>
     <?php _nav(APP_URL . '/integrations/whm/index.php',     'fa-server', 'WHM / Servers', 'whm', '', 'integrations'); ?>
     <?php _nav(APP_URL . '/integrations/domains/index.php', 'fa-globe',  'Domains',       'domains', '', 'integrations'); ?>
+    <?php endif; ?>
   </nav>
 
   <div class="sidebar-footer">

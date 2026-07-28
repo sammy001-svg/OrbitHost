@@ -60,6 +60,8 @@ $cycles     = ['monthly' => 'Monthly', 'annual' => 'Annual', 'one_time' => 'One-
 // ── Save (add / edit / delete) ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
+    // The catalogue sets what clients are charged — admin and above only.
+    require_role('admin', APP_URL . '/plans/index.php');
 
     if (($_POST['action'] ?? '') === 'delete') {
         $id   = (int)($_POST['id'] ?? 0);
@@ -140,27 +142,31 @@ require_once '../includes/header.php';
     <p class="page-subtitle">Your website's plan catalogue. Link each plan to a WHM package so creating a service provisions the right cPanel account automatically.</p>
   </div>
   <div class="page-header-actions">
+    <?php if (can('admin')): ?>
     <a href="<?php echo APP_URL; ?>/integrations/whm/packages.php" class="btn btn-ghost"><i class="fas fa-cubes"></i> WHM Packages</a>
     <button class="btn btn-primary plan-open" data-drawer-open="drawer-plan"
             data-plan='{"id":0,"name":"","category":"shared","billing_cycle":"monthly","price":"","setup_fee":"0","price_kes":"","setup_fee_kes":"0","is_active":1,"panel_package":"","description":"","features":""}'>
       <i class="fas fa-plus"></i> Add Plan
     </button>
+    <?php endif; ?>
   </div>
 </div>
 
-<?php if (!$link_ok): ?>
-  <div class="alert alert-warning"><i class="fas fa-triangle-exclamation"></i>
-    Could not add the package-link columns automatically. Import <code>admin/install/schema_v4.sql</code> in phpMyAdmin to enable WHM package linking. Plan editing still works.
-  </div>
-<?php endif; ?>
-<?php if ($panel_key && $panel_err): ?>
-  <div class="alert alert-warning"><i class="fas fa-triangle-exclamation"></i>
-    Could not load packages from your hosting panel: <?php echo h($panel_err); ?> — you can still type a package name manually.
-  </div>
-<?php elseif (!$panel_key): ?>
-  <div class="alert alert-info"><i class="fas fa-circle-info"></i>
-    No hosting panel is active. Enable WHM in <a href="<?php echo APP_URL; ?>/integrations/#prov-whm" style="font-weight:600">Providers</a> to pick packages from a live list.
-  </div>
+<?php if (can('admin')): // setup hints are only actionable by someone who can reach Providers ?>
+  <?php if (!$link_ok): ?>
+    <div class="alert alert-warning"><i class="fas fa-triangle-exclamation"></i>
+      Could not add the package-link columns automatically. Import <code>admin/install/schema_v4.sql</code> in phpMyAdmin to enable WHM package linking. Plan editing still works.
+    </div>
+  <?php endif; ?>
+  <?php if ($panel_key && $panel_err): ?>
+    <div class="alert alert-warning"><i class="fas fa-triangle-exclamation"></i>
+      Could not load packages from your hosting panel: <?php echo h($panel_err); ?> — you can still type a package name manually.
+    </div>
+  <?php elseif (!$panel_key): ?>
+    <div class="alert alert-info"><i class="fas fa-circle-info"></i>
+      No hosting panel is active. Enable WHM in <a href="<?php echo APP_URL; ?>/integrations/#prov-whm" style="font-weight:600">Providers</a> to pick packages from a live list.
+    </div>
+  <?php endif; ?>
 <?php endif; ?>
 
 <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
@@ -231,6 +237,9 @@ require_once '../includes/header.php';
           <td><?php echo $p['is_active'] ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-secondary">Hidden</span>'; ?></td>
           <td>
             <div class="actions" style="justify-content:flex-end">
+              <?php if (!can('admin')): ?>
+                <span class="text-muted" style="font-size:12px">—</span>
+              <?php else: ?>
               <button class="action-link edit plan-open" data-drawer-open="drawer-plan" data-plan="<?php echo $json; ?>"><i class="fas fa-pen"></i> Edit</button>
               <form method="POST" style="margin:0">
                 <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
@@ -238,6 +247,7 @@ require_once '../includes/header.php';
                 <input type="hidden" name="id" value="<?php echo (int)$p['id']; ?>" />
                 <button type="submit" class="action-link danger" data-confirm="Delete plan &quot;<?php echo h($p['name']); ?>&quot; from the catalogue? Existing client services keep running."><i class="fas fa-trash"></i></button>
               </form>
+              <?php endif; ?>
             </div>
           </td>
         </tr>
@@ -247,6 +257,7 @@ require_once '../includes/header.php';
   </div>
 </div>
 
+<?php if (can('admin')): ?>
 <!-- ── Single add/edit drawer, populated by JS ── -->
 <div class="drawer-scrim" id="drawer-plan-scrim"></div>
 <div class="drawer" id="drawer-plan">
@@ -367,5 +378,6 @@ document.addEventListener('click', function (e) {
   }
 });
 </script>
+<?php endif; ?>
 
 <?php require_once '../includes/footer.php'; ?>

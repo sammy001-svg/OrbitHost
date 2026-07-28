@@ -38,6 +38,8 @@ try {
 
 if ($credit_schema_ok && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'adjust_credit') {
     csrf_verify();
+    // Account credit is money — it settles invoices on the client's portal.
+    require_role('admin', APP_URL . '/clients/view.php?id=' . $id . '#credit-tab');
     $amount = (float)($_POST['amount'] ?? 0);
     $type   = ($_POST['type'] ?? 'add') === 'deduct' ? -1 : 1;
     $reason = trim($_POST['reason'] ?? '');
@@ -91,6 +93,7 @@ require_once '../includes/header.php';
     <h1><?php echo h($client['first_name'] . ' ' . $client['last_name']); ?></h1>
   </div>
   <div class="page-header-actions">
+    <?php if (can('admin')): ?>
     <a href="<?php echo APP_URL; ?>/orders/add.php?client_id=<?php echo $id; ?>" class="btn btn-ghost btn-sm">
       <i class="fas fa-plus"></i> New Order
     </a>
@@ -100,7 +103,6 @@ require_once '../includes/header.php';
     <a href="<?php echo APP_URL; ?>/clients/invite.php?id=<?php echo $id; ?>" class="btn btn-ghost btn-sm" title="Send portal invite">
       <i class="fas fa-envelope"></i> Portal Invite
     </a>
-    <?php if (can('admin')): ?>
     <form method="POST" action="<?php echo APP_URL; ?>/clients/impersonate.php" style="display:inline">
       <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
       <input type="hidden" name="id" value="<?php echo $id; ?>" />
@@ -108,10 +110,10 @@ require_once '../includes/header.php';
         <i class="fas fa-user-secret"></i> Impersonate
       </button>
     </form>
-    <?php endif; ?>
     <a href="<?php echo APP_URL; ?>/clients/edit.php?id=<?php echo $id; ?>" class="btn btn-primary btn-sm">
       <i class="fas fa-edit"></i> Edit
     </a>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -249,6 +251,13 @@ require_once '../includes/header.php';
     <div id="credit-tab" class="tab-pane">
       <?php if (!$credit_schema_ok): ?>
         <div class="alert alert-danger"><i class="fas fa-triangle-exclamation"></i> Could not create the account-credit table automatically — check DB privileges and reload.</div>
+      <?php elseif (!can('admin')): ?>
+      <div class="table-wrap" style="margin-bottom:16px">
+        <div class="card-header">
+          <div class="card-title">Account Credit</div>
+          <span class="badge <?php echo $credit_balance > 0 ? 'badge-success' : 'badge-secondary'; ?>" style="font-size:13px">Balance: <?php echo format_money($credit_balance); ?></span>
+        </div>
+      </div>
       <?php else: ?>
       <div class="table-wrap" style="margin-bottom:16px">
         <div class="card-header">

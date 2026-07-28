@@ -6,6 +6,8 @@ require_once '../includes/functions.php';
 require_once '../includes/providers/Provider.php';
 
 auth_check();
+// Provider config forms render saved API keys and secrets.
+require_role('admin', APP_URL . '/dashboard.php');
 $page_title = 'Providers';
 
 // ── Persist provider config (REPLACE INTO — version-safe, preserves is_active) ──

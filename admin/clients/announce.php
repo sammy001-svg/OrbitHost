@@ -14,6 +14,8 @@ require_once '../includes/functions.php';
 require_once '../includes/Notifier.php';
 
 auth_check();
+// Mass-emails every selected client — not a support-desk action.
+require_role('admin', APP_URL . '/clients/index.php');
 $page_title = 'Send Announcement';
 
 function announce_client_ids(string $raw): array

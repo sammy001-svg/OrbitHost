@@ -5,6 +5,7 @@ require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 
 auth_check();
+require_role('admin', APP_URL . '/orders/index.php');
 $page_title = 'New Order';
 
 $preselect_client = (int)($_GET['client_id'] ?? 0);

@@ -6,6 +6,8 @@ require_once '../../includes/functions.php';
 require_once '../../includes/WHMClient.php';
 
 auth_check();
+// Creates and deletes packages on the live WHM server.
+require_role('admin', APP_URL . '/dashboard.php');
 $page_title = 'WHM Packages';
 
 // Load WHM config

@@ -6,6 +6,8 @@ require_once '../../includes/functions.php';
 require_once '../../includes/WHMClient.php';
 
 auth_check();
+// Server-level cPanel account administration.
+require_role('admin', APP_URL . '/dashboard.php');
 $page_title = 'WHM Accounts';
 
 // Load WHM config

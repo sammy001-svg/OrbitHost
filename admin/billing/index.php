@@ -11,6 +11,9 @@ $page_title = 'Payments';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'recheck') {
     csrf_verify();
+    // Re-checking settles the payment on success — which marks the invoice
+    // paid and provisions the service. That's a write, not a lookup.
+    require_role('admin', APP_URL . '/billing/index.php');
     $pid = (int) ($_POST['id'] ?? 0);
     $r = Automation::settlePayment($pid);
     $labels = ['completed' => 'success', 'already' => 'success', 'failed' => 'error', 'pending' => 'info', 'not_found' => 'error'];
@@ -60,7 +63,7 @@ require_once '../includes/header.php';
     <h1 class="content-title">Payments</h1>
     <p class="page-subtitle">Collect invoice payments through your connected gateways and track every transaction. Pending payments are automatically re-checked in the background — use Re-check for an instant answer.</p>
   </div>
-  <a href="<?php echo APP_URL; ?>/integrations/#prov-stripe" class="btn btn-ghost"><i class="fas fa-plug"></i> Gateways</a>
+  <?php if (can('admin')): ?><a href="<?php echo APP_URL; ?>/integrations/#prov-stripe" class="btn btn-ghost"><i class="fas fa-plug"></i> Gateways</a><?php endif; ?>
 </div>
 
 <div class="stat-grid">
@@ -82,11 +85,12 @@ require_once '../includes/header.php';
   </div>
 </div>
 
-<?php if (!$gateways): ?>
+<?php if (!$gateways && can('admin')): ?>
   <div class="alert alert-info"><i class="fas fa-circle-info"></i> No payment method is active yet. Enable Stripe, PayPal, M-Pesa (Kopo Kopo STK), Flutterwave — or an offline method like Bank Transfer, Manual M-Pesa or Cheque — in <a href="<?php echo APP_URL; ?>/integrations/" style="font-weight:600">Providers</a>.</div>
 <?php endif; ?>
 
-<div style="display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start">
+<?php $can_collect = can('admin'); // support reads the ledger, never takes money ?>
+<div style="display:grid;grid-template-columns:<?php echo $can_collect ? '1fr 360px' : '1fr'; ?>;gap:18px;align-items:start">
   <!-- Payments -->
   <div class="table-wrap">
     <div class="table-toolbar"><span class="card-title">Recent payments</span><span class="table-count"><?php echo count($payments); ?> shown</span></div>
@@ -108,7 +112,9 @@ require_once '../includes/header.php';
             <td><?php echo pay_badge($p['status']); ?></td>
             <td style="font-size:12px;color:var(--text-muted)"><?php echo time_ago($p['created_at']); ?></td>
             <td>
-              <?php if ($p['status'] === 'pending' && in_array($p['gateway'], ['bank_transfer', 'mpesa_manual', 'cheque'], true) && $p['invoice_id']): ?>
+              <?php if (!$can_collect): ?>
+                <span class="text-muted" style="font-size:12px">—</span>
+              <?php elseif ($p['status'] === 'pending' && in_array($p['gateway'], ['bank_transfer', 'mpesa_manual', 'cheque'], true) && $p['invoice_id']): ?>
                 <a href="<?php echo APP_URL; ?>/billing/collect.php?invoice_id=<?php echo (int)$p['invoice_id']; ?>" class="btn btn-primary btn-xs" title="Client submitted a reference — verify and confirm"><i class="fas fa-receipt"></i> Review</a>
               <?php elseif ($p['status'] === 'pending'): ?>
                 <form method="POST" style="margin:0" title="Re-verify with the gateway now instead of waiting for the next automatic check">
@@ -127,6 +133,7 @@ require_once '../includes/header.php';
   </div>
 
   <!-- Collect -->
+  <?php if ($can_collect): ?>
   <div class="card">
     <div class="card-header"><span class="card-title"><i class="fas fa-hand-holding-dollar"></i> Collect payment</span></div>
     <div class="card-flush">
@@ -152,6 +159,7 @@ require_once '../includes/header.php';
       <?php endif; ?>
     </div>
   </div>
+  <?php endif; ?>
 </div>
 
 <?php require_once '../includes/footer.php'; ?>

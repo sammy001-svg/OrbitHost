@@ -17,6 +17,8 @@ if (!$client) {
     exit;
 }
 
+require_role('admin', APP_URL . '/clients/view.php?id=' . $id);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
 
