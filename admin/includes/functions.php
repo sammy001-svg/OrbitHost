@@ -13,9 +13,18 @@ function flash_get(): ?array
     return $flash;
 }
 
-function h(string $value): string
+/**
+ * Escape for HTML output.
+ *
+ * Takes ?string rather than string because almost every caller passes a
+ * value straight out of the database, where a nullable column is normal.
+ * With a strict `string` type a single NULL turned a page into an
+ * uncaught TypeError — a white screen for the admin — instead of just
+ * rendering nothing.
+ */
+function h(?string $value): string
 {
-    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
 }
 
 /**

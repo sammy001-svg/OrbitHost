@@ -17,7 +17,7 @@ $where  = ['1=1'];
 $params = [];
 
 if ($search) {
-    $where[]  = '(c.first_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ? OR o.domain LIKE ? OR o.service_name LIKE ?)';
+    $where[]  = '(c.first_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ? OR o.domain_name LIKE ? OR o.service_name LIKE ?)';
     $like     = "%$search%";
     array_push($params, $like, $like, $like, $like, $like);
 }
@@ -102,7 +102,7 @@ require_once '../includes/header.php';
           </a>
         </td>
         <td><?php echo h($o['service_name'] ?? '—'); ?></td>
-        <td><?php echo h($o['domain'] ?: '—'); ?></td>
+        <td><?php echo h($o['domain_name'] ?: '—'); ?></td>
         <td><strong><?php echo format_money($o['amount']); ?></strong></td>
         <td><?php echo badge($o['billing_cycle']); ?></td>
         <td><?php echo badge($o['status']); ?></td>

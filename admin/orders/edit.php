@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $data = array_merge($order, [
         'service_id'   => (int)($_POST['service_id'] ?? 0) ?: null,
-        'domain'       => trim($_POST['domain']       ?? ''),
+        'domain_name'  => trim($_POST['domain']       ?? ''),
         'amount'       => $_POST['amount']            ?? '',
         'billing_cycle'=> $_POST['billing_cycle']     ?? 'monthly',
         'status'       => $_POST['status']            ?? 'active',
@@ -50,9 +50,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!is_numeric($data['amount']) || $data['amount'] <= 0) $errors[] = 'Please enter a valid amount.';
 
     if (!$errors) {
-        db()->prepare('UPDATE orders SET service_id=?,service_name=?,domain=?,amount=?,billing_cycle=?,status=?,start_date=?,next_due=?,notes=? WHERE id=?')
+        db()->prepare('UPDATE orders SET service_id=?,service_name=?,domain_name=?,amount=?,billing_cycle=?,status=?,start_date=?,next_due=?,notes=? WHERE id=?')
             ->execute([
-                $data['service_id'], $service_name, $data['domain'],
+                $data['service_id'], $service_name, $data['domain_name'],
                 $data['amount'], $data['billing_cycle'], $data['status'],
                 $data['start_date'] ?: null, $data['next_due'] ?: null,
                 $data['notes'], $id,
@@ -112,7 +112,7 @@ require_once '../includes/header.php';
       <div class="form-group">
         <label class="form-label">Domain</label>
         <input type="text" name="domain" class="form-control" placeholder="example.com"
-               value="<?php echo h($data['domain']); ?>" />
+               value="<?php echo h($data['domain_name']); ?>" />
       </div>
     </div>
 
