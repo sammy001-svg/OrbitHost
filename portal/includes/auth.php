@@ -6,8 +6,18 @@ require_once __DIR__ . '/../../admin/includes/TOTP.php';
 function portal_start(): void
 {
     if (session_status() === PHP_SESSION_NONE) {
+        // Same reasoning as auth_start(): portal pages render live data
+        // (catalogue, services, invoices) and must never be served from the
+        // browser cache, or a plan the admin just added/changed stays
+        // invisible to the client until a manual refresh.
+        session_cache_limiter('nocache');
         session_name(PORTAL_SESSION);
         session_start();
+    }
+    if (!headers_sent()) {
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
     }
 }
 

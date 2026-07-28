@@ -6,8 +6,19 @@ require_once __DIR__ . '/TOTP.php';
 function auth_start(): void
 {
     if (session_status() === PHP_SESSION_NONE) {
+        // Admin pages are always freshly generated from the database. Without
+        // this the browser may answer the GET that follows a save (POST →
+        // 302 → GET) — or a back-navigation — out of its own cache, so a
+        // just-created/edited plan, package or client appears missing until
+        // the admin hits refresh.
+        session_cache_limiter('nocache');
         session_name('orbit_admin');
         session_start();
+    }
+    if (!headers_sent()) {
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
     }
 }
 
