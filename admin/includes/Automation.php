@@ -193,6 +193,10 @@ final class Automation
         if (!$o) return ['status' => 'none', 'message' => 'Order missing.'];
 
         if ($o['status'] === 'pending') {
+            // A website checkout can carry a domain to register or transfer
+            // (portal/order/) — do that before provisioning so the cPanel
+            // account is created against a domain we actually control.
+            self::fulfilOrderDomain($o);
             return self::provisionOrder($order_id); // first payment → provision
         }
 
@@ -212,6 +216,73 @@ final class Automation
             return self::reactivateOrder($o);
         }
         return ['status' => 'renewed', 'message' => 'Next due date advanced.'];
+    }
+
+    /**
+     * Register the domain a website checkout ordered alongside its hosting.
+     *
+     * portal/order/_place.php records the domain as `pending` in
+     * domain_registrations at checkout time — visible to the client and the
+     * team, but not yet submitted anywhere, because it hadn't been paid
+     * for. This runs on first payment and does the actual submission.
+     *
+     * Everything here is best-effort and idempotent: only a row still
+     * sitting at `pending` is acted on, so a cron and a webhook racing each
+     * other can't register twice, and a registrar outage leaves the row
+     * pending for the team to finish by hand rather than failing the
+     * payment that has already been taken.
+     */
+    private static function fulfilOrderDomain(array $order): void
+    {
+        $domain = trim((string) ($order['domain_name'] ?? ''));
+        if ($domain === '') return;
+
+        try {
+            $stmt = db()->prepare("SELECT * FROM domain_registrations
+                                   WHERE client_id = ? AND domain_name = ? AND status = 'pending' LIMIT 1");
+            $stmt->execute([(int) $order['client_id'], $domain]);
+            $row = $stmt->fetch();
+        } catch (\Throwable $e) {
+            return; // domain table not migrated — nothing to do
+        }
+        if (!$row) return; // "use my existing domain", or already handled
+
+        $reg_key = Provider::activeFor('registrar');
+        if (!$reg_key) {
+            self::noteDomain((int) $row['id'], 'Paid — awaiting manual registration (no registrar is active).');
+            return;
+        }
+
+        $stmt = db()->prepare('SELECT * FROM clients WHERE id = ?');
+        $stmt->execute([(int) $order['client_id']]);
+        $client = $stmt->fetch() ?: [];
+
+        $years = 1;
+        if (!empty($row['registration_date']) && !empty($row['expiry_date'])) {
+            $y = (int) date('Y', strtotime($row['expiry_date'])) - (int) date('Y', strtotime($row['registration_date']));
+            $years = max(1, min(10, $y));
+        }
+
+        try {
+            $r = Provider::registrar($reg_key)->register($domain, [
+                'first_name'   => $client['first_name'] ?? '',
+                'last_name'    => $client['last_name'] ?? '',
+                'email'        => $client['email'] ?? '',
+                'phone'        => ($client['phone'] ?? '') ?: '+254700000000',
+                'company'      => $client['company'] ?? '',
+                'country_code' => self::isoCountry($client['country'] ?? 'Kenya'),
+            ], $years);
+
+            if (!empty($r['success'])) {
+                db()->prepare("UPDATE domain_registrations SET status = 'active', registrar = ? WHERE id = ?")
+                    ->execute([$reg_key, (int) $row['id']]);
+                self::noteDomain((int) $row['id'], 'Registered with ' . $reg_key . ' after payment.');
+            } else {
+                self::noteDomain((int) $row['id'], 'Registration failed — ' . ($r['message'] ?? 'registrar rejected the request.'));
+            }
+        } catch (\Throwable $e) {
+            self::noteDomain((int) $row['id'], 'Registration error — ' . $e->getMessage());
+        }
     }
 
     /**

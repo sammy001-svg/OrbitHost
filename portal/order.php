@@ -335,7 +335,8 @@ require_once __DIR__ . '/includes/header.php';
               <?php if (count($feats) > 4): ?><div style="font-size:11.5px;color:var(--text-muted);padding:2.5px 0">+ <?php echo count($feats) - 4; ?> more</div><?php endif; ?>
             </div>
           <?php else: ?><div style="flex:1"></div><?php endif; ?>
-          <a href="<?php echo PORTAL_URL; ?>/order.php?plan=<?php echo (int)$p['id']; ?>" class="btn btn-primary" style="margin-top:14px;justify-content:center"><i class="fas fa-cart-plus"></i> Order Now</a>
+          <?php /* Same checkout funnel the website uses — domain, add-ons, VAT, invoice. */ ?>
+          <a href="<?php echo PORTAL_URL; ?>/order/index.php?plan=<?php echo (int)$p['id']; ?>" class="btn btn-primary" style="margin-top:14px;justify-content:center"><i class="fas fa-cart-plus"></i> Order Now</a>
         </div>
       <?php endforeach; ?>
     </div>

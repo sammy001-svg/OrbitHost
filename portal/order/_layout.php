@@ -36,13 +36,24 @@ function checkout_url(string $file): string
 function checkout_require(string $step): void
 {
     if (OrderCart::readyFor($step)) return;
-    $to = OrderCart::plan() ? 'index.php' : '';
-    if ($to === '') {
-        header('Location: ' . PORTAL_URL . '/order.php');
+    if (OrderCart::plan()) {
+        header('Location: ' . checkout_url('index.php'));
         exit;
     }
-    header('Location: ' . checkout_url($to));
+    header('Location: ' . checkout_no_plan_url());
     exit;
+}
+
+/**
+ * Where to send someone whose session has no package in it. A signed-in
+ * client gets the portal catalogue; a guest gets the public pricing page,
+ * because portal/order.php would only bounce them to a login screen.
+ */
+function checkout_no_plan_url(): string
+{
+    return !empty($_SESSION['client_id'])
+        ? PORTAL_URL . '/order.php'
+        : SiteSettings::siteRoot() . '/hosting/shared.html#plans';
 }
 
 function checkout_money(float $amount, string $currency): string

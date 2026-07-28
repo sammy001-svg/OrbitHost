@@ -18,7 +18,7 @@ $currency = Currency::current();
 if (isset($_GET['plan'])) {
     $plan = OrderCart::findPlan((string) $_GET['plan']);
     if (!$plan) {
-        header('Location: ' . PORTAL_URL . '/order.php');
+        header('Location: ' . checkout_no_plan_url());
         exit;
     }
     if ((int) OrderCart::get('plan_id') !== (int) $plan['id']) {
@@ -36,7 +36,7 @@ if (isset($_GET['plan'])) {
 
 $plan = OrderCart::plan();
 if (!$plan) {
-    header('Location: ' . PORTAL_URL . '/order.php');
+    header('Location: ' . checkout_no_plan_url());
     exit;
 }
 
@@ -88,7 +88,7 @@ checkout_head('Choose your domain', 1);
 ?>
 
 <form method="POST" id="step1">
-<input type="hidden" name="csrf_token" value="<?php echo portal_csrf_token(); ?>" />
+<input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
 
 <div class="co-grid">
   <div>
@@ -109,9 +109,9 @@ checkout_head('Choose your domain', 1);
             <span class="co-opt-t">Register a new domain</span>
             <span class="co-opt-d">Pick a fresh name — we'll register it for you and point it at your hosting.</span>
             <span class="mode-fields" data-for="register" style="display:<?php echo $sel_mode === 'register' ? 'flex' : 'none'; ?>;gap:8px;margin-top:11px;flex-wrap:wrap">
-              <input type="text" name="domain_register" class="p-input" placeholder="yourbusiness.co.ke" style="flex:1;min-width:190px"
+              <input type="text" name="domain_register" class="form-control" placeholder="yourbusiness.co.ke" style="flex:1;min-width:190px"
                      value="<?php echo $sel_mode === 'register' ? h($sel_name) : ''; ?>" />
-              <select name="domain_years" class="p-input" style="width:120px">
+              <select name="domain_years" class="form-select" style="width:120px">
                 <?php for ($y = 1; $y <= 5; $y++): ?>
                   <option value="<?php echo $y; ?>" <?php echo $sel_years === $y ? 'selected' : ''; ?>><?php echo $y; ?> year<?php echo $y > 1 ? 's' : ''; ?></option>
                 <?php endfor; ?>
@@ -126,7 +126,7 @@ checkout_head('Choose your domain', 1);
             <span class="co-opt-t">Transfer a domain to us</span>
             <span class="co-opt-d">Move a domain you registered elsewhere. Transfers add a year to your registration.</span>
             <span class="mode-fields" data-for="transfer" style="display:<?php echo $sel_mode === 'transfer' ? 'block' : 'none'; ?>;margin-top:11px">
-              <input type="text" name="domain_transfer" class="p-input" placeholder="yourbusiness.co.ke" style="width:100%"
+              <input type="text" name="domain_transfer" class="form-control" placeholder="yourbusiness.co.ke" style="width:100%"
                      value="<?php echo $sel_mode === 'transfer' ? h($sel_name) : ''; ?>" />
               <small style="display:block;margin-top:6px;font-size:11.5px;color:var(--text-muted)">You'll need the EPP/auth code from your current registrar — we'll ask for it after checkout.</small>
             </span>
@@ -139,7 +139,7 @@ checkout_head('Choose your domain', 1);
             <span class="co-opt-t">I already own this domain</span>
             <span class="co-opt-d">Keep it where it is and just point its nameservers at us. Nothing extra to pay.</span>
             <span class="mode-fields" data-for="existing" style="display:<?php echo $sel_mode === 'existing' ? 'block' : 'none'; ?>;margin-top:11px">
-              <input type="text" name="domain_existing" class="p-input" placeholder="yourbusiness.co.ke" style="width:100%"
+              <input type="text" name="domain_existing" class="form-control" placeholder="yourbusiness.co.ke" style="width:100%"
                      value="<?php echo $sel_mode === 'existing' ? h($sel_name) : ''; ?>" />
             </span>
           </span>
