@@ -287,6 +287,9 @@
   // Matches the split the static cards use: symbol / whole number / rest,
   // so the existing .currency/.amount/.period styling applies unchanged.
   function priceHtml(amount, cur, suffix) {
+    // A zero-priced plan reads "Free" rather than "$0.00/mo" — same markup
+    // ssl.html uses for its free DV tier.
+    if (!amount) return '<span class="currency"></span><span class="amount amount--free">Free</span>';
     if (cur === 'KES') {
       return '<span class="currency">KSh</span><span class="amount">' + group(amount) +
              '</span><span class="period">' + suffix + '</span>';
@@ -304,6 +307,7 @@
     const sym = cur === 'KES' ? 'KSh ' : '$';
     const money = v => sym + (cur === 'KES' ? group(v) : v.toFixed(2));
 
+    if (!price) return { html: priceHtml(0, cur, ''), renew: 'No charge' };
     if (plan.billing_cycle === 'annual') {
       return { html: priceHtml(price / 12, cur, '/mo'), renew: 'Billed annually — ' + money(price) + '/yr' };
     }
@@ -344,6 +348,16 @@
       '</div>';
   }
 
+  // Drives the column count in CSS. Counts what's actually on screen, not
+  // how many plans came back, so a tab-filtered grid still sizes to the
+  // cards the visitor can see.
+  function setCount(grid) {
+    const shown = Array.prototype.filter.call(
+      grid.querySelectorAll('.pricing-card'), c => c.style.display !== 'none'
+    ).length;
+    grid.setAttribute('data-plan-count', String(shown));
+  }
+
   // The admin gives each plan one billing cycle, so the annual/monthly
   // tabs filter whole cards instead of swapping a price inside one. Tabs
   // are dropped entirely when the category only sells on one cycle.
@@ -368,6 +382,7 @@
       grid.querySelectorAll('.pricing-card').forEach(c => {
         c.style.display = c.dataset.cycle === cycle ? '' : 'none';
       });
+      setCount(grid);
     }
 
     tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.billing)));
@@ -387,8 +402,8 @@
 
         const cur = (window.OrbitCurrency && window.OrbitCurrency.get()) || 'USD';
         grid.innerHTML = plans.map(p => cardHtml(p, grid, cur)).join('');
-        grid.setAttribute('data-plan-count', String(plans.length));
-        wireTabs(grid, plans);
+        wireTabs(grid, plans);   // may hide cards, so count after it runs
+        setCount(grid);
 
         // Each card carries data-usd-html/data-kes-html, so re-running the
         // currency pass picks the right one — currency.js already fired on
