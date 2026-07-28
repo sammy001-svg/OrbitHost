@@ -58,6 +58,9 @@ function kb_unique_slug(string $table, string $title, int $excludeId = 0): strin
 
 if ($schema_ok && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
+    // Articles are published on the public website — support reads the
+    // library (to link clients to it) but doesn't edit it.
+    require_role('admin', APP_URL . '/kb/index.php');
     $action = $_POST['action'] ?? '';
 
     try {
@@ -134,8 +137,10 @@ require_once '../includes/header.php';
   </div>
   <div class="page-header-actions">
     <a href="<?php echo $site_base; ?>/kb/index.php" target="_blank" rel="noopener" class="btn btn-ghost"><i class="fas fa-arrow-up-right-from-square"></i> View public page</a>
+    <?php if (can('admin')): ?>
     <button class="btn btn-ghost" data-drawer-open="drawer-cat" data-cat='{"id":0,"name":"","icon":"fa-book","sort_order":100}'><i class="fas fa-folder-plus"></i> Add Category</button>
     <button class="btn btn-primary" data-drawer-open="drawer-article" data-article='{"id":0,"category_id":"","title":"","excerpt":"","body":"","is_published":1,"sort_order":100}'><i class="fas fa-plus"></i> Add Article</button>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -161,6 +166,7 @@ require_once '../includes/header.php';
       $cjson = htmlspecialchars(json_encode(['id'=>(int)$c['id'],'name'=>$c['name'],'icon'=>$c['icon'],'sort_order'=>(int)$c['sort_order']], JSON_UNESCAPED_SLASHES), ENT_QUOTES); ?>
       <div class="code-chip" style="display:flex;align-items:center;gap:8px;padding:8px 12px">
         <i class="fas <?php echo h($c['icon']); ?>"></i> <?php echo h($c['name']); ?>
+        <?php if (can('admin')): ?>
         <button type="button" class="action-link edit" data-drawer-open="drawer-cat" data-cat="<?php echo $cjson; ?>" style="margin-left:4px"><i class="fas fa-pen" style="font-size:11px"></i></button>
         <form method="POST" style="margin:0;display:inline">
           <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
@@ -168,6 +174,7 @@ require_once '../includes/header.php';
           <input type="hidden" name="id" value="<?php echo (int)$c['id']; ?>" />
           <button type="submit" class="action-link danger" data-confirm="Delete category &quot;<?php echo h($c['name']); ?>&quot;? Its articles stay, just uncategorised."><i class="fas fa-trash" style="font-size:11px"></i></button>
         </form>
+        <?php endif; ?>
       </div>
     <?php endforeach; ?>
   </div>
@@ -203,6 +210,7 @@ require_once '../includes/header.php';
               <?php if ($a['is_published']): ?>
                 <a href="<?php echo $site_base; ?>/kb/article.php?slug=<?php echo urlencode($a['slug']); ?>" target="_blank" rel="noopener" class="action-link" title="View"><i class="fas fa-arrow-up-right-from-square"></i></a>
               <?php endif; ?>
+              <?php if (can('admin')): ?>
               <button class="action-link edit" data-drawer-open="drawer-article" data-article="<?php echo $ajson; ?>"><i class="fas fa-pen"></i> Edit</button>
               <form method="POST" style="margin:0">
                 <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
@@ -210,6 +218,7 @@ require_once '../includes/header.php';
                 <input type="hidden" name="id" value="<?php echo (int)$a['id']; ?>" />
                 <button type="submit" class="action-link danger" data-confirm="Delete article &quot;<?php echo h($a['title']); ?>&quot;?"><i class="fas fa-trash"></i></button>
               </form>
+              <?php endif; ?>
             </div>
           </td>
         </tr>
@@ -219,6 +228,7 @@ require_once '../includes/header.php';
   </div>
 </div>
 
+<?php if (can('admin')): ?>
 <!-- ── Category drawer ── -->
 <div class="drawer-scrim" id="drawer-cat-scrim"></div>
 <div class="drawer" id="drawer-cat">
@@ -328,7 +338,8 @@ document.addEventListener('click', function (e) {
   }
 });
 </script>
+<?php endif; // can('admin') — editor drawers ?>
 
-<?php endif; ?>
+<?php endif; // $schema_ok ?>
 
 <?php require_once '../includes/footer.php'; ?>

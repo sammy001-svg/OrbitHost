@@ -34,11 +34,13 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <div class="nav-label">Overview</div>
     <?php _nav(APP_URL . '/dashboard.php', 'fa-gauge-high', 'Dashboard', '', 'dashboard.php'); ?>
 
-    <div class="nav-label">Website</div>
-    <?php _nav(APP_URL . '/settings/index.php',  'fa-swatchbook', 'Site Settings', 'settings'); ?>
-    <?php _nav(APP_URL . '/marketing/index.php', 'fa-bullhorn',   'Portal Banners', 'marketing'); ?>
-    <?php if (can('super_admin')): ?>
-      <?php _nav(APP_URL . '/staff/index.php', 'fa-users-gear', 'Staff Accounts', 'staff'); ?>
+    <?php if (can('admin')): // site configuration and public content ?>
+      <div class="nav-label">Website</div>
+      <?php _nav(APP_URL . '/settings/index.php',  'fa-swatchbook', 'Site Settings', 'settings'); ?>
+      <?php _nav(APP_URL . '/marketing/index.php', 'fa-bullhorn',   'Portal Banners', 'marketing'); ?>
+      <?php if (can('super_admin')): ?>
+        <?php _nav(APP_URL . '/staff/index.php', 'fa-users-gear', 'Staff Accounts', 'staff'); ?>
+      <?php endif; ?>
     <?php endif; ?>
 
     <div class="nav-label">Operations</div>
@@ -59,7 +61,9 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <?php _nav(APP_URL . '/chat/index.php',          'fa-comments', 'Live Chat',      'chat'); ?>
     <?php _nav(APP_URL . '/kb/index.php',            'fa-book',     'Knowledge Base', 'kb'); ?>
     <?php _nav(APP_URL . '/notifications/index.php', 'fa-bell',     'Notifications',  'notifications'); ?>
-    <?php _nav(APP_URL . '/audit-log/index.php',     'fa-clock-rotate-left', 'Audit Log', 'audit-log'); ?>
+    <?php if (can('admin')): ?>
+      <?php _nav(APP_URL . '/audit-log/index.php',   'fa-clock-rotate-left', 'Audit Log', 'audit-log'); ?>
+    <?php endif; ?>
 
     <?php if (can('admin')): // whole section is provider credentials + live server control ?>
     <div class="nav-label">Integrations</div>

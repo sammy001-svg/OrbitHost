@@ -229,7 +229,8 @@ require_once __DIR__ . '/includes/header.php';
   </div>
 </div>
 
-<div class="grid-3" style="margin-bottom:0">
+<?php // Support doesn't get the staff-activity card, so drop to two columns. ?>
+<div class="<?php echo can('admin') ? 'grid-3' : 'grid-2'; ?>" style="margin-bottom:0">
   <div class="table-wrap">
     <div class="card-header"><div class="card-title">Recent Services</div><a href="<?php echo APP_URL; ?>/services/" class="btn btn-ghost btn-sm">View All</a></div>
     <table>
@@ -267,6 +268,7 @@ require_once __DIR__ . '/includes/header.php';
     </table>
   </div>
 
+  <?php if (can('admin')): // same staff-activity trail as the Audit Log page ?>
   <div class="card">
     <div class="card-header"><div class="card-title">Recent Activity</div></div>
     <div class="card-body">
@@ -287,6 +289,7 @@ require_once __DIR__ . '/includes/header.php';
       <?php endif; ?>
     </div>
   </div>
+  <?php endif; ?>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" crossorigin="anonymous"></script>

@@ -11,6 +11,8 @@ require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 
 auth_check();
+// Public-facing website/portal content.
+require_role('admin', APP_URL . '/dashboard.php');
 $page_title = 'Portal Banners';
 
 // ── Table (auto-migration) ──

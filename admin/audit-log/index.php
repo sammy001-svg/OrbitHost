@@ -5,6 +5,8 @@ require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 
 auth_check();
+// The trail of what every staff account has done — oversight, not helpdesk.
+require_role('admin', APP_URL . '/dashboard.php');
 $page_title = 'Audit Log';
 $db = db();
 

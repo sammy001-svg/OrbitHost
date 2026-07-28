@@ -6,6 +6,9 @@ require_once '../includes/functions.php';
 require_once '../includes/SiteSettings.php';
 
 auth_check();
+// Branding, contact details and site-wide configuration. The POST handler
+// below keeps its own gate as defence in depth.
+require_role('admin', APP_URL . '/dashboard.php');
 $page_title = 'Site Settings';
 
 $table_ok = SiteSettings::ensureTable();
