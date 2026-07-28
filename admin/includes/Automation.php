@@ -263,25 +263,49 @@ final class Automation
             $years = max(1, min(10, $y));
         }
 
+        $contact = [
+            'first_name'   => $client['first_name'] ?? '',
+            'last_name'    => $client['last_name'] ?? '',
+            'email'        => $client['email'] ?? '',
+            'phone'        => ($client['phone'] ?? '') ?: '+254700000000',
+            'company'      => $client['company'] ?? '',
+            'country_code' => self::isoCountry($client['country'] ?? 'Kenya'),
+        ];
+
+        // order_mode is written by portal/order/_place.php. An older row
+        // without it predates that column and can only be a registration.
+        $is_transfer = ($row['order_mode'] ?? 'register') === 'transfer';
+        $epp         = (string) ($row['transfer_epp'] ?? '');
+        $verb        = $is_transfer ? 'Transfer' : 'Registration';
+
+        if ($is_transfer && $epp === '') {
+            self::noteDomain((int) $row['id'], 'Paid — transfer needs the EPP/auth code before it can be lodged.');
+            return;
+        }
+
         try {
-            $r = Provider::registrar($reg_key)->register($domain, [
-                'first_name'   => $client['first_name'] ?? '',
-                'last_name'    => $client['last_name'] ?? '',
-                'email'        => $client['email'] ?? '',
-                'phone'        => ($client['phone'] ?? '') ?: '+254700000000',
-                'company'      => $client['company'] ?? '',
-                'country_code' => self::isoCountry($client['country'] ?? 'Kenya'),
-            ], $years);
+            $r = $is_transfer
+                ? Provider::registrar($reg_key)->transfer($domain, $epp, $contact, $years)
+                : Provider::registrar($reg_key)->register($domain, $contact, $years);
 
             if (!empty($r['success'])) {
-                db()->prepare("UPDATE domain_registrations SET status = 'active', registrar = ? WHERE id = ?")
-                    ->execute([$reg_key, (int) $row['id']]);
-                self::noteDomain((int) $row['id'], 'Registered with ' . $reg_key . ' after payment.');
+                // A transfer stays 'pending' until the losing registrar
+                // releases it — that can take days and isn't ours to declare.
+                $status = $is_transfer ? 'pending' : 'active';
+                db()->prepare("UPDATE domain_registrations SET status = ?, registrar = ? WHERE id = ?")
+                    ->execute([$status, $reg_key, (int) $row['id']]);
+                // The auth code has done its job — don't keep it lying around.
+                if ($is_transfer) {
+                    try {
+                        db()->prepare('UPDATE domain_registrations SET transfer_epp = NULL WHERE id = ?')->execute([(int) $row['id']]);
+                    } catch (\Throwable $e) {}
+                }
+                self::noteDomain((int) $row['id'], $verb . ' lodged with ' . $reg_key . ' after payment.');
             } else {
-                self::noteDomain((int) $row['id'], 'Registration failed — ' . ($r['message'] ?? 'registrar rejected the request.'));
+                self::noteDomain((int) $row['id'], $verb . ' failed — ' . ($r['message'] ?? 'registrar rejected the request.'));
             }
         } catch (\Throwable $e) {
-            self::noteDomain((int) $row['id'], 'Registration error — ' . $e->getMessage());
+            self::noteDomain((int) $row['id'], $verb . ' error — ' . $e->getMessage());
         }
     }
 

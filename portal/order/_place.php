@@ -17,6 +17,32 @@ require_once dirname(__DIR__, 2) . '/admin/includes/Currency.php';
 require_once dirname(__DIR__) . '/includes/order_cart.php';
 
 /**
+ * Columns the website checkout needs on domain_registrations:
+ *   order_mode    register|transfer — which one the client asked for, so
+ *                 fulfilment knows whether to register or transfer.
+ *   transfer_epp  the auth code, held only until the transfer is lodged
+ *                 (Automation clears it on success).
+ * Idempotent, and safe on a database user without ALTER — the caller
+ * falls back to writing the row without them.
+ */
+function order_domain_columns(): bool
+{
+    static $ok = null;
+    if ($ok !== null) return $ok;
+    try {
+        $col = db()->query("SHOW COLUMNS FROM domain_registrations LIKE 'order_mode'")->fetch();
+        if (!$col) {
+            db()->exec("ALTER TABLE domain_registrations
+                        ADD COLUMN order_mode   VARCHAR(20)  DEFAULT NULL,
+                        ADD COLUMN transfer_epp VARCHAR(255) DEFAULT NULL");
+        }
+        return $ok = true;
+    } catch (\Throwable $e) {
+        return $ok = false;
+    }
+}
+
+/**
  * @return array{order_id:int,invoice_id:int,invoice_number:string}
  * @throws RuntimeException when the cart no longer prices (plan withdrawn mid-checkout)
  */
@@ -72,13 +98,22 @@ function place_hosting_order(array $client, string $currency): array
     // once the invoice is paid (Automation::fulfilOrderDomain).
     if ($domain !== '' && in_array($mode, ['register', 'transfer'], true)) {
         $years = OrderCart::domainYears();
+        order_domain_columns();
         try {
-            db()->prepare('INSERT INTO domain_registrations (client_id, domain_name, registrar, registration_date, expiry_date, status, auto_renew)
-                           VALUES (?,?,?,CURDATE(),DATE_ADD(CURDATE(), INTERVAL ? YEAR),?,1)
-                           ON DUPLICATE KEY UPDATE client_id = VALUES(client_id)')
-                ->execute([$cid, $domain, 'manual', $years, 'pending']);
+            db()->prepare('INSERT INTO domain_registrations (client_id, domain_name, registrar, registration_date, expiry_date, status, auto_renew, order_mode, transfer_epp)
+                           VALUES (?,?,?,CURDATE(),DATE_ADD(CURDATE(), INTERVAL ? YEAR),?,1,?,?)
+                           ON DUPLICATE KEY UPDATE client_id = VALUES(client_id), order_mode = VALUES(order_mode), transfer_epp = VALUES(transfer_epp)')
+                ->execute([$cid, $domain, 'manual', $years, 'pending', $mode,
+                           $mode === 'transfer' ? (string) OrderCart::get('epp_code', '') : null]);
         } catch (\Throwable $e) {
-            // Legacy schema — the order notes still record the intent.
+            // Legacy schema without the two columns — still record the domain
+            // so the client and the team see it; the order notes carry the rest.
+            try {
+                db()->prepare('INSERT INTO domain_registrations (client_id, domain_name, registrar, registration_date, expiry_date, status, auto_renew)
+                               VALUES (?,?,?,CURDATE(),DATE_ADD(CURDATE(), INTERVAL ? YEAR),?,1)
+                               ON DUPLICATE KEY UPDATE client_id = VALUES(client_id)')
+                    ->execute([$cid, $domain, 'manual', $years, 'pending']);
+            } catch (\Throwable $e2) { /* order and invoice already exist either way */ }
         }
     }
 

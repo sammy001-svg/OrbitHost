@@ -9,6 +9,8 @@
  */
 require_once __DIR__ . '/_layout.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/ServiceAddon.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/providers/Provider.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/DomainClient.php';
 
 portal_start();
 Currency::ensureSchema();
@@ -43,6 +45,27 @@ if (!$plan) {
 $addons = ServiceAddon::forCategory($plan['category']);
 $error  = '';
 
+/**
+ * Is this domain definitely already registered?
+ *
+ * true  = taken, refuse it. false = free. null = we couldn't tell (no
+ * registrar configured, API down, or a provider with no availability API)
+ * — in that case we let the order through rather than blocking a sale on
+ * our own outage, and the team confirms it before registering.
+ */
+function domain_is_taken(string $domain): ?bool
+{
+    try {
+        $key = Provider::activeFor('registrar');
+        if (!$key) return null;
+        $r = Provider::registrar($key)->check($domain);
+        $available = $r['available'] ?? null;
+        return $available === null ? null : !$available;
+    } catch (\Throwable $e) {
+        return null;
+    }
+}
+
 // Domains we can actually sell, for the register/transfer validation below.
 $tlds = [];
 try {
@@ -59,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name   = preg_replace('/^https?:\/\//', '', $name);
     $name   = preg_replace('/[^a-z0-9.-]/', '', rtrim($name, '/'));
     $years  = max(1, min(10, (int) ($_POST['domain_years'] ?? 1)));
+    $epp    = trim($_POST['epp_code'] ?? '');
 
     OrderCart::setAddons((array) ($_POST['addons'] ?? []), $plan['category']);
 
@@ -68,10 +92,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Enter a full domain name, e.g. yourbusiness.co.ke';
     } elseif (in_array($mode, ['register', 'transfer'], true) && $tlds && !in_array(substr($name, strpos($name, '.') + 1), $tlds, true)) {
         $error = 'We don\'t sell that domain extension online yet — choose "I already own this domain", or contact us and we\'ll help.';
+    } elseif ($mode === 'transfer' && strlen($epp) < 4) {
+        $error = 'Enter the EPP/auth code for this domain — your current registrar provides it.';
+    } elseif ($mode === 'register' && ($taken = domain_is_taken($name)) === true) {
+        // Re-checked here, not just in the browser: the search below is a
+        // convenience, and nothing a client can edit decides whether we try
+        // to register a name that's already gone.
+        $error = $name . ' has already been taken. Search for another name below.';
     } else {
         OrderCart::set('domain_mode', $mode);
         OrderCart::set('domain_name', $name);
         OrderCart::set('domain_years', $mode === 'register' ? $years : 1);
+        OrderCart::set('epp_code', $mode === 'transfer' ? $epp : '');
         if ($mode === 'existing') OrderCart::set('id_protection', false);
         header('Location: ' . checkout_url('configure.php'));
         exit;
@@ -108,14 +140,19 @@ checkout_head('Choose your domain', 1);
           <span style="flex:1">
             <span class="co-opt-t">Register a new domain</span>
             <span class="co-opt-d">Pick a fresh name — we'll register it for you and point it at your hosting.</span>
-            <span class="mode-fields" data-for="register" style="display:<?php echo $sel_mode === 'register' ? 'flex' : 'none'; ?>;gap:8px;margin-top:11px;flex-wrap:wrap">
-              <input type="text" name="domain_register" class="form-control" placeholder="yourbusiness.co.ke" style="flex:1;min-width:190px"
-                     value="<?php echo $sel_mode === 'register' ? h($sel_name) : ''; ?>" />
-              <select name="domain_years" class="form-select" style="width:120px">
-                <?php for ($y = 1; $y <= 5; $y++): ?>
-                  <option value="<?php echo $y; ?>" <?php echo $sel_years === $y ? 'selected' : ''; ?>><?php echo $y; ?> year<?php echo $y > 1 ? 's' : ''; ?></option>
-                <?php endfor; ?>
-              </select>
+            <span class="mode-fields" data-for="register" style="display:<?php echo $sel_mode === 'register' ? 'block' : 'none'; ?>;margin-top:11px">
+              <span style="display:flex;gap:8px;flex-wrap:wrap">
+                <input type="text" name="domain_register" id="regDomain" class="form-control" placeholder="yourbusiness.co.ke" style="flex:1;min-width:190px"
+                       autocomplete="off" value="<?php echo $sel_mode === 'register' ? h($sel_name) : ''; ?>" />
+                <button type="button" class="btn btn-primary" id="dsBtn" style="white-space:nowrap"><i class="fas fa-magnifying-glass"></i> Check</button>
+                <select name="domain_years" class="form-select" style="width:120px">
+                  <?php for ($y = 1; $y <= 5; $y++): ?>
+                    <option value="<?php echo $y; ?>" <?php echo $sel_years === $y ? 'selected' : ''; ?>><?php echo $y; ?> year<?php echo $y > 1 ? 's' : ''; ?></option>
+                  <?php endfor; ?>
+                </select>
+              </span>
+              <span id="dsResults" style="display:none"></span>
+              <small style="display:block;margin-top:7px;font-size:11.5px;color:var(--text-muted)">Type a name and check whether it's free — we'll show alternatives if it isn't.</small>
             </span>
           </span>
         </label>
@@ -128,7 +165,12 @@ checkout_head('Choose your domain', 1);
             <span class="mode-fields" data-for="transfer" style="display:<?php echo $sel_mode === 'transfer' ? 'block' : 'none'; ?>;margin-top:11px">
               <input type="text" name="domain_transfer" class="form-control" placeholder="yourbusiness.co.ke" style="width:100%"
                      value="<?php echo $sel_mode === 'transfer' ? h($sel_name) : ''; ?>" />
-              <small style="display:block;margin-top:6px;font-size:11.5px;color:var(--text-muted)">You'll need the EPP/auth code from your current registrar — we'll ask for it after checkout.</small>
+              <input type="text" name="epp_code" class="form-control" style="width:100%;margin-top:8px;font-family:ui-monospace,Menlo,monospace"
+                     placeholder="EPP / auth code" autocomplete="off"
+                     value="<?php echo h((string) OrderCart::get('epp_code', '')); ?>" />
+              <small style="display:block;margin-top:6px;font-size:11.5px;color:var(--text-muted)">
+                Unlock the domain at your current registrar and paste its EPP/auth code here — the transfer can't start without it.
+              </small>
             </span>
           </span>
         </label>
@@ -194,7 +236,7 @@ checkout_head('Choose your domain', 1);
       var on = opt.querySelector('input[type=radio]').checked;
       opt.classList.toggle('sel', on);
       var f = opt.querySelector('.mode-fields');
-      if (f) f.style.display = on ? (f.dataset.for === 'register' ? 'flex' : 'block') : 'none';
+      if (f) f.style.display = on ? 'block' : 'none';
       if (on) { var i = f && f.querySelector('input[type=text]'); if (i) i.focus({ preventScroll: true }); }
     });
   }
@@ -205,12 +247,95 @@ checkout_head('Choose your domain', 1);
     if (box) box.classList.toggle('sel', e.target.checked);
   });
 
-  // Clicking anywhere in an option row selects it, but let the text inputs
-  // and the year dropdown behave normally.
+  // Clicking anywhere in an option row selects it, but let the inputs and
+  // the year dropdown behave normally.
   form.querySelectorAll('.co-opt').forEach(function (opt) {
     opt.addEventListener('click', function (e) {
-      if (e.target.matches('input[type=text], select, option')) e.stopPropagation();
+      if (e.target.matches('input[type=text], select, option, button')) e.stopPropagation();
     });
+  });
+})();
+
+// ── Domain availability search (register mode) ───────────────────────────
+// Hits the same public endpoint the website's domain search uses, so the
+// prices and TLD list here are the ones in Integrations → TLD Pricing.
+(function () {
+  var input = document.getElementById('regDomain');
+  var btn   = document.getElementById('dsBtn');
+  var out   = document.getElementById('dsResults');
+  if (!input || !btn || !out) return;
+
+  var API = <?php echo json_encode(SiteSettings::siteRoot() . '/api/domain-check.php'); ?>;
+  var busy = false;
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function money(v, cur) {
+    return (cur === 'KES' ? 'KSh ' : '$') + Number(v).toFixed(2);
+  }
+
+  function note(html) {
+    out.style.display = 'block';
+    out.innerHTML = '<span style="display:block;margin-top:10px;font-size:12.5px;color:var(--text-muted)">' + html + '</span>';
+  }
+
+  function render(d) {
+    if (!d || !d.ok) { note(esc((d && d.error) || 'Search is unavailable right now — you can still type a domain and continue.')); return; }
+
+    var rows = d.results.map(function (r) {
+      var state, action;
+      if (r.available === true) {
+        state  = '<span style="color:var(--green);font-weight:700;font-size:12px"><i class="fas fa-circle-check"></i> Available</span>';
+        action = '<button type="button" class="btn btn-primary" style="padding:5px 12px;font-size:12px" data-pick="' + esc(r.domain) + '">Select</button>';
+      } else if (r.available === false) {
+        state  = '<span style="color:var(--danger);font-weight:700;font-size:12px"><i class="fas fa-circle-xmark"></i> Taken</span>';
+        action = '';
+      } else {
+        // No registrar configured, or a provider with no availability API.
+        state  = '<span style="color:var(--text-muted);font-weight:600;font-size:12px">Status unknown</span>';
+        action = '<button type="button" class="btn btn-ghost" style="padding:5px 12px;font-size:12px;border:1px solid var(--border)" data-pick="' + esc(r.domain) + '">Use this</button>';
+      }
+      return '<span style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">'
+           + '<span style="flex:1;min-width:150px;font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--navy);font-size:13px;word-break:break-all">' + esc(r.domain) + '</span>'
+           + state
+           + '<span style="font-weight:700;font-size:12.5px;color:var(--navy);white-space:nowrap">' + money(r.price, r.currency) + '/yr</span>'
+           + action + '</span>';
+    }).join('');
+
+    out.style.display = 'block';
+    out.innerHTML = '<span style="display:block;margin-top:12px;border-top:1px solid var(--border);padding-top:4px">' + rows + '</span>';
+  }
+
+  function search() {
+    var q = input.value.trim();
+    if (q.length < 2 || busy) return;
+    busy = true;
+    var original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking';
+    note('Checking availability…');
+
+    fetch(API + '?q=' + encodeURIComponent(q))
+      .then(function (r) { return r.json(); })
+      .then(render)
+      .catch(function () { note('Could not reach the domain checker — you can still continue and we\'ll confirm the name for you.'); })
+      .finally(function () { busy = false; btn.disabled = false; btn.innerHTML = original; });
+  }
+
+  btn.addEventListener('click', search);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); search(); }
+  });
+
+  out.addEventListener('click', function (e) {
+    var pick = e.target.closest ? e.target.closest('[data-pick]') : null;
+    if (!pick) return;
+    input.value = pick.getAttribute('data-pick');
+    out.style.display = 'none';
+    input.focus({ preventScroll: true });
   });
 })();
 </script>
