@@ -170,7 +170,7 @@ require_once '../includes/header.php';
           <?php if ($orders): foreach ($orders as $o): ?>
             <tr>
               <td><?php echo h($o['service_name'] ?? $o['svc_name'] ?? '—'); ?></td>
-              <td><?php echo h($o['domain'] ?: '—'); ?></td>
+              <td><?php echo h($o['domain_name'] ?: '—'); ?></td>
               <td><?php echo format_money($o['amount']); ?></td>
               <td><?php echo badge($o['billing_cycle']); ?></td>
               <td><?php echo badge($o['status']); ?></td>
