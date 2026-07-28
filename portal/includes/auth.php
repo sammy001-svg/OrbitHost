@@ -172,7 +172,7 @@ function portal_after_auth(): string
 {
     $to = $_SESSION['post_login_redirect'] ?? 'dashboard.php';
     unset($_SESSION['post_login_redirect']);
-    return in_array($to, ['checkout.php', 'cart.php', 'dashboard.php', 'domains.php'], true) ? $to : 'dashboard.php';
+    return in_array($to, ['checkout.php', 'cart.php', 'dashboard.php', 'domains.php', 'order/review.php'], true) ? $to : 'dashboard.php';
 }
 
 function current_client(): array

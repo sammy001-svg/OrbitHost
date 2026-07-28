@@ -37,23 +37,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     } elseif ($mode === 'existing') {
         // ── Sign in to an existing client area account ──
-        $email = trim($_POST['login_email'] ?? '');
-        $pass  = (string) ($_POST['login_password'] ?? '');
-        $stmt  = db()->prepare('SELECT * FROM clients WHERE email = ?');
-        $stmt->execute([$email]);
-        $row = $stmt->fetch();
+        // Goes through portal_login() rather than checking the hash here,
+        // so checkout gets the same brute-force lockout and the same 2FA
+        // challenge as the normal sign-in page.
+        $r = portal_login(trim($_POST['login_email'] ?? ''), (string) ($_POST['login_password'] ?? ''));
 
-        if (!$row || empty($row['portal_password']) || !password_verify($pass, $row['portal_password'])) {
-            $errors[] = 'Those details don\'t match an account. Check your email and password, or create a new account.';
-        } elseif (($row['status'] ?? 'active') !== 'active') {
-            $errors[] = 'That account isn\'t active. Please contact support.';
+        if (empty($r['ok'])) {
+            $errors[] = $r['message'] ?? 'Those details don\'t match an account.';
+        } elseif (!empty($r['needs_2fa'])) {
+            // The cart survives in the session, so we come straight back
+            // here once the second factor checks out.
+            $_SESSION['post_login_redirect'] = 'order/review.php';
+            header('Location: ' . PORTAL_URL . '/verify-2fa.php');
+            exit;
         } else {
-            session_regenerate_id(true);
-            $_SESSION['client_id']    = (int) $row['id'];
-            $_SESSION['client_name']  = trim($row['first_name'] . ' ' . $row['last_name']);
-            $_SESSION['client_email'] = $row['email'];
-            $_SESSION['last_active']  = time();
-            $client = $row;
+            $stmt = db()->prepare('SELECT * FROM clients WHERE id = ?');
+            $stmt->execute([(int) $_SESSION['client_id']]);
+            $client = $stmt->fetch() ?: null;
         }
 
     } else {
