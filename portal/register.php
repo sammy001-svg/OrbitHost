@@ -37,8 +37,32 @@ $plan_labels = [
     'email-m365'           => 'Microsoft 365 Email',
     'email-gworkspace'     => 'Google Workspace Email',
 ];
-$plan_label = $plan_labels[$selected_plan]
-    ?? ($selected_plan !== '' ? ucwords(str_replace('-', ' ', $selected_plan)) : '');
+/**
+ * Resolve a slug the website's pricing grid produced (category-plan-name,
+ * built by api/plans.php) back to the plan's real name, so a plan the
+ * admin added or renamed reads correctly here instead of falling back to
+ * a prettified slug. The hardcoded map above still covers the original
+ * static cards; this only runs when the slug isn't one of them.
+ */
+function plan_label_from_catalogue(string $slug): string
+{
+    if ($slug === '') return '';
+    try {
+        $rows = db()->query('SELECT name, category FROM services WHERE is_active = 1')->fetchAll();
+    } catch (\Throwable $e) {
+        return '';
+    }
+    foreach ($rows as $r) {
+        $candidate = strtolower(trim($r['category'] . '-' . $r['name']));
+        $candidate = trim(preg_replace('/[^a-z0-9]+/', '-', $candidate), '-');
+        if ($candidate === $slug) return $r['name'];
+    }
+    return '';
+}
+
+$plan_label = ($plan_labels[$selected_plan] ?? '')
+    ?: plan_label_from_catalogue($selected_plan)
+    ?: ($selected_plan !== '' ? ucwords(str_replace('-', ' ', $selected_plan)) : '');
 
 $errors = [];
 $data   = ['first_name'=>'','last_name'=>'','email'=>'','phone'=>'','company'=>'','country'=>'Kenya'];

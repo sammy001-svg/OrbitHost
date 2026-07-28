@@ -251,6 +251,154 @@
   document.addEventListener('orbit:currency-changed', render);
 })();
 
+// Live plan catalogue (the pricing grids on index.html + /hosting/* + email-hosting.html)
+//
+// Each grid opts in by naming the admin category it mirrors:
+//   <div class="pricing-grid" data-plans-category="shared"
+//        data-plans-cta="../portal/register.php?plan={slug}"
+//        data-plans-cta-label="Get Started">
+// {slug} and {id} are substituted into the href per plan; a CTA with
+// neither is used as-is (index.html points at the category page,
+// dedicated.html at contact.html for sales-assisted ordering). The label
+// takes {name}, which is how email-hosting.html keeps its per-plan
+// "Get OrbitMail" / "Get Microsoft 365" wording.
+//
+// The cards written into the HTML stay put unless the API actually
+// returns plans for that category — a DB that's down, a catalogue that
+// hasn't been filled in yet, or a category with nothing active in it all
+// leave the page exactly as authored rather than blanking the pricing.
+(function () {
+  // Not scoped to .pricing-grid — email-hosting.html lays its cards out in
+  // an .email-plans grid and opts in the same way.
+  const grids = document.querySelectorAll('[data-plans-category]');
+  if (!grids.length) return;
+
+  function siteBase() {
+    const s = document.querySelector('script[src*="main"]');
+    if (s && s.src) return s.src.replace(/\/js\/main[^\/]*\.js.*$/i, '');
+    return '';
+  }
+
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+  const group = n => Math.round(n).toLocaleString('en-US');
+
+  // Matches the split the static cards use: symbol / whole number / rest,
+  // so the existing .currency/.amount/.period styling applies unchanged.
+  function priceHtml(amount, cur, suffix) {
+    if (cur === 'KES') {
+      return '<span class="currency">KSh</span><span class="amount">' + group(amount) +
+             '</span><span class="period">' + suffix + '</span>';
+    }
+    const whole = Math.floor(amount);
+    const cents = Math.round((amount - whole) * 100);
+    return '<span class="currency">$</span><span class="amount">' + group(whole) +
+           '</span><span class="period">' + (cents ? '.' + String(cents).padStart(2, '0') : '') + suffix + '</span>';
+  }
+
+  // An annual plan is priced per year in the admin but reads per month on
+  // the website, with the real yearly figure on the renewal line.
+  function cardFigures(plan, cur) {
+    const price = cur === 'KES' ? plan.price_kes : plan.price;
+    const sym = cur === 'KES' ? 'KSh ' : '$';
+    const money = v => sym + (cur === 'KES' ? group(v) : v.toFixed(2));
+
+    if (plan.billing_cycle === 'annual') {
+      return { html: priceHtml(price / 12, cur, '/mo'), renew: 'Billed annually — ' + money(price) + '/yr' };
+    }
+    if (plan.billing_cycle === 'one_time') {
+      return { html: priceHtml(price, cur, ''), renew: 'One-time payment' };
+    }
+    return { html: priceHtml(price, cur, '/mo'), renew: 'Monthly billing' };
+  }
+
+  function ctaHref(template, plan) {
+    return template.replace(/\{slug\}/g, encodeURIComponent(plan.slug))
+                   .replace(/\{id\}/g, String(plan.id));
+  }
+
+  function cardHtml(plan, grid, cur) {
+    const fig = cardFigures(plan, cur);
+    const cta = grid.dataset.plansCta || '';
+    const label = (grid.dataset.plansCtaLabel || 'Get Started').replace(/\{name\}/g, plan.name);
+    const btn = plan.is_featured ? 'btn-green' : 'btn-outline-navy';
+
+    const feats = plan.features.map(f =>
+      '<div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">' + esc(f) + '</span></div>'
+    ).join('');
+
+    // .animate-in starts invisible and is revealed by the observer below,
+    // which has already swept the page by the time this renders — so these
+    // cards ship with .visible already on.
+    return '<div class="pricing-card animate-in visible' + (plan.is_featured ? ' featured' : '') +
+             '" data-cycle="' + esc(plan.billing_cycle) + '">' +
+        '<div class="plan-name">' + esc(plan.name) + '</div>' +
+        '<div class="plan-price" data-usd-html=\'' + cardFigures(plan, 'USD').html +
+          '\' data-kes-html=\'' + cardFigures(plan, 'KES').html + '\'>' + fig.html + '</div>' +
+        '<div class="plan-renew">' + esc(fig.renew) + '</div>' +
+        '<div class="plan-divider"></div>' +
+        (feats ? '<div class="plan-features">' + feats + '</div>' : '') +
+        (cta ? '<a href="' + esc(ctaHref(cta, plan)) + '" class="btn ' + btn + ' btn-block plan-cta">' +
+               esc(label) + '</a>' : '') +
+      '</div>';
+  }
+
+  // The admin gives each plan one billing cycle, so the annual/monthly
+  // tabs filter whole cards instead of swapping a price inside one. Tabs
+  // are dropped entirely when the category only sells on one cycle.
+  function wireTabs(grid, plans) {
+    const section = grid.closest('section') || document;
+    const tabWrap = section.querySelector('.plan-tabs');
+    if (!tabWrap) return;
+
+    const cycles = plans.map(p => p.billing_cycle);
+    const tabs = Array.prototype.slice.call(tabWrap.querySelectorAll('.plan-tab'))
+      .filter(t => cycles.indexOf(t.dataset.billing) !== -1);
+
+    if (tabs.length < 2) { tabWrap.style.display = 'none'; return; }
+
+    tabWrap.style.display = '';
+    Array.prototype.forEach.call(tabWrap.querySelectorAll('.plan-tab'), t => {
+      if (tabs.indexOf(t) === -1) t.style.display = 'none';
+    });
+
+    function show(cycle) {
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.billing === cycle));
+      grid.querySelectorAll('.pricing-card').forEach(c => {
+        c.style.display = c.dataset.cycle === cycle ? '' : 'none';
+      });
+    }
+
+    tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.billing)));
+    const start = tabs.filter(t => t.classList.contains('active'))[0] || tabs[0];
+    show(start.dataset.billing);
+  }
+
+  grids.forEach(grid => {
+    const category = grid.dataset.plansCategory;
+
+    fetch(siteBase() + '/api/plans.php?category=' + encodeURIComponent(category))
+      .then(r => r.json())
+      .then(data => {
+        if (!data || !data.ok) return;
+        const plans = (data.plans && data.plans[category]) || [];
+        if (!plans.length) return; // keep the static cards
+
+        const cur = (window.OrbitCurrency && window.OrbitCurrency.get()) || 'USD';
+        grid.innerHTML = plans.map(p => cardHtml(p, grid, cur)).join('');
+        grid.setAttribute('data-plan-count', String(plans.length));
+        wireTabs(grid, plans);
+
+        // Each card carries data-usd-html/data-kes-html, so re-running the
+        // currency pass picks the right one — currency.js already fired on
+        // DOMContentLoaded, before these cards existed.
+        if (window.OrbitCurrency) window.OrbitCurrency.apply(window.OrbitCurrency.get());
+      })
+      .catch(() => {}); // network hiccup — static cards stay as-is
+  });
+})();
+
 // Scroll animations
 (function () {
   const io = new IntersectionObserver(entries => {

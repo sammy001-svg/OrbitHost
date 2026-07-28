@@ -36,6 +36,19 @@ try {
     $details_ok = false;
 }
 
+// ── "Most Popular" highlight flag (auto-migration) ──
+// Drives the highlighted card on the public pricing grids, which used to
+// be hardcoded onto whichever card sat in the middle of the static HTML.
+$featured_ok = true;
+try {
+    $col = db()->query("SHOW COLUMNS FROM services LIKE 'is_featured'")->fetch();
+    if (!$col) {
+        db()->exec("ALTER TABLE services ADD COLUMN is_featured TINYINT(1) NOT NULL DEFAULT 0");
+    }
+} catch (\Throwable $e) {
+    $featured_ok = false;
+}
+
 // ── Active hosting panel + its live package list ──
 $panel_key = null; $panel_packages = []; $panel_err = null;
 try {
@@ -87,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $price_kes = (float)($_POST['price_kes'] ?? 0);
     $setup_kes = (float)($_POST['setup_fee_kes'] ?? 0);
     $active   = !empty($_POST['is_active']) ? 1 : 0;
+    $featured = !empty($_POST['is_featured']) ? 1 : 0;
     $package  = trim($_POST['panel_package'] ?? '');
     $desc     = trim($_POST['description'] ?? '');
     // features: one per line, cleaned
@@ -110,6 +124,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $vals[] = $desc ?: null;
             $vals[] = $features ?: null;
         }
+        if ($featured_ok) {
+            $sets[] = 'is_featured=?';
+            $cols[] = 'is_featured';
+            $vals[] = $featured;
+        }
         if ($id) {
             db()->prepare('UPDATE services SET ' . implode(', ', $sets) . ' WHERE id=?')->execute([...$vals, $id]);
         } else {
@@ -126,8 +145,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // ── Load catalogue ──
 $sel = 'SELECT id, name, category, billing_cycle, price, setup_fee, price_kes, setup_fee_kes, is_active'
-     . ($link_ok    ? ', panel_provider, panel_package' : ', NULL AS panel_provider, NULL AS panel_package')
-     . ($details_ok ? ', description, features'         : ', NULL AS description, NULL AS features')
+     . ($link_ok     ? ', panel_provider, panel_package' : ', NULL AS panel_provider, NULL AS panel_package')
+     . ($details_ok  ? ', description, features'         : ', NULL AS description, NULL AS features')
+     . ($featured_ok ? ', is_featured'                   : ', 0 AS is_featured')
      . ' FROM services ORDER BY category, price';
 $plans = db()->query($sel)->fetchAll();
 
@@ -145,7 +165,7 @@ require_once '../includes/header.php';
     <?php if (can('admin')): ?>
     <a href="<?php echo APP_URL; ?>/integrations/whm/packages.php" class="btn btn-ghost"><i class="fas fa-cubes"></i> WHM Packages</a>
     <button class="btn btn-primary plan-open" data-drawer-open="drawer-plan"
-            data-plan='{"id":0,"name":"","category":"shared","billing_cycle":"monthly","price":"","setup_fee":"0","price_kes":"","setup_fee_kes":"0","is_active":1,"panel_package":"","description":"","features":""}'>
+            data-plan='{"id":0,"name":"","category":"shared","billing_cycle":"monthly","price":"","setup_fee":"0","price_kes":"","setup_fee_kes":"0","is_active":1,"is_featured":0,"panel_package":"","description":"","features":""}'>
       <i class="fas fa-plus"></i> Add Plan
     </button>
     <?php endif; ?>
@@ -215,6 +235,7 @@ require_once '../includes/header.php';
             'price_kes' => $p['price_kes'], 'setup_fee_kes' => $p['setup_fee_kes'],
             'is_active' => (int)$p['is_active'], 'panel_package' => $pkg,
             'description' => (string)($p['description'] ?? ''), 'features' => (string)($p['features'] ?? ''),
+            'is_featured' => (int)($p['is_featured'] ?? 0),
         ], JSON_UNESCAPED_SLASHES), ENT_QUOTES);
       ?>
         <tr>
@@ -234,7 +255,10 @@ require_once '../includes/header.php';
               <span class="text-muted" style="font-size:12px">Not linked</span>
             <?php endif; ?>
           </td>
-          <td><?php echo $p['is_active'] ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-secondary">Hidden</span>'; ?></td>
+          <td>
+            <?php echo $p['is_active'] ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-secondary">Hidden</span>'; ?>
+            <?php if (!empty($p['is_featured'])): ?><span class="badge badge-warning" title="Highlighted as Most Popular on the website">Popular</span><?php endif; ?>
+          </td>
           <td>
             <div class="actions" style="justify-content:flex-end">
               <?php if (!can('admin')): ?>
@@ -314,7 +338,7 @@ require_once '../includes/header.php';
       <div class="form-group">
         <label class="form-label">Features <span class="text-muted" style="font-weight:400">(one per line)</span></label>
         <textarea name="features" id="planFeatures" class="form-control mono" rows="5" placeholder="10 GB NVMe storage&#10;Unlimited bandwidth&#10;Free SSL certificate&#10;Daily backups" <?php echo $details_ok ? '' : 'disabled'; ?>></textarea>
-        <small class="form-hint">Shown as a checklist on the client order page.</small>
+        <small class="form-hint">Shown as a checklist on the client order page <em>and</em> on this plan's card on the public website.</small>
       </div>
 
       <p class="form-section-title" style="margin-top:10px">WHM package link</p>
@@ -335,8 +359,15 @@ require_once '../includes/header.php';
       <div class="form-group">
         <label class="switch">
           <input type="checkbox" name="is_active" id="planActive" value="1" />
-          <span class="track"></span><span>Plan is active (available for new services and orders)</span>
+          <span class="track"></span><span>Plan is active (shown on the website, available for new services and orders)</span>
         </label>
+      </div>
+      <div class="form-group">
+        <label class="switch">
+          <input type="checkbox" name="is_featured" id="planFeatured" value="1" <?php echo $featured_ok ? '' : 'disabled'; ?> />
+          <span class="track"></span><span>Highlight as "Most Popular" on the website<?php echo $featured_ok ? '' : ' (unavailable — could not add the column)'; ?></span>
+        </label>
+        <small class="form-hint">Draws the green border and badge on this plan's card in its pricing grid.</small>
       </div>
     </div>
     <div class="drawer-foot">
@@ -363,6 +394,7 @@ document.addEventListener('click', function (e) {
   document.getElementById('planPriceKes').value = d.price_kes || '';
   document.getElementById('planSetupKes').value = d.setup_fee_kes || 0;
   document.getElementById('planActive').checked = !!Number(d.is_active);
+  var pfeat = document.getElementById('planFeatured'); if (pfeat) pfeat.checked = !!Number(d.is_featured);
   var pd = document.getElementById('planDesc');     if (pd) pd.value = d.description || '';
   var pf = document.getElementById('planFeatures'); if (pf) pf.value = d.features || '';
 
