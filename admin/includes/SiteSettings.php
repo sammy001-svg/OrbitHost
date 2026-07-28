@@ -58,6 +58,20 @@ final class SiteSettings
                     ['key'=>'address_line',  'label'=>'Address',          'type'=>'text', 'default'=>'Nairobi, Kenya'],
                 ],
             ],
+            'billing' => [
+                'label' => 'Billing & Tax', 'icon' => 'fa-receipt',
+                'hint'  => 'VAT and the add-on prices applied at checkout. TAX_RATE in .env is only the fallback used before this section is saved.',
+                'fields' => [
+                    ['key'=>'vat_enabled', 'label'=>'Charge VAT on orders', 'type'=>'toggle', 'default'=>true,
+                     'hint'=>'When off, checkout totals are the plain subtotal with no tax line.'],
+                    ['key'=>'vat_rate',    'label'=>'VAT rate (%)', 'type'=>'text', 'default'=>(string)(defined('TAX_RATE') ? TAX_RATE : 16),
+                     'hint'=>'Added on top of the order subtotal. Kenya standard rate is 16.'],
+                    ['key'=>'vat_number',  'label'=>'VAT / PIN number', 'type'=>'text', 'placeholder'=>'P051234567X',
+                     'hint'=>'Optional — printed on invoices when set.'],
+                    ['key'=>'id_protection_usd', 'label'=>'ID Protection — price per year (USD)', 'type'=>'text', 'default'=>'4.99'],
+                    ['key'=>'id_protection_kes', 'label'=>'ID Protection — price per year (KES)', 'type'=>'text', 'default'=>'650'],
+                ],
+            ],
             'footer' => [
                 'label' => 'Footer', 'icon' => 'fa-shoe-prints',
                 'hint'  => 'The about text, copyright line and social links shown in the site footer.',
@@ -184,6 +198,25 @@ final class SiteSettings
         $img = self::logoImgTag($maxHeight, $maxWidth);
         if (!$img) return null;
         return '<div style="display:inline-block;background:#0B1E3D;padding:' . htmlspecialchars($padding) . ';border-radius:8px;line-height:0">' . $img . '</div>';
+    }
+
+    /**
+     * Billing config with the numbers already coerced — the settings UI
+     * stores everything as strings, and every caller wants floats/bools.
+     * Falls back to the TAX_RATE constant until the section is first saved.
+     */
+    public static function billing(): array
+    {
+        $b = self::get('billing');
+        return [
+            'vat_enabled'    => !empty($b['vat_enabled']),
+            'vat_rate'       => max(0.0, (float) ($b['vat_rate'] ?? (defined('TAX_RATE') ? TAX_RATE : 16))),
+            'vat_number'     => trim((string) ($b['vat_number'] ?? '')),
+            'id_protection'  => [
+                'USD' => max(0.0, (float) ($b['id_protection_usd'] ?? 0)),
+                'KES' => max(0.0, (float) ($b['id_protection_kes'] ?? 0)),
+            ],
+        ];
     }
 
     public static function save(string $section, array $data): void

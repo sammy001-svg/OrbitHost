@@ -46,6 +46,7 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <div class="nav-label">Operations</div>
     <?php _nav(APP_URL . '/services/index.php',  'fa-layer-group',  'Services',  'services'); ?>
     <?php _nav(APP_URL . '/plans/index.php',     'fa-tags',         'Plans & Packages', 'plans'); ?>
+    <?php _nav(APP_URL . '/addons/index.php',    'fa-puzzle-piece', 'Add-on Services', 'addons'); ?>
     <?php _nav(APP_URL . '/clients/index.php',   'fa-users',        'Clients',   'clients'); ?>
     <?php _nav(APP_URL . '/orders/index.php',    'fa-box',          'Orders',    'orders'); ?>
 
