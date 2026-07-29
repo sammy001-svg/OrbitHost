@@ -17,13 +17,17 @@ require_once dirname(__DIR__, 2) . '/admin/includes/Currency.php';
 require_once dirname(__DIR__) . '/includes/order_cart.php';
 
 /**
- * Columns the website checkout needs on domain_registrations:
- *   order_mode    register|transfer — which one the client asked for, so
- *                 fulfilment knows whether to register or transfer.
- *   transfer_epp  the auth code, held only until the transfer is lodged
- *                 (Automation clears it on success).
+ * One column the website checkout adds to domain_registrations:
+ *   order_mode  register|transfer — which one the client asked for, so
+ *               fulfilment knows whether to register or transfer.
+ *
+ * The auth code goes in the table's existing `epp_code` column rather
+ * than a new one: that's the field Integrations → Domains already shows
+ * the team, so a transfer ordered here reads the same as one entered by
+ * hand instead of showing "EPP Code: Not set" beside a code we do hold.
+ *
  * Idempotent, and safe on a database user without ALTER — the caller
- * falls back to writing the row without them.
+ * falls back to writing the row without it.
  */
 function order_domain_columns(): bool
 {
@@ -32,9 +36,7 @@ function order_domain_columns(): bool
     try {
         $col = db()->query("SHOW COLUMNS FROM domain_registrations LIKE 'order_mode'")->fetch();
         if (!$col) {
-            db()->exec("ALTER TABLE domain_registrations
-                        ADD COLUMN order_mode   VARCHAR(20)  DEFAULT NULL,
-                        ADD COLUMN transfer_epp VARCHAR(255) DEFAULT NULL");
+            db()->exec("ALTER TABLE domain_registrations ADD COLUMN order_mode VARCHAR(20) DEFAULT NULL");
         }
         return $ok = true;
     } catch (\Throwable $e) {
@@ -92,6 +94,16 @@ function place_hosting_order(array $client, string $currency): array
         $ins->execute([$invoice_id, $l['label'], 1, (float) $l['amount'], (float) $l['amount']]);
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    // COMMITTED. The order and its invoice now exist, so from here on
+    // nothing may throw out of this function: the caller reports a
+    // failure by re-rendering the review page, and the client clicking
+    // "Complete Order" again would place the whole order a second time.
+    // Everything below is a side effect — record it, but never let it
+    // turn a successful sale into a duplicate one.
+    // ─────────────────────────────────────────────────────────────────
+    try {
+
     // ── Domain record ────────────────────────────────────────────────
     // Registering/transferring is recorded as pending now so the client
     // and the team both see it; it's actually submitted to the registrar
@@ -100,10 +112,11 @@ function place_hosting_order(array $client, string $currency): array
         $years = OrderCart::domainYears();
         order_domain_columns();
         try {
-            db()->prepare('INSERT INTO domain_registrations (client_id, domain_name, registrar, registration_date, expiry_date, status, auto_renew, order_mode, transfer_epp)
-                           VALUES (?,?,?,CURDATE(),DATE_ADD(CURDATE(), INTERVAL ? YEAR),?,1,?,?)
-                           ON DUPLICATE KEY UPDATE client_id = VALUES(client_id), order_mode = VALUES(order_mode), transfer_epp = VALUES(transfer_epp)')
-                ->execute([$cid, $domain, 'manual', $years, 'pending', $mode,
+            db()->prepare('INSERT INTO domain_registrations (client_id, order_id, domain_name, registrar, registration_date, expiry_date, status, auto_renew, order_mode, epp_code)
+                           VALUES (?,?,?,?,CURDATE(),DATE_ADD(CURDATE(), INTERVAL ? YEAR),?,1,?,?)
+                           ON DUPLICATE KEY UPDATE client_id = VALUES(client_id), order_id = VALUES(order_id),
+                                                   order_mode = VALUES(order_mode), epp_code = VALUES(epp_code)')
+                ->execute([$cid, $order_id, $domain, 'manual', $years, 'pending', $mode,
                            $mode === 'transfer' ? (string) OrderCart::get('epp_code', '') : null]);
         } catch (\Throwable $e) {
             // Legacy schema without the two columns — still record the domain
@@ -137,6 +150,11 @@ function place_hosting_order(array $client, string $currency): array
     } catch (\Throwable $e) { /* non-fatal */ }
 
     log_activity('order_checkout', 'order', $order_id, 'Website checkout — ' . $plan['name'] . ' for ' . $domain);
+
+    } catch (\Throwable $e) {
+        error_log('place_hosting_order: post-commit step failed for order '
+                  . $order_id . ' — ' . $e->getMessage());
+    }
 
     OrderCart::clear();
 

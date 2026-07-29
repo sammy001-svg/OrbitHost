@@ -125,14 +125,29 @@ function generate_invoice_number(): string
     return 'INV-' . date('Y') . '-' . str_pad($n, 4, '0', STR_PAD_LEFT);
 }
 
+/**
+ * Append to the admin audit trail.
+ *
+ * Also called from the client portal (website checkout) and from cron,
+ * where no admin is signed in and admin/includes/auth.php — which defines
+ * current_admin() — isn't loaded at all. activity_log.admin_id is
+ * nullable precisely so those rows can be attributed to no one.
+ *
+ * Catches Throwable, not Exception: a missing current_admin() raises an
+ * Error, which an Exception-only catch lets through. That turned a purely
+ * cosmetic logging failure into a fatal in the middle of placing an order.
+ */
 function log_activity(string $action, string $entity_type = '', int $entity_id = 0, string $description = ''): void
 {
     try {
-        $admin = current_admin();
+        $admin_id = null;
+        if (function_exists('current_admin')) {
+            $admin_id = ((int) (current_admin()['id'] ?? 0)) ?: null;
+        }
         db()->prepare('INSERT INTO activity_log (admin_id, action, entity_type, entity_id, description, ip_address) VALUES (?,?,?,?,?,?)')
-            ->execute([$admin['id'], $action, $entity_type ?: null, $entity_id ?: null, $description ?: null, $_SERVER['REMOTE_ADDR'] ?? null]);
-    } catch (Exception $e) {
-        // Non-fatal
+            ->execute([$admin_id, $action, $entity_type ?: null, $entity_id ?: null, $description ?: null, $_SERVER['REMOTE_ADDR'] ?? null]);
+    } catch (\Throwable $e) {
+        // Non-fatal — never let an audit-trail write break the caller.
     }
 }
 

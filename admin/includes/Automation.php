@@ -66,6 +66,18 @@ final class Automation
         } catch (\Throwable $e) {
             // no ALTER privilege — renewal billing for order-less services just won't link
         }
+        try {
+            // noteDomain() has always written to domain_registrations.notes,
+            // but no schema file ever created it — so every domain
+            // diagnostic (registration failed, transfer lodged, renewal
+            // extended) was being swallowed by that method's own catch.
+            $col = db()->query("SHOW COLUMNS FROM domain_registrations LIKE 'notes'")->fetch();
+            if (!$col) {
+                db()->exec('ALTER TABLE domain_registrations ADD COLUMN notes TEXT DEFAULT NULL');
+            }
+        } catch (\Throwable $e) {
+            // no ALTER privilege — domain notes stay unrecorded, as before
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -249,7 +261,9 @@ final class Automation
 
         $reg_key = Provider::activeFor('registrar');
         if (!$reg_key) {
-            self::noteDomain((int) $row['id'], 'Paid — awaiting manual registration (no registrar is active).');
+            self::noteDomain((int) $row['id'], 'Paid — awaiting manual '
+                . ((($row['order_mode'] ?? 'register') === 'transfer') ? 'transfer' : 'registration')
+                . ' (no registrar is active).');
             return;
         }
 
@@ -275,7 +289,7 @@ final class Automation
         // order_mode is written by portal/order/_place.php. An older row
         // without it predates that column and can only be a registration.
         $is_transfer = ($row['order_mode'] ?? 'register') === 'transfer';
-        $epp         = (string) ($row['transfer_epp'] ?? '');
+        $epp         = (string) ($row['epp_code'] ?? '');
         $verb        = $is_transfer ? 'Transfer' : 'Registration';
 
         if ($is_transfer && $epp === '') {
@@ -297,7 +311,7 @@ final class Automation
                 // The auth code has done its job — don't keep it lying around.
                 if ($is_transfer) {
                     try {
-                        db()->prepare('UPDATE domain_registrations SET transfer_epp = NULL WHERE id = ?')->execute([(int) $row['id']]);
+                        db()->prepare('UPDATE domain_registrations SET epp_code = NULL WHERE id = ?')->execute([(int) $row['id']]);
                     } catch (\Throwable $e) {}
                 }
                 self::noteDomain((int) $row['id'], $verb . ' lodged with ' . $reg_key . ' after payment.');

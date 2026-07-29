@@ -19,6 +19,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
 require_once __DIR__ . '/../admin/includes/config.php';
 require_once __DIR__ . '/../admin/includes/db.php';
+require_once __DIR__ . '/../admin/includes/Currency.php';
 
 /** URL-safe id for a plan, e.g. shared + "Business Pro" -> shared-business-pro. */
 function plan_slug(string $category, string $name): string
@@ -29,6 +30,12 @@ function plan_slug(string $category, string $name): string
 }
 
 try {
+    // price_kes/setup_fee_kes are an auto-migration too — without this the
+    // SELECT below dies on a database where nobody has opened an admin page
+    // that adds them yet, and every pricing grid silently keeps its static
+    // cards. Same call api/tld-pricing.php makes for the same reason.
+    Currency::ensureSchema();
+
     // description/features/is_featured are added by admin/plans/index.php on
     // first visit — fall back cleanly if that hasn't happened yet.
     $has = function (string $col): bool {
