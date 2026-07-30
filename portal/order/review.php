@@ -117,7 +117,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($client && !$errors) {
         try {
             $placed = place_hosting_order($client, $currency);
+            // Redirect first, then email — see notify_hosting_order() for why
+            // checkout must never wait on an SMTP server.
             header('Location: ' . checkout_url('complete.php') . '?invoice=' . $placed['invoice_id']);
+            notify_hosting_order($placed, $client, $currency);
             exit;
         } catch (\Throwable $e) {
             $errors[] = $e->getMessage();

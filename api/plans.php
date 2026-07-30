@@ -21,12 +21,20 @@ require_once __DIR__ . '/../admin/includes/config.php';
 require_once __DIR__ . '/../admin/includes/db.php';
 require_once __DIR__ . '/../admin/includes/Currency.php';
 
-/** URL-safe id for a plan, e.g. shared + "Business Pro" -> shared-business-pro. */
+/**
+ * URL-safe id for a plan: shared + "Business Pro" -> shared-business-pro.
+ *
+ * Names that already lead with their category ("Shared Starter") aren't
+ * prefixed again — nobody wants to see ?plan=shared-shared-starter in the
+ * address bar. Keep this identical to OrderCart::planSlug(), which resolves
+ * these back into a plan.
+ */
 function plan_slug(string $category, string $name): string
 {
-    $slug = strtolower(trim($category . '-' . $name));
-    $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
-    return trim($slug, '-');
+    $cat  = strtolower(trim($category));
+    $norm = strtolower(trim($name));
+    $slug = str_starts_with($norm, $cat . ' ') ? $norm : $cat . '-' . $norm;
+    return trim(preg_replace('/[^a-z0-9]+/', '-', $slug), '-');
 }
 
 try {

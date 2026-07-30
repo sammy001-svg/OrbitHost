@@ -85,7 +85,10 @@ final class Mailer
 
         $transport = ($enc === 'ssl') ? 'ssl://' : '';
         $ctx = stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]]);
-        $fp  = @stream_socket_client($transport . $host . ':' . $port, $errno, $errstr, 15, STREAM_CLIENT_CONNECT, $ctx);
+        // 8s, not 15: several commands each wait on a read, and a request
+        // that sends more than one message has to stay well inside PHP's
+        // max_execution_time — a timeout there is a fatal, not an exception.
+        $fp  = @stream_socket_client($transport . $host . ':' . $port, $errno, $errstr, 8, STREAM_CLIENT_CONNECT, $ctx);
         if (!$fp) {
             $msg = "Cannot connect to {$host}:{$port} — {$errstr} ({$errno}).";
             if ($errno === 0) {
@@ -94,7 +97,7 @@ final class Mailer
             }
             return ['success' => false, 'message' => $msg];
         }
-        stream_set_timeout($fp, 15);
+        stream_set_timeout($fp, 8);
 
         $read = function () use ($fp) {
             $data = '';

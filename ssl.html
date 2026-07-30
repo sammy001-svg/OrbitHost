@@ -266,8 +266,11 @@
 <section class="section" id="ssl-plans">
   <div class="container">
     <div class="section-header animate-in"><span class="section-tag">SSL Plans</span><h2>Choose the Right SSL Certificate</h2><p>From free domain validation to premium extended validation — we have the right SSL certificate for every website and business type.</p></div>
-    <div class="ssl-types-grid plans-grid--centered">
-      <div class="ssl-type-card animate-in">
+    <div class="ssl-types-grid plans-grid--centered" data-plans-category="ssl"
+         data-plans-card-class="ssl-type-card"
+         data-plans-cta="portal/order/index.php?plan={slug}"
+         data-plans-cta-label="Order {name}">
+      <div class="ssl-type-card animate-in" data-plan-static>
         <div class="ssl-badge"><i class="fas fa-lock"></i></div>
         <div class="plan-name">Domain Validated (DV)</div>
         <div class="plan-price"><span class="currency"></span><span class="amount amount--free">Free</span></div>
@@ -299,7 +302,7 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Organisation Name in Cert</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Ideal for: Business Websites</span></div>
         </div>
-        <a href="contact.html" class="btn btn-green btn-block plan-cta" data-whmcs-product="ssl-ov">Order OV SSL</a>
+        <a href="portal/order/index.php?plan=ssl-ov-ssl" class="btn btn-green btn-block plan-cta" data-whmcs-product="ssl-ov">Order OV SSL</a>
       </div>
       <div class="ssl-type-card animate-in">
         <div class="ssl-badge"><i class="fas fa-award"></i></div>
@@ -316,7 +319,7 @@
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Highest Trust Indicator</span></div>
           <div class="plan-feat"><i class="fas fa-check"></i><span class="feat-label">Ideal for: E-commerce, Finance</span></div>
         </div>
-        <a href="contact.html" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="ssl-ev">Order EV SSL</a>
+        <a href="portal/order/index.php?plan=ssl-ev-ssl" class="btn btn-outline-navy btn-block plan-cta" data-whmcs-product="ssl-ev">Order EV SSL</a>
       </div>
     </div>
   </div>

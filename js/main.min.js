@@ -335,7 +335,12 @@
     // .animate-in starts invisible and is revealed by the observer below,
     // which has already swept the page by the time this renders — so these
     // cards ship with .visible already on.
-    return '<div class="pricing-card animate-in visible' + (plan.is_featured ? ' featured' : '') +
+    // Pages whose cards aren't styled .pricing-card (ssl.html uses
+    // .ssl-type-card) name their own class, so one renderer serves them all.
+    const cardClass = grid.dataset.plansCardClass || 'pricing-card';
+    const featClass = cardClass === 'pricing-card' ? 'featured' : 'recommended';
+
+    return '<div class="' + esc(cardClass) + ' animate-in visible' + (plan.is_featured ? ' ' + featClass : '') +
              '" data-cycle="' + esc(plan.billing_cycle) + '">' +
         '<div class="plan-name">' + esc(plan.name) + '</div>' +
         '<div class="plan-price" data-usd-html=\'' + cardFigures(plan, 'USD').html +
@@ -401,7 +406,12 @@
         if (!plans.length) return; // keep the static cards
 
         const cur = (window.OrbitCurrency && window.OrbitCurrency.get()) || 'USD';
-        grid.innerHTML = plans.map(p => cardHtml(p, grid, cur)).join('');
+        // Cards marked [data-plan-static] aren't catalogue items and survive
+        // the refresh — ssl.html's "Free DV, included with hosting" card is
+        // an explainer, not something anyone buys.
+        const keep = Array.prototype.map.call(
+          grid.querySelectorAll('[data-plan-static]'), el => el.outerHTML).join('');
+        grid.innerHTML = keep + plans.map(p => cardHtml(p, grid, cur)).join('');
         wireTabs(grid, plans);   // may hide cards, so count after it runs
         setCount(grid);
 

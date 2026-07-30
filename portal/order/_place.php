@@ -130,25 +130,6 @@ function place_hosting_order(array $client, string $currency): array
         }
     }
 
-    // ── Tell the client (in-app + the invoice email) ─────────────────
-    try {
-        Notifier::sendInvoiceEmail($invoice_id, 'invoice_new', ['gateway' => 'Online']);
-    } catch (\Throwable $e) {
-        // A mail failure must not lose the order — the invoice is on their
-        // portal either way, and admin/notifications logs the attempt.
-    }
-
-    $client_name = trim(($client['first_name'] ?? '') . ' ' . ($client['last_name'] ?? ''));
-    try {
-        Notifier::sendToAllAdmins('order_new_admin', [
-            'client_name' => $client_name ?: ($client['email'] ?? 'A client'),
-            'item'        => $plan['name'] . ' (' . $domain . ')',
-            'amount'      => $currency . ' ' . number_format($sum['total'], 2),
-            'gateway'     => 'Awaiting payment',
-            'link'        => APP_URL . '/orders/index.php',
-        ]);
-    } catch (\Throwable $e) { /* non-fatal */ }
-
     log_activity('order_checkout', 'order', $order_id, 'Website checkout — ' . $plan['name'] . ' for ' . $domain);
 
     } catch (\Throwable $e) {
@@ -158,5 +139,50 @@ function place_hosting_order(array $client, string $currency): array
 
     OrderCart::clear();
 
-    return ['order_id' => $order_id, 'invoice_id' => $invoice_id, 'invoice_number' => $inv_no];
+    return [
+        'order_id' => $order_id, 'invoice_id' => $invoice_id, 'invoice_number' => $inv_no,
+        'plan_name' => (string) $plan['name'], 'domain' => $domain, 'total' => $sum['total'],
+    ];
+}
+
+/**
+ * Email the invoice to the client and alert the team.
+ *
+ * Deliberately NOT part of place_hosting_order(): talking to an SMTP
+ * server takes seconds, and two sends can outrun PHP's max_execution_time
+ * on a slow or unreachable mail host. That's a fatal, not an exception —
+ * no try/catch can save the request — and it would strand the client on an
+ * error page for an order that had in fact gone through.
+ *
+ * So the caller redirects first and calls this afterwards: on FPM the
+ * response is already delivered, and mail happens on borrowed time with
+ * the client's browser long gone.
+ */
+function notify_hosting_order(array $placed, array $client, string $currency): void
+{
+    if (function_exists('fastcgi_finish_request')) {
+        @fastcgi_finish_request();   // client has their redirect; keep working
+    }
+    ignore_user_abort(true);
+
+    try {
+        Notifier::sendInvoiceEmail((int) $placed['invoice_id'], 'invoice_new', ['gateway' => 'Online']);
+    } catch (\Throwable $e) {
+        // The invoice is on their portal regardless, and every attempt is
+        // logged in admin → Notifications.
+        error_log('notify_hosting_order: invoice email — ' . $e->getMessage());
+    }
+
+    $name = trim(($client['first_name'] ?? '') . ' ' . ($client['last_name'] ?? ''));
+    try {
+        Notifier::sendToAllAdmins('order_new_admin', [
+            'client_name' => $name ?: ($client['email'] ?? 'A client'),
+            'item'        => $placed['plan_name'] . ' (' . $placed['domain'] . ')',
+            'amount'      => $currency . ' ' . number_format((float) $placed['total'], 2),
+            'gateway'     => 'Awaiting payment',
+            'link'        => APP_URL . '/orders/index.php',
+        ]);
+    } catch (\Throwable $e) {
+        error_log('notify_hosting_order: admin alert — ' . $e->getMessage());
+    }
 }

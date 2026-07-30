@@ -68,18 +68,30 @@ final class OrderCart
             if ($row = $stmt->fetch()) return $row;
         }
 
-        // Slug form (shared-business) — matches api/plans.php's plan_slug().
+        // Slug form (shared-business) — must match api/plans.php's plan_slug(),
+        // which is what the website's CTAs are built from.
+        // Cheapest first: a package published on both monthly and annual has
+        // two rows sharing one slug, and the entry point should land on the
+        // lower commitment — step 2's cycle chooser offers the sibling.
         try {
-            $rows = db()->query('SELECT * FROM services WHERE is_active = 1')->fetchAll();
+            $rows = db()->query('SELECT * FROM services WHERE is_active = 1 ORDER BY price')->fetchAll();
         } catch (\Throwable $e) {
             return null;
         }
+        $want = strtolower($idOrSlug);
         foreach ($rows as $r) {
-            $slug = strtolower(trim($r['category'] . '-' . $r['name']));
-            $slug = trim(preg_replace('/[^a-z0-9]+/', '-', $slug), '-');
-            if ($slug === strtolower($idOrSlug)) return $r;
+            if (self::planSlug((string) $r['category'], (string) $r['name']) === $want) return $r;
         }
         return null;
+    }
+
+    /** Keep in lockstep with plan_slug() in api/plans.php. */
+    public static function planSlug(string $category, string $name): string
+    {
+        $cat  = strtolower(trim($category));
+        $norm = strtolower(trim($name));
+        $slug = str_starts_with($norm, $cat . ' ') ? $norm : $cat . '-' . $norm;
+        return trim(preg_replace('/[^a-z0-9]+/', '-', $slug), '-');
     }
 
     public static function plan(): ?array
