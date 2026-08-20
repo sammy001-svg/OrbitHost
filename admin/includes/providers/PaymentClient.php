@@ -103,6 +103,14 @@ final class PaymentClient
             CURLOPT_CUSTOMREQUEST  => $method,
             CURLOPT_TIMEOUT        => 30,
             CURLOPT_CONNECTTIMEOUT => 12,
+            // Payment APIs sit behind Cloudflare and friends, which reject a
+            // request carrying no User-Agent as a bot — the response is an
+            // HTML 403 that never reaches the gateway's own application.
+            // Identify ourselves properly.
+            CURLOPT_USERAGENT      => 'OrbitCloud/1.0 (+billing integration; PHP ' . PHP_VERSION . '; curl)',
+            // Accept whatever encoding the edge prefers and let curl inflate
+            // it, rather than being handed compressed bytes we cannot parse.
+            CURLOPT_ENCODING       => '',
             CURLOPT_SSL_VERIFYPEER => true,
             // Some gateway endpoints redirect (http→https, or a trailing
             // slash). Without this cURL returns the empty redirect body and
@@ -309,10 +317,18 @@ final class PaymentClient
 
         if ($msg !== '') return 'HTTP ' . $code . ' ' . $msg;
 
-        // Not JSON at all: a login page, a WAF block, a proxy notice.
+        // Not JSON at all: a login page, a WAF block, a proxy notice. Say
+        // WHO answered, so it is clear whether the gateway's edge blocked us
+        // or something on our own network did.
         $body = trim((string) ($r['body'] ?? ''));
         if ($body !== '' && $body[0] === '<') {
-            return 'HTTP ' . $code . ' returned HTML, not JSON (a proxy or firewall is probably intercepting)';
+            $hdrs = $r['headers'] ?? [];
+            $who  = [];
+            if (!empty($hdrs['cf-ray']))  $who[] = 'Cloudflare (ray ' . $hdrs['cf-ray'] . ')';
+            elseif (!empty($hdrs['server'])) $who[] = $hdrs['server'];
+            if (preg_match('~<title>\s*([^<]{3,80})~i', $body, $m)) $who[] = 'page: ' . trim($m[1]);
+            return 'HTTP ' . $code . ' returned HTML, not JSON — blocked by '
+                 . ($who ? implode(', ', $who) : 'an unidentified proxy or firewall');
         }
         return 'HTTP ' . $code . ' ' . ($body === '' ? '(empty response)' : mb_strimwidth($body, 0, 90, '…'));
     }
