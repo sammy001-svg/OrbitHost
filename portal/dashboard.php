@@ -190,7 +190,7 @@ require_once __DIR__ . '/includes/header.php';
         <tbody>
         <?php if ($recent_invoices): foreach ($recent_invoices as $inv): ?>
           <tr>
-            <td><a href="<?php echo PORTAL_URL; ?>/invoices/view.php?id=<?php echo $inv['id']; ?>" style="color:var(--navy);font-weight:600"><?php echo htmlspecialchars($inv['invoice_number']); ?></a></td>
+            <td><a href="<?php echo PORTAL_URL; ?>/invoices/view.php?id=<?php echo $inv['id']; ?>" style="color:var(--text);font-weight:600"><?php echo htmlspecialchars($inv['invoice_number']); ?></a></td>
             <td><?php echo format_money($inv['total'], $inv['currency'] ?? null); ?></td>
             <td><?php echo format_date($inv['due_date']); ?></td>
             <td><?php echo badge($inv['status']); ?></td>
@@ -219,7 +219,7 @@ require_once __DIR__ . '/includes/header.php';
         <tbody>
         <?php if ($recent_tickets): foreach ($recent_tickets as $t): ?>
           <tr>
-            <td><a href="<?php echo PORTAL_URL; ?>/tickets/view.php?id=<?php echo $t['id']; ?>" style="color:var(--navy);font-weight:700;font-size:12px"><?php echo htmlspecialchars($t['ticket_number']); ?></a></td>
+            <td><a href="<?php echo PORTAL_URL; ?>/tickets/view.php?id=<?php echo $t['id']; ?>" style="color:var(--text);font-weight:700;font-size:12px"><?php echo htmlspecialchars($t['ticket_number']); ?></a></td>
             <td><a href="<?php echo PORTAL_URL; ?>/tickets/view.php?id=<?php echo $t['id']; ?>" style="color:var(--text)"><?php echo htmlspecialchars(mb_strimwidth($t['subject'],0,48,'…')); ?></a></td>
             <td><?php echo badge($t['priority']); ?></td>
             <td><?php echo badge($t['status']); ?></td>

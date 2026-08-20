@@ -165,7 +165,7 @@ require_once __DIR__ . '/includes/header.php';
       </div>
       <div class="form-group">
         <label class="form-label">Email Address</label>
-        <input type="email" class="form-control" value="<?php echo htmlspecialchars($client['email']); ?>" disabled style="background:#f8fafc;color:var(--text-muted)" />
+        <input type="email" class="form-control" value="<?php echo htmlspecialchars($client['email']); ?>" disabled style="background:var(--surface-2);color:var(--text-muted)" />
         <div class="form-hint">Contact support to change your email address.</div>
       </div>
       <div class="form-grid-2">
@@ -208,7 +208,7 @@ require_once __DIR__ . '/includes/header.php';
         <div class="form-group">
           <label class="form-label">New Password</label>
           <input type="password" id="new_password" name="new_password" class="form-control" placeholder="Min 10 characters" required />
-          <div style="height:3px;background:#f1f5f9;border-radius:2px;margin-top:6px"><div id="strengthBar" style="height:100%;border-radius:2px;transition:width .2s,background .2s;width:0"></div></div>
+          <div style="height:3px;background:var(--surface-3);border-radius:2px;margin-top:6px"><div id="strengthBar" style="height:100%;border-radius:2px;transition:width .2s,background .2s;width:0"></div></div>
         </div>
         <div class="form-group">
           <label class="form-label">Confirm New Password</label>
@@ -228,7 +228,7 @@ require_once __DIR__ . '/includes/header.php';
     </h2>
     <?php if ($new_backup_codes): ?>
       <div class="p-alert p-alert-warning" style="margin-bottom:16px"><i class="fas fa-triangle-exclamation"></i> Save these backup codes now — each works once if you lose access to your authenticator app. They will not be shown again.</div>
-      <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;display:block;padding:14px;font-size:14px;line-height:2;text-align:center;font-family:ui-monospace,Menlo,monospace">
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;display:block;padding:14px;font-size:14px;line-height:2;text-align:center;font-family:ui-monospace,Menlo,monospace">
         <?php echo implode('&nbsp;&nbsp;&nbsp;', array_map('htmlspecialchars', $new_backup_codes)); ?>
       </div>
 
@@ -246,7 +246,7 @@ require_once __DIR__ . '/includes/header.php';
 
     <?php elseif ($new_secret_setup): ?>
       <p style="font-size:13.5px;color:var(--text-muted);margin-bottom:14px">Scan this into your authenticator app (Google Authenticator, Authy, 1Password, …) using "enter a setup key manually" — no camera needed:</p>
-      <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px;font-size:15px;letter-spacing:2px;text-align:center;margin-bottom:14px;font-family:ui-monospace,Menlo,monospace"><?php echo htmlspecialchars(chunk_split($new_secret_setup, 4, ' ')); ?></div>
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:15px;letter-spacing:2px;text-align:center;margin-bottom:14px;font-family:ui-monospace,Menlo,monospace"><?php echo htmlspecialchars(chunk_split($new_secret_setup, 4, ' ')); ?></div>
       <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Account name: <code><?php echo htmlspecialchars($client['email']); ?></code> · Issuer: <code>Orbit Cloud</code></p>
       <form method="POST">
         <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />

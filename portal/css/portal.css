@@ -733,3 +733,151 @@ a { color: inherit; text-decoration: none; }
   .p-stat-value { font-size: 21px; }
   .p-stat-icon { width: 38px; height: 38px; font-size: 15px; }
 }
+
+/* ════════════════════════════════════════════════════════
+   ELEVATION · MOTION · GLOW
+   The same depth language as the admin console, tuned a
+   little softer: this is a customer-facing product, so
+   surfaces are calmer and the accent glow is used sparingly
+   — on the things a client acts on, not on everything.
+   ════════════════════════════════════════════════════════ */
+:root {
+  --lift-1: inset 0 1px 0 rgba(255,255,255,.85), 0 1px 2px rgba(16,32,64,.06), 0 4px 12px -4px rgba(16,32,64,.11);
+  --lift-2: inset 0 1px 0 rgba(255,255,255,1), 0 2px 5px rgba(16,32,64,.09), 0 14px 30px -12px rgba(16,32,64,.2);
+  --lift-3: inset 0 1px 0 rgba(255,255,255,1), 0 3px 8px rgba(16,32,64,.1), 0 26px 54px -16px rgba(16,32,64,.26);
+  --glow-green: 0 0 0 1px rgba(26,138,69,.28), 0 0 16px -3px rgba(26,138,69,.3);
+  --glow-soft:  0 0 24px -8px rgba(26,138,69,.36);
+  --ease: cubic-bezier(.22,1,.36,1);
+  --ease-out: cubic-bezier(.16,1,.3,1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --lift-1: inset 0 1px 0 rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.5), 0 4px 14px -4px rgba(0,0,0,.55);
+    --lift-2: inset 0 1px 0 rgba(255,255,255,.09), 0 2px 4px rgba(0,0,0,.45), 0 14px 34px -10px rgba(0,0,0,.7);
+    --lift-3: inset 0 1px 0 rgba(255,255,255,.12), 0 3px 6px rgba(0,0,0,.42), 0 26px 60px -14px rgba(0,0,0,.78);
+    --glow-green: 0 0 0 1px rgba(62,207,116,.33), 0 0 18px -2px rgba(62,207,116,.42);
+    --glow-soft:  0 0 26px -6px rgba(62,207,116,.46);
+  }
+}
+:root[data-theme="dark"] {
+  --lift-1: inset 0 1px 0 rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.5), 0 4px 14px -4px rgba(0,0,0,.55);
+  --lift-2: inset 0 1px 0 rgba(255,255,255,.09), 0 2px 4px rgba(0,0,0,.45), 0 14px 34px -10px rgba(0,0,0,.7);
+  --lift-3: inset 0 1px 0 rgba(255,255,255,.12), 0 3px 6px rgba(0,0,0,.42), 0 26px 60px -14px rgba(0,0,0,.78);
+  --glow-green: 0 0 0 1px rgba(62,207,116,.33), 0 0 18px -2px rgba(62,207,116,.42);
+  --glow-soft:  0 0 26px -6px rgba(62,207,116,.46);
+}
+
+/* ── Protruded surfaces ─────────────────────────────────── */
+.p-card, .p-table-wrap, .p-form-card, .p-stat, .co-panel, .notif-dropdown {
+  box-shadow: var(--lift-1);
+  transition: box-shadow .32s var(--ease), transform .32s var(--ease), border-color .24s ease;
+}
+.p-card:hover, .p-table-wrap:hover { box-shadow: var(--lift-2); }
+
+.p-stat { transform: translateZ(0); overflow: hidden; }
+.p-stat:hover {
+  transform: translateY(-4px) scale(1.012);
+  box-shadow: var(--lift-3), var(--glow-soft);
+  border-color: var(--green);
+}
+/* A filament lights the left edge of a tile the client can act on. */
+.p-stat::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+  background: var(--green-500);
+  box-shadow: 0 0 14px 0 var(--green-500);
+  transition: width .28s var(--ease);
+}
+.p-stat:hover::before { width: 3px; }
+
+/* Travelling sheen — one skewed highlight, clipped by the card. */
+.p-stat::after { z-index: 1; }
+.p-stat > * { position: relative; z-index: 2; }
+.p-stat:hover .p-stat-icon { transform: scale(1.06) rotate(-3deg); }
+.p-stat-icon { transition: transform .3s var(--ease); }
+
+/* ── Buttons ────────────────────────────────────────────── */
+.btn {
+  transition: transform .16s var(--ease), box-shadow .24s var(--ease),
+              background .18s ease, color .18s ease, border-color .18s ease;
+}
+.btn:hover  { transform: translateY(-1.5px); }
+.btn:active { transform: translateY(0) scale(.985); }
+.btn-primary { box-shadow: var(--lift-1); }
+.btn-primary:hover { box-shadow: var(--lift-2), var(--glow-green); }
+
+/* ── Header nav ─────────────────────────────────────────── */
+.portal-nav .nav-link { transition: background .2s var(--ease), color .2s var(--ease), transform .2s var(--ease); }
+.portal-nav .nav-link:hover { transform: translateY(-1px); }
+.portal-nav .nav-link.active {
+  box-shadow: inset 0 -2px 0 var(--green-500), 0 0 18px -8px rgba(62,207,116,.8);
+}
+.logo-orb {
+  box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 0 18px -5px var(--green-500);
+  animation: breathe 5s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 0 16px -6px var(--green-500); }
+  50%      { box-shadow: 0 0 0 1px rgba(255,255,255,.14), 0 0 28px -2px var(--green-500); }
+}
+
+/* ── Focus: a visible ring, never a removed outline ─────── */
+.form-control:focus, .form-select:focus, .form-textarea:focus {
+  box-shadow: var(--ring), 0 0 16px -6px var(--green-500);
+  transition: box-shadow .2s var(--ease), border-color .2s ease;
+}
+.btn:focus-visible, .nav-link:focus-visible, .p-stat:focus-visible {
+  outline: 2px solid var(--green-500);
+  outline-offset: 2px;
+}
+
+/* ── Tables ─────────────────────────────────────────────── */
+.p-table-wrap tbody tr { transition: background .18s ease, box-shadow .18s ease; }
+.p-table-wrap tbody tr:hover { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--green-500); }
+
+/* ── Checkout: option cards feel selectable ─────────────── */
+.co-opt {
+  box-shadow: var(--lift-1);
+  transition: border-color .2s var(--ease), background .2s ease,
+              box-shadow .26s var(--ease), transform .2s var(--ease);
+}
+.co-opt:hover { transform: translateY(-2px); box-shadow: var(--lift-2); }
+.co-opt.sel   { box-shadow: var(--lift-2), var(--glow-green); }
+.co-step.active .n { box-shadow: 0 0 0 4px rgba(46,167,90,.16), 0 0 16px -3px var(--green-500); }
+.co-step.done .n   { box-shadow: 0 0 12px -4px var(--green-500); }
+
+/* ── Entrance motion ────────────────────────────────────── */
+/* Content settles into place once. Short and shallow — a client
+   checking an invoice should never wait on an animation. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+.page-hero > .container, .p-stat-grid, .p-card, .p-table-wrap,
+.p-form-card, .co-panel, .co-steps {
+  animation: rise .5s var(--ease-out) both;
+}
+.p-stat-grid { animation-delay: .06s; }
+.p-card, .p-table-wrap, .p-form-card { animation-delay: .1s; }
+
+/* ── Chrome depth ───────────────────────────────────────── */
+.portal-header { box-shadow: 0 1px 0 rgba(255,255,255,.06), 0 8px 26px -14px rgba(0,0,0,.55); }
+.page-hero { position: relative; }
+
+/* ── Live status pulse ──────────────────────────────────── */
+.badge-success::before { animation: pulse-dot 2.4s ease-in-out infinite; }
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(62,207,116,.4); }
+  50%      { box-shadow: 0 0 0 5px rgba(62,207,116,0); }
+}
+
+/* ── Respect the visitor's motion preference ────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .p-stat:hover, .btn:hover, .co-opt:hover, .portal-nav .nav-link:hover { transform: none; }
+}

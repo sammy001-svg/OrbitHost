@@ -92,7 +92,7 @@ require_once '../includes/header.php';
             <div class="msg-body"><?php echo htmlspecialchars($r['message']); ?></div>
             <?php foreach (TicketAttachment::forReply((int) $r['id']) as $a): ?>
               <a href="<?php echo PORTAL_URL; ?>/tickets/attachment.php?id=<?php echo (int) $a['id']; ?>" target="_blank" rel="noopener"
-                 style="display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:6px 11px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:600;color:var(--navy);text-decoration:none;background:#fff">
+                 style="display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:6px 11px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:600;color:var(--text);text-decoration:none;background:#fff">
                 <i class="fas <?php echo TicketAttachment::icon($a['mime_type']); ?>" style="color:var(--green)"></i>
                 <?php echo htmlspecialchars($a['original_name']); ?>
                 <span style="color:var(--text-muted);font-weight:400"><?php echo format_bytes((int) $a['size_bytes']); ?></span>
@@ -124,7 +124,7 @@ require_once '../includes/header.php';
       <?php else: ?>
         <div class="p-alert p-alert-info">
           <i class="fas fa-info-circle"></i>
-          This ticket is closed. <a href="<?php echo PORTAL_URL; ?>/tickets/add.php" style="color:var(--navy);font-weight:600">Open a new ticket</a> if you need further assistance.
+          This ticket is closed. <a href="<?php echo PORTAL_URL; ?>/tickets/add.php" style="color:var(--text);font-weight:600">Open a new ticket</a> if you need further assistance.
         </div>
       <?php endif; ?>
     </div>

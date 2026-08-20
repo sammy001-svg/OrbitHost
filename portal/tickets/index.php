@@ -40,7 +40,7 @@ require_once '../includes/header.php';
       <tbody>
       <?php if ($tickets): foreach ($tickets as $t): ?>
         <tr>
-          <td><a href="<?php echo PORTAL_URL; ?>/tickets/view.php?id=<?php echo $t['id']; ?>" style="font-weight:700;color:var(--navy);font-size:12px"><?php echo htmlspecialchars($t['ticket_number']); ?></a></td>
+          <td><a href="<?php echo PORTAL_URL; ?>/tickets/view.php?id=<?php echo $t['id']; ?>" style="font-weight:700;color:var(--text);font-size:12px"><?php echo htmlspecialchars($t['ticket_number']); ?></a></td>
           <td><a href="<?php echo PORTAL_URL; ?>/tickets/view.php?id=<?php echo $t['id']; ?>" style="color:var(--text)"><?php echo htmlspecialchars(mb_strimwidth($t['subject'],0,52,'…')); ?></a></td>
           <td><?php echo ucfirst($t['department']); ?></td>
           <td><?php echo badge($t['priority']); ?></td>

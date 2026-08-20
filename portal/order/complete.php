@@ -41,16 +41,16 @@ checkout_head('Order received', 5);
   <div class="co-panel">
     <div class="co-panel-body" style="text-align:center;padding:34px 26px">
       <i class="fas fa-circle-check" style="font-size:46px;color:var(--green)"></i>
-      <h1 style="font-size:20px;color:var(--navy);margin:14px 0 6px">Thank you — your order is in</h1>
+      <h1 style="font-size:20px;color:var(--text);margin:14px 0 6px">Thank you — your order is in</h1>
       <p style="font-size:13.5px;color:var(--text-muted);margin:0">
         We've emailed invoice <strong><?php echo h($inv['invoice_number']); ?></strong> to your inbox.
         <?php if (!$paid): ?>Your hosting is set up automatically as soon as it's paid.<?php endif; ?>
       </p>
 
       <div style="text-align:left;border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin:22px 0">
-        <div class="co-sum-sub"><span>Package</span><span style="font-weight:700;color:var(--navy)"><?php echo h((string) $inv['service_name']); ?></span></div>
+        <div class="co-sum-sub"><span>Package</span><span style="font-weight:700;color:var(--text)"><?php echo h((string) $inv['service_name']); ?></span></div>
         <?php if ($inv['domain_name']): ?>
-          <div class="co-sum-sub"><span>Domain</span><span style="font-weight:700;color:var(--navy);font-family:ui-monospace,Menlo,monospace"><?php echo h($inv['domain_name']); ?></span></div>
+          <div class="co-sum-sub"><span>Domain</span><span style="font-weight:700;color:var(--text);font-family:ui-monospace,Menlo,monospace"><?php echo h($inv['domain_name']); ?></span></div>
         <?php endif; ?>
         <div class="co-sum-sub"><span>Subtotal</span><span><?php echo h(checkout_money((float) $inv['subtotal'], $currency)); ?></span></div>
         <?php if ((float) $inv['tax_amount'] > 0): ?>

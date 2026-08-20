@@ -58,7 +58,7 @@ checkout_head('Configure your package', 2);
         <div style="display:flex;justify-content:space-between;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
           <div>
             <div style="font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);font-weight:700">Domain</div>
-            <div style="font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--navy);margin-top:3px"><?php echo h((string) OrderCart::get('domain_name')); ?></div>
+            <div style="font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--text);margin-top:3px"><?php echo h((string) OrderCart::get('domain_name')); ?></div>
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
               <?php
                 $mode = OrderCart::get('domain_mode');
@@ -74,7 +74,7 @@ checkout_head('Configure your package', 2);
           <div style="font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);font-weight:700;margin-bottom:9px">What's included</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px 18px">
             <?php foreach ($features as $f): ?>
-              <div style="font-size:13px;color:var(--text-sub,#4b5878);display:flex;gap:8px;align-items:flex-start">
+              <div style="font-size:13px;color:var(--text-2);display:flex;gap:8px;align-items:flex-start">
                 <i class="fas fa-check" style="color:var(--green);margin-top:3px;font-size:11px"></i><span><?php echo h($f); ?></span>
               </div>
             <?php endforeach; ?>
@@ -107,7 +107,7 @@ checkout_head('Configure your package', 2);
               <?php endif; endif; ?>
             </span>
             <span style="text-align:right;white-space:nowrap">
-              <span style="font-weight:800;color:var(--navy);font-size:15px"><?php echo h(checkout_money((float) $amt['price'], $currency)); ?></span>
+              <span style="font-weight:800;color:var(--text);font-size:15px"><?php echo h(checkout_money((float) $amt['price'], $currency)); ?></span>
               <span style="display:block;font-size:11.5px;color:var(--text-muted)"><?php echo $per; ?></span>
             </span>
           </label>

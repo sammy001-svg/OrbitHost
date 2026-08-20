@@ -155,7 +155,7 @@ require_once '../includes/header.php';
           out.innerHTML = d.results.map(function (a) {
             return '<a href="' + KB + '?slug=' + encodeURIComponent(a.slug) + '" target="_blank" rel="noopener" ' +
               'style="display:block;padding:9px 12px;border:1px solid var(--border);border-radius:8px;margin-top:6px;text-decoration:none">' +
-              '<span style="font-weight:700;color:var(--navy);font-size:13.5px"><i class="fas fa-file-lines" style="font-size:11px;margin-right:6px;color:var(--green)"></i>' + esc(a.title) + '</span>' +
+              '<span style="font-weight:700;color:var(--text);font-size:13.5px"><i class="fas fa-file-lines" style="font-size:11px;margin-right:6px;color:var(--green)"></i>' + esc(a.title) + '</span>' +
               (a.excerpt ? '<div style="font-size:12px;color:var(--text-muted);margin-top:2px">' + esc(a.excerpt) + '</div>' : '') +
               '</a>';
           }).join('');

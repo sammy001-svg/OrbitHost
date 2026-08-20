@@ -89,7 +89,7 @@ $_brand_logo = SiteSettings::logoImgTag(44, 170);
     .auth-card .form-group { margin-bottom: 16px; }
     .btn-login { width: 100%; justify-content: center; padding: 11px; font-size: 14px; font-weight: 600; margin-top: 6px; }
     .back-link { display: block; text-align: center; margin-top: 16px; font-size: 12.5px; color: var(--text-muted); text-decoration: none; }
-    .back-link:hover { color: var(--navy); }
+    .back-link:hover { color: var(--text); }
 
     @media (max-width: 900px) {
       .auth-visual { display: none; }

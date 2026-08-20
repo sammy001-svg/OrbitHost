@@ -92,7 +92,7 @@ $_brand_logo = SiteSettings::logoImgTag(44, 170);
     .btn-login { width: 100%; justify-content: center; padding: 11px; font-size: 14px; font-weight: 600; margin-top: 6px; }
     .auth-footer { display: flex; justify-content: space-between; margin-top: 16px; font-size: 12.5px; }
     .auth-footer a { color: var(--text-muted); text-decoration: none; }
-    .auth-footer a:hover { color: var(--navy); }
+    .auth-footer a:hover { color: var(--text); }
     .register-link { text-align: center; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); font-size: 13px; }
     .register-link a { color: var(--green); font-weight: 600; }
 

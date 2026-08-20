@@ -78,10 +78,10 @@ require_once __DIR__ . '/includes/header.php';
           <i class="fas <?php echo htmlspecialchars($def['icon']); ?>"></i>
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13.5px;color:var(--navy)"><?php echo htmlspecialchars($n['title']); ?></div>
+          <div style="font-weight:700;font-size:13.5px;color:var(--text)"><?php echo htmlspecialchars($n['title']); ?></div>
           <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px"><?php echo htmlspecialchars($n['message']); ?></div>
         </div>
-        <div style="font-size:11.5px;color:#94a3b8;white-space:nowrap"><?php echo time_ago($n['created_at']); ?></div>
+        <div style="font-size:11.5px;color:var(--text-muted);white-space:nowrap"><?php echo time_ago($n['created_at']); ?></div>
       </a>
     <?php endforeach; endif; ?>
     <?php echo paginate($total, $page, $per, '?'); ?>

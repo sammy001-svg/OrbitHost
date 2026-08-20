@@ -94,9 +94,9 @@ $logged_in = !empty($_SESSION['client_id']);
     .cart-card { background: #fff; border-radius: 16px; padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
     .cart-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
     .cart-row:last-of-type { border-bottom: none; }
-    .cart-domain { font-weight: 700; color: var(--navy); font-family: ui-monospace, Menlo, monospace; font-size: 14px; flex: 1; min-width: 0; word-break: break-all; }
+    .cart-domain { font-weight: 700; color: var(--text); font-family: ui-monospace, Menlo, monospace; font-size: 14px; flex: 1; min-width: 0; word-break: break-all; }
     .cart-price { font-weight: 700; white-space: nowrap; }
-    .cart-total { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; margin-top: 6px; border-top: 2px solid var(--border); font-size: 17px; font-weight: 800; color: var(--navy); }
+    .cart-total { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; margin-top: 6px; border-top: 2px solid var(--border); font-size: 17px; font-weight: 800; color: var(--text); }
     .years-select { padding: 6px 8px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; }
     .cart-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
     .btn-checkout { flex: 1; justify-content: center; padding: 12px; font-size: 14.5px; font-weight: 700; }

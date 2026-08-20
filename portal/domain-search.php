@@ -83,7 +83,7 @@ require_once __DIR__ . '/includes/header.php';
             action = '<a href="' + CART + '?add=' + encodeURIComponent(r.domain) + '" class="btn btn-ghost btn-sm" style="border:1px solid var(--border);white-space:nowrap">Add anyway</a>';
           }
           return '<div style="display:flex;align-items:center;gap:14px;padding:13px 4px;border-bottom:1px solid var(--border)">' +
-            '<span style="flex:1;font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--navy);word-break:break-all">' + esc(r.domain) + '</span>' +
+            '<span style="flex:1;font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--text);word-break:break-all">' + esc(r.domain) + '</span>' +
             state +
             '<span style="font-weight:700;white-space:nowrap">' + esc(r.currency) + ' ' + Number(r.price).toFixed(2) + '<span style="font-size:11px;color:var(--text-muted);font-weight:500">/yr</span></span>' +
             action + '</div>';

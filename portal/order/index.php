@@ -206,7 +206,7 @@ checkout_head('Choose your domain', 1);
               <span class="co-opt-t"><?php echo h($a['name']); ?></span>
               <?php if ($a['description']): ?><span class="co-opt-d"><?php echo h($a['description']); ?></span><?php endif; ?>
             </span>
-            <span style="font-weight:800;color:var(--navy);white-space:nowrap;font-size:13.5px">
+            <span style="font-weight:800;color:var(--text);white-space:nowrap;font-size:13.5px">
               <?php echo $price > 0 ? h(checkout_money($price, $currency)) . '<span style="font-weight:600;color:var(--text-muted);font-size:11.5px">' . h(ServiceAddon::cycleSuffix($a['billing_cycle'])) . '</span>' : 'Free'; ?>
             </span>
           </label>
@@ -299,9 +299,9 @@ checkout_head('Choose your domain', 1);
         action = '<button type="button" class="btn btn-ghost" style="padding:5px 12px;font-size:12px;border:1px solid var(--border)" data-pick="' + esc(r.domain) + '">Use this</button>';
       }
       return '<span style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">'
-           + '<span style="flex:1;min-width:150px;font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--navy);font-size:13px;word-break:break-all">' + esc(r.domain) + '</span>'
+           + '<span style="flex:1;min-width:150px;font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--text);font-size:13px;word-break:break-all">' + esc(r.domain) + '</span>'
            + state
-           + '<span style="font-weight:700;font-size:12.5px;color:var(--navy);white-space:nowrap">' + money(r.price, r.currency) + '/yr</span>'
+           + '<span style="font-weight:700;font-size:12.5px;color:var(--text);white-space:nowrap">' + money(r.price, r.currency) + '/yr</span>'
            + action + '</span>';
     }).join('');
 

@@ -129,7 +129,7 @@ require_once __DIR__ . '/includes/header.php';
 
   <div class="p-form-card">
     <p style="font-size:13.5px;color:var(--text-muted);margin-bottom:18px">
-      Current plan: <strong style="color:var(--navy)"><?php echo htmlspecialchars($svc['package'] ?: $svc['label']); ?></strong>
+      Current plan: <strong style="color:var(--text)"><?php echo htmlspecialchars($svc['package'] ?: $svc['label']); ?></strong>
       (<?php echo Currency::format($current_price, $svc['currency'] ?? 'USD'); ?>/<?php echo str_replace('_', ' ', $svc['billing_cycle']); ?>)
     </p>
 
@@ -145,7 +145,7 @@ require_once __DIR__ . '/includes/header.php';
             <label style="display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer">
               <input type="radio" name="plan_id" value="<?php echo (int)$p['id']; ?>" required />
               <span style="flex:1">
-                <span style="font-weight:700;color:var(--navy);display:block"><?php echo htmlspecialchars($p['name']); ?></span>
+                <span style="font-weight:700;color:var(--text);display:block"><?php echo htmlspecialchars($p['name']); ?></span>
                 <span style="font-size:12px;color:var(--text-muted)"><?php echo Currency::format($p_amt['price'], $currency); ?>/<?php echo str_replace('_',' ',$p['billing_cycle']); ?><?php echo !empty($p['description']) ? ' — ' . htmlspecialchars(mb_strimwidth($p['description'], 0, 80, '…')) : ''; ?></span>
               </span>
               <span class="badge <?php echo $dir === 'upgrade' ? 'badge-success' : 'badge-secondary'; ?>"><?php echo ucfirst($dir); ?></span>

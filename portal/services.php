@@ -101,7 +101,7 @@ require_once __DIR__ . '/includes/header.php';
           ?>"></i>
         </div>
         <div>
-          <div style="font-size:16px;font-weight:700;color:var(--navy)"><?php echo htmlspecialchars($o['svc_name'] ?? $o['service_name'] ?? 'Custom Service'); ?></div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)"><?php echo htmlspecialchars($o['svc_name'] ?? $o['service_name'] ?? 'Custom Service'); ?></div>
           <?php $odom = $o['domain_name'] ?? $o['domain'] ?? ''; if ($odom): ?>
             <div style="font-size:13px;color:var(--text-muted);margin-top:2px"><i class="fas fa-globe" style="font-size:11px"></i> <?php echo htmlspecialchars($odom); ?></div>
           <?php endif; ?>
@@ -126,7 +126,7 @@ require_once __DIR__ . '/includes/header.php';
       <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Add-ons on this service</div>
       <?php foreach ($svc_addons as $a): ?>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0;flex-wrap:wrap">
-          <span style="font-size:13.5px;color:var(--navy);font-weight:600"><i class="fas fa-puzzle-piece" style="font-size:11px;color:var(--green)"></i> <?php echo htmlspecialchars($a['name']); ?></span>
+          <span style="font-size:13.5px;color:var(--text);font-weight:600"><i class="fas fa-puzzle-piece" style="font-size:11px;color:var(--green)"></i> <?php echo htmlspecialchars($a['name']); ?></span>
           <span style="display:flex;align-items:center;gap:12px">
             <span style="font-weight:700;font-size:13.5px"><?php echo format_money((float) $a['amount'], $a['currency']); ?><span style="font-weight:500;color:var(--text-muted);font-size:11.5px">/<?php echo str_replace('_', ' ', $a['billing_cycle']); ?></span></span>
             <?php if ($a['billing_cycle'] !== 'one_time'): ?>
@@ -134,7 +134,7 @@ require_once __DIR__ . '/includes/header.php';
                 <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
                 <input type="hidden" name="action" value="cancel_addon" />
                 <input type="hidden" name="addon_row" value="<?php echo (int) $a['id']; ?>" />
-                <button type="submit" class="btn btn-ghost btn-sm" style="border:1px solid var(--border);background:#fff"
+                <button type="submit" class="btn btn-ghost btn-sm" style="border:1px solid var(--border);background:var(--surface)"
                         onclick="return confirm('Cancel <?php echo htmlspecialchars(addslashes($a['name']), ENT_QUOTES); ?>? It stays active until your current period ends, then will not be billed again.')">Cancel</button>
               </form>
             <?php endif; ?>
@@ -147,7 +147,7 @@ require_once __DIR__ . '/includes/header.php';
     <div style="border-top:1px solid var(--border);padding:16px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
       <div>
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Amount</div>
-        <div style="font-weight:700;color:var(--navy)"><?php echo format_money($o['amount'], $o['currency'] ?? null); ?> / <?php echo str_replace('_',' ',$o['billing_cycle']); ?></div>
+        <div style="font-weight:700;color:var(--text)"><?php echo format_money($o['amount'], $o['currency'] ?? null); ?> / <?php echo str_replace('_',' ',$o['billing_cycle']); ?></div>
       </div>
       <div>
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Start Date</div>
@@ -167,7 +167,7 @@ require_once __DIR__ . '/includes/header.php';
           $pct = $o['disk_limit_mb'] ? round($o['disk_used_mb'] / $o['disk_limit_mb'] * 100) : 0;
           echo $o['disk_used_mb'] . ' MB / ' . $o['disk_limit_mb'] . ' MB';
           ?>
-          <div style="height:4px;background:#f1f5f9;border-radius:2px;margin-top:5px">
+          <div style="height:4px;background:var(--surface-3);border-radius:2px;margin-top:5px">
             <div style="height:100%;width:<?php echo $pct; ?>%;background:<?php echo $pct>85?'var(--danger)':'var(--green)'; ?>;border-radius:2px"></div>
           </div>
         </div>
@@ -189,7 +189,7 @@ require_once __DIR__ . '/includes/header.php';
           <i class="fas fa-server"></i>
         </div>
         <div>
-          <div style="font-size:16px;font-weight:700;color:var(--navy)"><?php echo htmlspecialchars($svc['label']); ?></div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)"><?php echo htmlspecialchars($svc['label']); ?></div>
           <?php if ($svc['domain']): ?>
             <div style="font-size:13px;color:var(--text-muted);margin-top:2px"><i class="fas fa-globe" style="font-size:11px"></i> <?php echo htmlspecialchars($svc['domain']); ?></div>
           <?php endif; ?>
@@ -221,7 +221,7 @@ require_once __DIR__ . '/includes/header.php';
     <div style="border-top:1px solid var(--border);padding:16px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
       <div>
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Package</div>
-        <div style="font-weight:700;color:var(--navy)"><?php echo htmlspecialchars($svc['package'] ?: '—'); ?></div>
+        <div style="font-weight:700;color:var(--text)"><?php echo htmlspecialchars($svc['package'] ?: '—'); ?></div>
       </div>
       <div>
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Started</div>
@@ -232,7 +232,7 @@ require_once __DIR__ . '/includes/header.php';
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Disk Usage</div>
         <div>
           <?php echo number_format($svc['disk_used_mb']); ?> / <?php echo number_format($svc['disk_limit_mb']); ?> MB
-          <div style="height:4px;background:#f1f5f9;border-radius:2px;margin-top:5px">
+          <div style="height:4px;background:var(--surface-3);border-radius:2px;margin-top:5px">
             <div style="height:100%;width:<?php echo $pct; ?>%;background:<?php echo $pct > 85 ? 'var(--danger)' : 'var(--green)'; ?>;border-radius:2px"></div>
           </div>
         </div>

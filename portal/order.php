@@ -273,7 +273,7 @@ require_once __DIR__ . '/includes/header.php';
 
     <div class="p-card" style="padding:24px">
       <div style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px"><?php echo htmlspecialchars($cat_labels[$sel_plan['category']] ?? ucfirst($sel_plan['category'])); ?></div>
-      <div style="font-size:18px;font-weight:800;color:var(--navy)"><?php echo htmlspecialchars($sel_plan['name']); ?></div>
+      <div style="font-size:18px;font-weight:800;color:var(--text)"><?php echo htmlspecialchars($sel_plan['name']); ?></div>
       <?php if (!empty($sel_plan['description'])): ?>
         <p style="font-size:13px;color:var(--text-muted);margin-top:8px;line-height:1.6"><?php echo htmlspecialchars($sel_plan['description']); ?></p>
       <?php endif; ?>
@@ -291,7 +291,7 @@ require_once __DIR__ . '/includes/header.php';
           <span>Discount (<?php echo htmlspecialchars($view_coupon['coupon']['code']); ?>)</span><strong>-<?php echo htmlspecialchars($currency); ?> <?php echo number_format($view_discount, 2); ?></strong>
         </div>
       <?php endif; ?>
-      <div style="display:flex;justify-content:space-between;border-top:2px solid var(--border);padding-top:12px;margin-top:8px;font-size:15.5px;font-weight:800;color:var(--navy)">
+      <div style="display:flex;justify-content:space-between;border-top:2px solid var(--border);padding-top:12px;margin-top:8px;font-size:15.5px;font-weight:800;color:var(--text)">
         <span>Due today</span><span><?php echo htmlspecialchars($currency); ?> <?php echo number_format($view_total, 2); ?></span>
       </div>
       <?php if (!empty($sel_plan['features'])): ?>
@@ -313,11 +313,11 @@ require_once __DIR__ . '/includes/header.php';
   <?php endif; ?>
 
   <?php foreach ($by_cat as $cat => $cat_plans): ?>
-    <h2 style="font-size:16px;font-weight:800;color:var(--navy);margin:26px 0 14px"><?php echo htmlspecialchars($cat_labels[$cat] ?? ucfirst($cat)); ?></h2>
+    <h2 style="font-size:16px;font-weight:800;color:var(--text);margin:26px 0 14px"><?php echo htmlspecialchars($cat_labels[$cat] ?? ucfirst($cat)); ?></h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px">
       <?php foreach ($cat_plans as $p): $p_amt = Currency::planAmount($p, $currency); ?>
         <div class="p-card" style="padding:22px;display:flex;flex-direction:column">
-          <div style="font-size:15.5px;font-weight:800;color:var(--navy)"><?php echo htmlspecialchars($p['name']); ?></div>
+          <div style="font-size:15.5px;font-weight:800;color:var(--text)"><?php echo htmlspecialchars($p['name']); ?></div>
           <div style="font-size:21px;font-weight:800;color:var(--green);margin:8px 0 2px">
             <?php echo htmlspecialchars($currency); ?> <?php echo number_format($p_amt['price'], 2); ?><span style="font-size:12px;color:var(--text-muted);font-weight:600"><?php echo $cycle_label[$p['billing_cycle']] ?? ''; ?></span>
           </div>

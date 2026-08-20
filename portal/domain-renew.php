@@ -143,8 +143,8 @@ $days_left = $dom['expiry_date'] ? (int) ceil((strtotime($dom['expiry_date']) - 
     .co-card { background: #fff; border-radius: 16px; padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
     .co-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
     .co-row:last-of-type { border-bottom: none; }
-    .co-domain { font-family: ui-monospace, Menlo, monospace; font-weight: 600; color: var(--navy); }
-    .co-total { display: flex; justify-content: space-between; padding-top: 14px; margin-top: 6px; border-top: 2px solid var(--border); font-size: 17px; font-weight: 800; color: var(--navy); }
+    .co-domain { font-family: ui-monospace, Menlo, monospace; font-weight: 600; color: var(--text); }
+    .co-total { display: flex; justify-content: space-between; padding-top: 14px; margin-top: 6px; border-top: 2px solid var(--border); font-size: 17px; font-weight: 800; color: var(--text); }
     .gw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
     .gw-opt { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; font-weight: 600; font-size: 13.5px; }
     .gw-opt:has(input:checked) { border-color: var(--green); box-shadow: 0 0 0 2px rgba(26,138,69,.15); }

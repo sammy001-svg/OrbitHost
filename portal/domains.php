@@ -86,7 +86,7 @@ require_once __DIR__ . '/includes/header.php';
           <i class="fas fa-globe"></i>
         </div>
         <div>
-          <div style="font-size:16px;font-weight:700;color:var(--navy);font-family:ui-monospace,Menlo,monospace"><?php echo htmlspecialchars($d['domain_name']); ?></div>
+          <div style="font-size:16px;font-weight:700;color:var(--text);font-family:ui-monospace,Menlo,monospace"><?php echo htmlspecialchars($d['domain_name']); ?></div>
           <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px">
             Registered <?php echo format_date($d['registration_date']); ?>
           </div>
@@ -116,11 +116,11 @@ require_once __DIR__ . '/includes/header.php';
       </div>
       <div>
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Status</div>
-        <div style="font-weight:700;color:var(--navy)"><?php echo ucfirst($d['status']); ?></div>
+        <div style="font-weight:700;color:var(--text)"><?php echo ucfirst($d['status']); ?></div>
       </div>
       <div>
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Nameservers</div>
-        <div style="font-size:12.5px;font-family:ui-monospace,Menlo,monospace;color:var(--navy)">
+        <div style="font-size:12.5px;font-family:ui-monospace,Menlo,monospace;color:var(--text)">
           <?php echo $ns ? htmlspecialchars(implode('<br>', array_slice($ns, 0, 2)) ?: '') : '<span style="color:var(--text-muted)">Default</span>'; ?>
         </div>
         <?php if ($d['status'] === 'active'): ?>

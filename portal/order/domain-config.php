@@ -54,12 +54,12 @@ checkout_head('Configure your domain', 3);
         <div style="display:flex;align-items:center;gap:14px;padding:16px;border:2px solid var(--green);background:var(--green-light);border-radius:var(--radius);flex-wrap:wrap">
           <i class="fas fa-globe" style="font-size:22px;color:var(--green)"></i>
           <div style="flex:1;min-width:180px">
-            <div style="font-family:ui-monospace,Menlo,monospace;font-weight:800;font-size:16px;color:var(--navy);word-break:break-all"><?php echo h($domain); ?></div>
+            <div style="font-family:ui-monospace,Menlo,monospace;font-weight:800;font-size:16px;color:var(--text);word-break:break-all"><?php echo h($domain); ?></div>
             <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px">
               <?php echo h($mode_label); ?><?php if ($mode === 'register'): ?> · <?php echo $years; ?> year<?php echo $years > 1 ? 's' : ''; ?><?php endif; ?>
             </div>
           </div>
-          <a href="<?php echo checkout_url('index.php'); ?>" class="btn btn-ghost" style="border:1px solid var(--border);background:#fff">Change</a>
+          <a href="<?php echo checkout_url('index.php'); ?>" class="btn btn-ghost" style="border:1px solid var(--border);background:var(--surface)">Change</a>
         </div>
 
         <?php if ($mode === 'existing'): ?>
@@ -106,7 +106,7 @@ checkout_head('Configure your domain', 3);
               <span class="co-opt-d">Replaces your personal details in public WHOIS lookups with our privacy service, which cuts down spam and cold calls.</span>
             </span>
             <span style="text-align:right;white-space:nowrap">
-              <span style="font-weight:800;color:var(--navy);font-size:14px"><?php echo h(checkout_money($idp_price, $currency)); ?></span>
+              <span style="font-weight:800;color:var(--text);font-size:14px"><?php echo h(checkout_money($idp_price, $currency)); ?></span>
               <span style="display:block;font-size:11.5px;color:var(--text-muted)">per year</span>
             </span>
           </label>

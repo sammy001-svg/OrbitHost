@@ -292,7 +292,7 @@ $_brand_logo = SiteSettings::logoImgTag(40, 160);
             <div class="form-group">
               <label class="form-label">Password <span class="req">*</span></label>
               <input type="password" id="new_password" name="password" class="form-control" placeholder="Min 10 characters" required />
-              <div style="height:3px;background:#f1f5f9;border-radius:2px;margin-top:6px"><div id="strengthBar" style="height:100%;border-radius:2px;transition:width .2s,background .2s;width:0"></div></div>
+              <div style="height:3px;background:var(--surface-3);border-radius:2px;margin-top:6px"><div id="strengthBar" style="height:100%;border-radius:2px;transition:width .2s,background .2s;width:0"></div></div>
             </div>
             <div class="form-group">
               <label class="form-label">Confirm Password <span class="req">*</span></label>

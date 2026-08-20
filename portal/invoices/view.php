@@ -398,7 +398,7 @@ require_once '../includes/header.php';
                   $raw = json_decode($submitted['raw'] ?? '', true) ?: [];
                   $rejectReason = $raw['rejection_reason'] ?? 'The reference could not be verified.';
               ?>
-                <div class="offline-submitted" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">
+                <div class="offline-submitted" style="background:var(--danger-bg);border-color:var(--danger);color:var(--danger-fg)">
                   <i class="fas fa-triangle-exclamation"></i>
                   <span>Reference <strong><?php echo h($submitted['gateway_ref']); ?></strong> couldn't be verified: <?php echo h($rejectReason); ?> Please correct it and resubmit below.</span>
                 </div>
@@ -440,7 +440,7 @@ require_once '../includes/header.php';
           Paid already? Enter the reference or cheque number above and submit it — no need to open a support ticket. We verify and confirm within 1 business hour.
         </div>
         <?php else: ?>
-        <div class="p-alert p-alert-info"><i class="fas fa-info-circle"></i> Please <a href="<?php echo PORTAL_URL; ?>/tickets/add.php?subject=<?php echo urlencode('Payment details for ' . $inv['invoice_number']); ?>" style="color:var(--navy);font-weight:600">open a support ticket</a> for payment details for this invoice.</div>
+        <div class="p-alert p-alert-info"><i class="fas fa-info-circle"></i> Please <a href="<?php echo PORTAL_URL; ?>/tickets/add.php?subject=<?php echo urlencode('Payment details for ' . $inv['invoice_number']); ?>" style="color:var(--text);font-weight:600">open a support ticket</a> for payment details for this invoice.</div>
         <?php endif; ?>
       </div>
 

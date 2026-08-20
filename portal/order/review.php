@@ -154,12 +154,12 @@ checkout_head('Review & Checkout', 4);
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
           <div>
             <div style="font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);font-weight:700">Package</div>
-            <div style="font-weight:700;color:var(--navy);margin-top:3px"><?php echo h($plan['name']); ?></div>
+            <div style="font-weight:700;color:var(--text);margin-top:3px"><?php echo h($plan['name']); ?></div>
             <div style="font-size:12.5px;color:var(--text-muted)"><?php echo h(ucfirst($plan['category'])); ?> hosting · billed <?php echo h(str_replace('_', ' ', $plan['billing_cycle'])); ?></div>
           </div>
           <div>
             <div style="font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);font-weight:700">Domain</div>
-            <div style="font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--navy);margin-top:3px;word-break:break-all"><?php echo h((string) OrderCart::get('domain_name')); ?></div>
+            <div style="font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--text);margin-top:3px;word-break:break-all"><?php echo h((string) OrderCart::get('domain_name')); ?></div>
             <div style="font-size:12.5px;color:var(--text-muted)">
               <?php echo h($mode_label[OrderCart::get('domain_mode')] ?? ''); ?>
               <?php if (OrderCart::get('id_protection')): ?> · ID Protection<?php endif; ?>
@@ -236,7 +236,7 @@ checkout_head('Review & Checkout', 4);
 
     <div class="co-panel">
       <div class="co-panel-head"><h2>What happens next</h2></div>
-      <div class="co-panel-body" style="font-size:13px;color:var(--text-sub,#4b5878);line-height:1.75">
+      <div class="co-panel-body" style="font-size:13px;color:var(--text-2);line-height:1.75">
         <div><i class="fas fa-file-invoice" style="color:var(--green);width:18px"></i> We generate invoice and email a copy to you.</div>
         <div><i class="fas fa-credit-card" style="color:var(--green);width:18px"></i> You can pay it straight away, or later from your client area.</div>
         <div><i class="fas fa-rocket" style="color:var(--green);width:18px"></i> Your hosting is set up automatically once payment clears.</div>
