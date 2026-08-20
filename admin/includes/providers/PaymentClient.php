@@ -102,7 +102,13 @@ final class PaymentClient
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CUSTOMREQUEST  => $method,
             CURLOPT_TIMEOUT        => 30,
+            CURLOPT_CONNECTTIMEOUT => 12,
             CURLOPT_SSL_VERIFYPEER => true,
+            // Some gateway endpoints redirect (http→https, or a trailing
+            // slash). Without this cURL returns the empty redirect body and
+            // the caller sees "no token" instead of the real response.
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 3,
             CURLOPT_HTTPHEADER     => $headers,
             CURLOPT_HEADERFUNCTION => function ($ch, $line) use (&$resHeaders) {
                 if (str_contains($line, ':')) {
@@ -121,7 +127,16 @@ final class PaymentClient
         if (is_resource($ch)) {
             curl_close($ch);
         }
-        if ($err) throw new RuntimeException('Connection error: ' . $err);
+        if ($err) {
+            // A stale/missing CA bundle is the usual cause on shared hosting,
+            // and "SSL certificate problem" alone sends people hunting for
+            // the wrong thing.
+            if (stripos($err, 'ssl') !== false || stripos($err, 'certificate') !== false) {
+                $err .= ' — this is a TLS trust problem on THIS server, not a credential problem'
+                     .  ' (its CA bundle is usually out of date; ask your host to update curl.cainfo).';
+            }
+            throw new RuntimeException('Connection error: ' . $err);
+        }
         return ['code' => $code, 'body' => $res, 'data' => json_decode($res, true) ?? [], 'headers' => $resHeaders];
     }
 
@@ -221,17 +236,95 @@ final class PaymentClient
     {
         return ($this->cfg['sandbox'] ?? true) ? 'https://sandbox.kopokopo.com' : 'https://api.kopokopo.com';
     }
+    /**
+     * Fetch an OAuth access token.
+     *
+     * Kopo Kopo has shipped more than one accepted shape for this call over
+     * time (form body, JSON body, HTTP Basic), and which one a given
+     * account/environment accepts is not something we can know in advance.
+     * So we try them in order and only give up when all three fail — then
+     * report what the gateway actually said, rather than blaming the
+     * credentials for what might be a 404, a proxy block or an HTML error
+     * page.
+     */
     private function kopokopoToken(): string
     {
-        $r = $this->http($this->kopokopoBase() . '/oauth/token', 'POST',
-            ['Content-Type: application/x-www-form-urlencoded'],
-            ['grant_type' => 'client_credentials', 'client_id' => $this->cfg['client_id'] ?? '', 'client_secret' => $this->cfg['client_secret'] ?? ''],
-            false);
-        if (empty($r['data']['access_token'])) {
-            throw new RuntimeException('Kopo Kopo auth failed — check Client ID/Secret' . (($this->cfg['sandbox'] ?? true) ? ' (sandbox mode is ON — sandbox and live credentials are separate)' : '') . '.');
+        // Trim defensively: these are pasted from a dashboard, and a trailing
+        // newline or non-breaking space is invisible in the form field.
+        $id     = trim((string) ($this->cfg['client_id'] ?? ''));
+        $secret = trim((string) ($this->cfg['client_secret'] ?? ''));
+
+        if ($id === '' || $secret === '') {
+            throw new RuntimeException('Kopo Kopo: Client ID and Client Secret are both required — one of them is blank.');
         }
-        return $r['data']['access_token'];
+
+        $url  = $this->kopokopoBase() . '/oauth/token';
+        $creds = ['grant_type' => 'client_credentials', 'client_id' => $id, 'client_secret' => $secret];
+        $tried = [];
+
+        $attempts = [
+            ['form',  ['Content-Type: application/x-www-form-urlencoded', 'Accept: application/json'], $creds, false],
+            ['json',  ['Content-Type: application/json', 'Accept: application/json'], $creds, true],
+            ['basic', ['Content-Type: application/x-www-form-urlencoded', 'Accept: application/json',
+                       'Authorization: Basic ' . base64_encode($id . ':' . $secret)],
+                      ['grant_type' => 'client_credentials'], false],
+        ];
+
+        foreach ($attempts as [$label, $headers, $body, $asJson]) {
+            try {
+                $r = $this->http($url, 'POST', $headers, $body, $asJson);
+            } catch (\Throwable $e) {
+                // Network/TLS failure — no point trying the other shapes.
+                throw new RuntimeException('Kopo Kopo could not be reached at ' . $url . ' — ' . $e->getMessage()
+                    . ' (check outbound HTTPS is allowed from this server).');
+            }
+            if (!empty($r['data']['access_token'])) {
+                return (string) $r['data']['access_token'];
+            }
+            $tried[] = $label . ' → ' . $this->kopokopoAuthProblem($r);
+        }
+
+        // Only mention the sandbox/live split when the gateway actually
+        // rejected the credentials. On a 404 or a firewall block it is
+        // irrelevant, and sends people to re-check keys that were fine.
+        $rejected = false;
+        foreach ($tried as $t) { if (str_contains($t, '401')) $rejected = true; }
+
+        throw new RuntimeException('Kopo Kopo auth failed. '
+            . ($rejected ? $this->kopokopoAuthHint() . ' ' : '')
+            . 'Gateway responses: ' . implode(' | ', $tried));
     }
+
+    /** Turn one failed token response into something a human can act on. */
+    private function kopokopoAuthProblem(array $r): string
+    {
+        $code = (int) ($r['code'] ?? 0);
+        $d    = $r['data'] ?? [];
+        $msg  = $d['error_description'] ?? $d['error_message'] ?? $d['error'] ?? '';
+
+        if ($code === 0)   return 'no HTTP response';
+        if ($code === 401) return 'HTTP 401 ' . ($msg ?: 'invalid client credentials');
+        if ($code === 404) return 'HTTP 404 (endpoint not found — wrong environment?)';
+        if ($code >= 500)  return 'HTTP ' . $code . ' (Kopo Kopo server error — retry shortly)';
+
+        if ($msg !== '') return 'HTTP ' . $code . ' ' . $msg;
+
+        // Not JSON at all: a login page, a WAF block, a proxy notice.
+        $body = trim((string) ($r['body'] ?? ''));
+        if ($body !== '' && $body[0] === '<') {
+            return 'HTTP ' . $code . ' returned HTML, not JSON (a proxy or firewall is probably intercepting)';
+        }
+        return 'HTTP ' . $code . ' ' . ($body === '' ? '(empty response)' : mb_strimwidth($body, 0, 90, '…'));
+    }
+
+    /** Which environment we are pointed at, spelled out. */
+    private function kopokopoAuthHint(): string
+    {
+        return !empty($this->cfg['sandbox'])
+            ? 'Sandbox mode is ON, so these must be your SANDBOX keys from sandbox.kopokopo.com — live keys will always fail here.'
+            : 'Sandbox mode is OFF, so these must be your LIVE keys from app.kopokopo.com — sandbox keys will always fail here.';
+    }
+
     private function kopokopoTestConnection(): array
     {
         $this->kopokopoToken();
