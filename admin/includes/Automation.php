@@ -67,6 +67,19 @@ final class Automation
             // no ALTER privilege — renewal billing for order-less services just won't link
         }
         try {
+            // A payment that arrives unsolicited — someone paying the till
+            // directly — genuinely has no known client until an admin
+            // allocates it. payments.client_id was NOT NULL, so recording
+            // one failed outright and the money was simply lost.
+            $col = db()->query("SHOW COLUMNS FROM payments LIKE 'client_id'")->fetch();
+            if ($col && stripos((string) ($col['Null'] ?? ''), 'NO') === 0) {
+                db()->exec('ALTER TABLE payments MODIFY client_id INT UNSIGNED DEFAULT NULL');
+            }
+        } catch (\Throwable $e) {
+            // no ALTER privilege — recordUnsolicitedPayment() falls back below
+        }
+
+        try {
             // noteDomain() has always written to domain_registrations.notes,
             // but no schema file ever created it — so every domain
             // diagnostic (registration failed, transfer lodged, renewal
@@ -728,6 +741,9 @@ final class Automation
         if ($ref === '' || $amount <= 0) {
             return ['status' => 'ignored', 'message' => 'Webhook carried no usable payment reference or amount.'];
         }
+
+        // Make sure client_id can actually hold NULL before we try.
+        self::ensureSchema();
 
         try {
             $stmt = db()->prepare('SELECT id FROM payments WHERE gateway = ? AND gateway_ref = ? LIMIT 1');

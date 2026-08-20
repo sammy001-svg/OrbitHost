@@ -33,6 +33,20 @@ foreach (ProviderRegistry::byCategory('payment') as $key => $def) {
     if (Provider::isActive($key) && Provider::isConfigured($key)) $gateways[$key] = $def;
 }
 
+// Money received that is not yet attached to any invoice — a client paying
+// the till direct, or a webhook we banked. Until someone allocates these the
+// invoice stays open and the service unprovisioned, so they lead the page.
+try {
+    $unallocated = db()->query(
+        "SELECT p.*, CONCAT(COALESCE(c.first_name,''),' ',COALESCE(c.last_name,'')) client_name
+         FROM payments p LEFT JOIN clients c ON c.id = p.client_id
+         WHERE p.invoice_id IS NULL AND p.status = 'completed'
+         ORDER BY p.created_at DESC"
+    )->fetchAll();
+} catch (\Throwable $e) {
+    $unallocated = [];
+}
+
 // Recent payments
 $payments = db()->query(
     "SELECT p.*, c.first_name, c.last_name, i.invoice_number
@@ -87,6 +101,36 @@ require_once '../includes/header.php';
 
 <?php if (!$gateways && can('admin')): ?>
   <div class="alert alert-info"><i class="fas fa-circle-info"></i> No payment method is active yet. Enable Stripe, PayPal, M-Pesa (Kopo Kopo STK), Flutterwave — or an offline method like Bank Transfer, Manual M-Pesa or Cheque — in <a href="<?php echo APP_URL; ?>/integrations/" style="font-weight:600">Providers</a>.</div>
+<?php endif; ?>
+
+<?php if ($unallocated && can('admin')): ?>
+<div class="table-wrap" style="margin-bottom:20px;border-color:var(--warning)">
+  <div class="table-toolbar">
+    <span class="card-title"><i class="fas fa-circle-exclamation" style="color:var(--warning)"></i> Received but not allocated</span>
+    <span class="table-count"><?php echo count($unallocated); ?> awaiting allocation</span>
+  </div>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>Amount</th><th>From</th><th>Gateway</th><th>Reference</th><th>Received</th><th></th></tr></thead>
+    <tbody>
+      <?php foreach ($unallocated as $u): ?>
+      <tr>
+        <td class="fw-600"><?php echo h($u['currency']); ?> <?php echo number_format((float) $u['amount'], 2); ?></td>
+        <td><?php echo trim((string) $u['client_name']) !== '' ? h($u['client_name']) : '<span class="text-muted">Not matched</span>'; ?></td>
+        <td><span class="code-chip"><?php echo h($u['gateway']); ?></span></td>
+        <td class="mono" style="font-size:12px"><?php echo h((string) $u['gateway_ref']); ?></td>
+        <td style="font-size:12px;color:var(--text-muted)"><?php echo time_ago($u['created_at']); ?></td>
+        <td style="text-align:right">
+          <a href="<?php echo APP_URL; ?>/billing/allocate.php?id=<?php echo (int) $u['id']; ?>" class="btn btn-primary btn-xs">
+            <i class="fas fa-link"></i> Allocate
+          </a>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
+  </div>
+</div>
 <?php endif; ?>
 
 <?php $can_collect = can('admin'); // support reads the ledger, never takes money ?>
