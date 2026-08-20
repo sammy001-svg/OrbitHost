@@ -239,6 +239,6 @@ function require_role(string $role, string $redirectTo = ''): void
     http_response_code(403);
     die('<div style="font-family:-apple-system,Segoe UI,sans-serif;padding:60px 40px;max-width:520px;margin:0 auto;text-align:center">'
         . '<h1 style="font-size:22px;margin-bottom:8px">403 — Access denied</h1>'
-        . '<p style="color:#64748b">This page requires the ' . $label . ' role or higher. Ask a super admin if you need access.</p>'
+        . '<p style="color:var(--text-muted)">This page requires the ' . $label . ' role or higher. Ask a super admin if you need access.</p>'
         . '</div>');
 }

@@ -99,7 +99,7 @@ function ss_field(array $f, array $cfg): string
                  . '<textarea class="form-textarea" name="' . $name . '" placeholder="' . $ph . '">' . h((string)$val) . '</textarea>' . $hint . '</div>';
 
         case 'image':
-            $preview = $val ? '<div style="margin-bottom:8px"><img src="' . h(site_root_url() . $val) . '" alt="" style="max-height:56px;max-width:160px;border:1px solid var(--border);border-radius:8px;padding:6px;background:#fff" /></div>' : '';
+            $preview = $val ? '<div style="margin-bottom:8px"><img src="' . h(site_root_url() . $val) . '" alt="" style="max-height:56px;max-width:160px;border:1px solid var(--border);border-radius:8px;padding:6px;background:var(--surface)" /></div>' : '';
             $remove  = $val ? '<label class="switch" style="margin-top:8px"><input type="checkbox" name="remove_' . $key . '" value="1" /><span class="track"></span><span>Remove current image</span></label>' : '';
             return '<div class="form-group"><label class="form-label">' . $label . '</label>' . $preview
                  . '<input type="file" name="f[' . $key . ']" accept="image/png,image/jpeg,image/gif,image/webp,image/x-icon,.ico" class="form-control" />' . $remove . $hint . '</div>';

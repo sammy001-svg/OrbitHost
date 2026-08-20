@@ -98,7 +98,7 @@ require_once '../../includes/header.php';
       <i class="fas fa-circle-check" style="font-size:48px;color:var(--success);margin-bottom:14px"></i>
       <h2 style="color:var(--success);margin-bottom:4px">Account Provisioned!</h2>
       <p style="color:var(--text-muted);margin-bottom:20px">Send these credentials to the client securely.</p>
-      <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:20px;text-align:left;font-size:14px">
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:20px;text-align:left;font-size:14px">
         <table style="width:100%">
           <tr><td style="color:var(--text-muted);padding:5px 10px;width:120px">Domain</td><td style="font-weight:700;padding:5px 10px"><?php echo htmlspecialchars($success['domain']); ?></td></tr>
           <tr><td style="color:var(--text-muted);padding:5px 10px">cPanel User</td><td style="font-weight:700;padding:5px 10px;font-family:monospace"><?php echo htmlspecialchars($success['username']); ?></td></tr>

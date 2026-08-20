@@ -110,7 +110,7 @@ require_once '../includes/header.php';
         </div>
       </div>
       <div class="invoice-status-block">
-        <div style="font-size:32px;font-weight:800;color:var(--navy);margin-bottom:8px">INVOICE</div>
+        <div style="font-size:32px;font-weight:800;color:var(--text);margin-bottom:8px">INVOICE</div>
         <?php echo badge($inv['status']); ?>
         <table style="margin-top:14px;width:100%">
           <tr><td style="font-size:12px;color:var(--text-muted);padding:3px 6px">Invoice #</td><td style="font-weight:700;padding:3px 6px"><?php echo h($inv['invoice_number']); ?></td></tr>
@@ -126,7 +126,7 @@ require_once '../includes/header.php';
     <!-- Bill To -->
     <div style="margin-bottom:28px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:8px">Bill To</div>
-      <div style="font-size:15px;font-weight:700;color:var(--navy)"><?php echo h($inv['client_name']); ?></div>
+      <div style="font-size:15px;font-weight:700;color:var(--text)"><?php echo h($inv['client_name']); ?></div>
       <?php if ($inv['company']): ?><div style="font-size:13px"><?php echo h($inv['company']); ?></div><?php endif; ?>
       <div style="font-size:13px;color:var(--text-muted)"><?php echo h($inv['client_email']); ?></div>
       <?php if ($inv['client_phone']): ?><div style="font-size:13px;color:var(--text-muted)"><?php echo h($inv['client_phone']); ?></div><?php endif; ?>
@@ -136,7 +136,7 @@ require_once '../includes/header.php';
     <!-- Line items -->
     <table style="width:100%;border-collapse:collapse;margin-bottom:8px">
       <thead>
-        <tr style="background:#f8fafc;border-bottom:2px solid var(--border)">
+        <tr style="background:var(--surface-2);border-bottom:2px solid var(--border)">
           <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Description</th>
           <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);width:80px">Qty</th>
           <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);width:120px">Unit Price</th>
@@ -175,8 +175,8 @@ require_once '../includes/header.php';
         </tr>
         <?php endif; ?>
         <tr style="border-top:2px solid var(--border)">
-          <td style="padding:12px 10px;font-weight:800;font-size:16px;color:var(--navy)">Total Due</td>
-          <td style="padding:12px 10px;text-align:right;font-weight:800;font-size:16px;color:var(--navy)"><?php echo format_money($inv['total']); ?></td>
+          <td style="padding:12px 10px;font-weight:800;font-size:16px;color:var(--text)">Total Due</td>
+          <td style="padding:12px 10px;text-align:right;font-weight:800;font-size:16px;color:var(--text)"><?php echo format_money($inv['total']); ?></td>
         </tr>
       </table>
     </div>

@@ -214,7 +214,7 @@ if ($failed_emails_7d)   $_attn[] = ['n'=>$failed_emails_7d,   'l'=>'emails fail
     <div class="card-body"><div class="chart-wrap"><canvas id="revenueChart"></canvas></div></div>
   </div>
   <div class="card">
-    <div class="card-header"><div class="card-title"><i class="fas fa-chart-pie" style="color:var(--navy)"></i> Services by status</div></div>
+    <div class="card-header"><div class="card-title"><i class="fas fa-chart-pie" style="color:var(--text)"></i> Services by status</div></div>
     <div class="card-body"><div class="chart-wrap"><canvas id="svcChart"></canvas></div></div>
   </div>
 </div>
@@ -293,7 +293,7 @@ if ($failed_emails_7d)   $_attn[] = ['n'=>$failed_emails_7d,   'l'=>'emails fail
       <tbody>
       <?php if ($recent_tickets): foreach ($recent_tickets as $t): ?>
         <tr>
-          <td><a href="<?php echo APP_URL; ?>/tickets/view.php?id=<?php echo $t['id']; ?>" style="font-weight:600;color:var(--navy);text-decoration:none;display:block"><?php echo h(mb_strimwidth($t['subject'], 0, 42, '…')); ?></a>
+          <td><a href="<?php echo APP_URL; ?>/tickets/view.php?id=<?php echo $t['id']; ?>" style="font-weight:600;color:var(--text);text-decoration:none;display:block"><?php echo h(mb_strimwidth($t['subject'], 0, 42, '…')); ?></a>
             <div class="td-sub"><?php echo h(trim($t['client_name']) ?: 'Guest'); ?> · <?php echo time_ago($t['updated_at']); ?></div></td>
           <td><?php echo badge($t['priority']); ?></td>
           <td><?php echo badge($t['status']); ?></td>

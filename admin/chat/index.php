@@ -127,7 +127,7 @@ require_once '../includes/header.php';
     <?php else: foreach ($conversations as $c): ?>
       <a href="?id=<?php echo $c['id']; ?>" style="display:block;padding:13px 16px;border-bottom:1px solid var(--surface-3);text-decoration:none;<?php echo $sel === (int)$c['id'] ? 'background:var(--green-light)' : ''; ?>">
         <div class="flex-between">
-          <span class="fw-700" style="font-size:13.5px;color:var(--navy)">
+          <span class="fw-700" style="font-size:13.5px;color:var(--text)">
             <?php echo h($c['name'] ?: 'Visitor #' . $c['id']); ?>
             <?php if ($c['unread']): ?><span class="badge badge-danger" style="margin-left:6px"><?php echo $c['unread']; ?></span><?php endif; ?>
           </span>
@@ -168,7 +168,7 @@ require_once '../includes/header.php';
             </div>
             <div style="padding:9px 13px;border-radius:12px;font-size:13.5px;line-height:1.5;word-wrap:break-word;<?php
               echo $mine ? 'background:var(--green);color:#fff;border-bottom-right-radius:4px'
-                         : 'background:#fff;border:1px solid var(--border);border-bottom-left-radius:4px'; ?>">
+                         : 'background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:4px'; ?>">
               <?php echo nl2br(h($m['message'])); ?>
             </div>
           </div>

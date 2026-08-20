@@ -157,7 +157,7 @@ require_once '../includes/header.php';
           </tr>
           <tr class="total-row">
             <td>Total</td>
-            <td style="text-align:right;color:var(--navy)"><?php echo CURRENCY; ?> <span id="displayTotal">0.00</span></td>
+            <td style="text-align:right;color:var(--text)"><?php echo CURRENCY; ?> <span id="displayTotal">0.00</span></td>
           </tr>
         </table>
       </div>

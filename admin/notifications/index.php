@@ -120,7 +120,7 @@ require_once '../includes/header.php';
           <i class="fas <?php echo h($def['icon']); ?>"></i>
         </div>
         <div style="flex:1;min-width:0">
-          <div class="fw-700" style="font-size:13.5px;color:var(--navy)"><?php echo h($n['title']); ?></div>
+          <div class="fw-700" style="font-size:13.5px;color:var(--text)"><?php echo h($n['title']); ?></div>
           <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px"><?php echo h($n['message']); ?></div>
         </div>
         <div style="font-size:11.5px;color:var(--text-faint);white-space:nowrap"><?php echo time_ago($n['created_at']); ?></div>

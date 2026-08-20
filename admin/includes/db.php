@@ -18,7 +18,7 @@ function db(): PDO
             ]);
         } catch (PDOException $e) {
             http_response_code(500);
-            die('<h2 style="font-family:sans-serif;color:#b91c1c">Database connection failed</h2><p>' .
+            die('<h2 style="font-family:sans-serif;color:var(--danger-fg)">Database connection failed</h2><p>' .
                 htmlspecialchars($e->getMessage()) . '</p>' .
                 '<p>Check DB_HOST / DB_NAME / DB_USER / DB_PASS in <code>includes/config.php</code>.</p>');
         }

@@ -84,7 +84,7 @@ require_once '../includes/header.php';
 
   <?php if ($can_write): ?>
   <div id="bulkBar" style="display:none;align-items:center;gap:10px;padding:10px 20px;background:var(--green-light);border-bottom:1px solid var(--border);font-size:13px">
-    <span id="bulkCount" style="font-weight:600;color:var(--navy)"></span>
+    <span id="bulkCount" style="font-weight:600;color:var(--text)"></span>
     <button type="button" class="btn btn-primary btn-sm" id="bulkAnnounceBtn"><i class="fas fa-bullhorn"></i> Send Announcement</button>
     <button type="button" class="btn btn-ghost btn-sm" id="bulkClearBtn">Clear selection</button>
   </div>

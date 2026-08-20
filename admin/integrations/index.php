@@ -168,8 +168,8 @@ require_once '../includes/header.php';
     if (!$providers) continue;
 ?>
   <div class="flex-gap" style="margin:26px 0 14px">
-    <i class="fas <?php echo $meta['icon']; ?>" style="color:var(--navy)"></i>
-    <span style="font-weight:700;font-size:15px;color:var(--navy)"><?php echo h($meta['label']); ?></span>
+    <i class="fas <?php echo $meta['icon']; ?>" style="color:var(--text)"></i>
+    <span style="font-weight:700;font-size:15px;color:var(--text)"><?php echo h($meta['label']); ?></span>
     <span class="text-muted" style="font-size:12.5px"><?php echo h($meta['hint']); ?></span>
   </div>
 

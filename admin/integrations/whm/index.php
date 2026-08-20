@@ -128,8 +128,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'link'
             $r = Mailer::fromConfig()->send($email, 'Your Orbit Cloud client portal access',
                 '<p>Hello ' . h($first ?: 'there') . ',</p>'
               . '<p>Your hosting account <strong>' . h($domain ?: $cp_user) . '</strong> can now be managed in the Orbit Cloud client portal — invoices, support and one-click cPanel login.</p>'
-              . '<p><a href="' . h($link) . '" style="background:#1A8A45;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">Activate your account</a></p>'
-              . '<p style="color:#64748b;font-size:13px">Or copy this link (valid for 48 hours):<br>' . h($link) . '</p>');
+              . '<p><a href="' . h($link) . '" style="background:var(--green);color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">Activate your account</a></p>'
+              . '<p style="color:var(--text-muted);font-size:13px">Or copy this link (valid for 48 hours):<br>' . h($link) . '</p>');
             $invite_note = !empty($r['success'])
                 ? ' Invite email sent to ' . $email . '.'
                 : ' Invite email failed (' . ($r['message'] ?? 'mail error') . ') — resend from the client\'s page.';
@@ -241,7 +241,7 @@ require_once '../../includes/header.php';
                 ?>
                 <div style="font-size:12px;margin-bottom:3px"><?php echo number_format($used); ?> / <?php echo $limit > 0 ? number_format($limit) . ' MB' : '∞'; ?></div>
                 <?php if ($limit > 0): ?>
-                <div style="background:#e5e7eb;border-radius:99px;height:5px;width:80px">
+                <div style="background:var(--surface-3);border-radius:99px;height:5px;width:80px">
                   <div style="background:<?php echo $pct > 90 ? 'var(--danger)' : ($pct > 70 ? 'var(--warning)' : 'var(--success)'); ?>;height:5px;border-radius:99px;width:<?php echo $pct; ?>%"></div>
                 </div>
                 <?php endif; ?>

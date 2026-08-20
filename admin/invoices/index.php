@@ -116,7 +116,7 @@ require_once '../includes/header.php';
       <tr>
         <td>
           <a href="<?php echo APP_URL; ?>/invoices/view.php?id=<?php echo $inv['id']; ?>"
-             style="font-weight:700;color:var(--navy);text-decoration:none">
+             style="font-weight:700;color:var(--text);text-decoration:none">
             <?php echo h($inv['invoice_number']); ?>
           </a>
         </td>

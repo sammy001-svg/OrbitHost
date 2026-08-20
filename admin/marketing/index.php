@@ -138,8 +138,8 @@ require_once '../includes/header.php';
 <?php foreach (['hero' => 'Hero carousel (dashboard top)', 'side' => 'Side banner (small card)'] as $pl => $label):
     $group = array_values(array_filter($banners, fn($b) => $b['placement'] === $pl)); ?>
   <div class="flex-gap" style="margin:22px 0 12px">
-    <i class="fas <?php echo $pl === 'hero' ? 'fa-panorama' : 'fa-rectangle-ad'; ?>" style="color:var(--navy)"></i>
-    <span style="font-weight:700;font-size:14.5px;color:var(--navy)"><?php echo $label; ?></span>
+    <i class="fas <?php echo $pl === 'hero' ? 'fa-panorama' : 'fa-rectangle-ad'; ?>" style="color:var(--text)"></i>
+    <span style="font-weight:700;font-size:14.5px;color:var(--text)"><?php echo $label; ?></span>
     <span class="text-muted" style="font-size:12px"><?php echo count($group); ?> banner<?php echo count($group) === 1 ? '' : 's'; ?></span>
   </div>
 
@@ -159,7 +159,7 @@ require_once '../includes/header.php';
             <?php if (!$b['is_active']): ?><span class="badge badge-secondary" style="position:absolute;top:8px;left:8px">Hidden</span><?php endif; ?>
           </div>
           <div class="card-body" style="padding:12px 14px">
-            <div style="font-weight:700;font-size:13.5px;color:var(--navy)"><?php echo h($b['title']); ?></div>
+            <div style="font-weight:700;font-size:13.5px;color:var(--text)"><?php echo h($b['title']); ?></div>
             <?php if ($b['subtitle']): ?><div class="text-muted" style="font-size:12px;margin-top:2px"><?php echo h(mb_strimwidth($b['subtitle'], 0, 60, '…')); ?></div><?php endif; ?>
             <div class="flex-gap" style="margin-top:10px;justify-content:space-between">
               <span class="text-muted" style="font-size:11px">Order: <?php echo (int)$b['sort_order']; ?></span>

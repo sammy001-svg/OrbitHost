@@ -139,7 +139,7 @@ require_once '../includes/header.php';
     </ul>
 
     <?php if ($client['notes']): ?>
-      <div style="margin-top:16px;padding:12px;background:#f8fafc;border-radius:6px;font-size:12.5px;color:var(--text-muted);text-align:left">
+      <div style="margin-top:16px;padding:12px;background:var(--surface-2);border-radius:6px;font-size:12.5px;color:var(--text-muted);text-align:left">
         <strong style="display:block;margin-bottom:4px">Notes</strong>
         <?php echo nl2br(h($client['notes'])); ?>
       </div>
@@ -232,7 +232,7 @@ require_once '../includes/header.php';
           <tbody>
           <?php if ($tickets): foreach ($tickets as $t): ?>
             <tr>
-              <td><a href="<?php echo APP_URL; ?>/tickets/view.php?id=<?php echo $t['id']; ?>" style="color:var(--navy);font-weight:600"><?php echo h($t['ticket_number']); ?></a></td>
+              <td><a href="<?php echo APP_URL; ?>/tickets/view.php?id=<?php echo $t['id']; ?>" style="color:var(--text);font-weight:600"><?php echo h($t['ticket_number']); ?></a></td>
               <td><?php echo h(mb_strimwidth($t['subject'], 0, 48, '…')); ?></td>
               <td><?php echo ucfirst($t['department']); ?></td>
               <td><?php echo badge($t['priority']); ?></td>

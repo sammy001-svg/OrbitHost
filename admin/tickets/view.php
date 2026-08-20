@@ -48,8 +48,8 @@ function email_guest_reply(string $email, string $name, string $ticketNumber, st
     $heading = $closed ? 'Your enquiry has been resolved' : 'Reply to your enquiry';
     $body = '<p>Hi ' . h($name ?: 'there') . ',</p>'
           . '<p>' . ($closed ? 'Our team has replied and marked your enquiry as resolved:' : 'Our team has replied to your enquiry:') . '</p>'
-          . '<blockquote style="margin:16px 0;padding:12px 16px;background:#f7f9fc;border-left:3px solid #1A8A45;border-radius:6px;color:#334155">' . nl2br(h($message)) . '</blockquote>'
-          . '<p style="color:#94a3b8;font-size:12px">Reference: ' . h($ticketNumber) . ' — ' . h($subject) . '. Reply to this email if you have more questions.</p>';
+          . '<blockquote style="margin:16px 0;padding:12px 16px;background:var(--surface-2);border-left:3px solid #1A8A45;border-radius:6px;color:var(--text-2)">' . nl2br(h($message)) . '</blockquote>'
+          . '<p style="color:var(--text-muted);font-size:12px">Reference: ' . h($ticketNumber) . ' — ' . h($subject) . '. Reply to this email if you have more questions.</p>';
     Mailer::fromConfig()->send($email, $heading . ' [' . $ticketNumber . ']', $body);
 }
 
@@ -172,7 +172,7 @@ require_once '../includes/header.php';
           <div class="msg-body"><?php echo nl2br(h($r['message'])); ?></div>
           <?php foreach (TicketAttachment::forReply((int) $r['id']) as $a): ?>
             <a href="<?php echo APP_URL; ?>/tickets/attachment.php?id=<?php echo (int) $a['id']; ?>" target="_blank" rel="noopener"
-               style="display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:6px 11px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:600;color:var(--navy);text-decoration:none;background:#fff">
+               style="display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:6px 11px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:600;color:var(--text);text-decoration:none;background:var(--surface)">
               <i class="fas <?php echo TicketAttachment::icon($a['mime_type']); ?>" style="color:var(--green)"></i>
               <?php echo h($a['original_name']); ?>
               <span style="color:var(--text-muted);font-weight:400"><?php echo format_bytes((int) $a['size_bytes']); ?></span>

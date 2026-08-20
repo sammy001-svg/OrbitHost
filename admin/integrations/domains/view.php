@@ -146,7 +146,7 @@ require_once '../../includes/header.php';
           <button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-cloud-arrow-down"></i> Fetch from Registrar</button>
         </form>
         <?php if ($live_info): ?>
-          <pre style="margin-top:12px;font-size:12px;background:#f8fafc;padding:12px;border-radius:6px;overflow-x:auto"><?php echo htmlspecialchars(json_encode($live_info, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)); ?></pre>
+          <pre style="margin-top:12px;font-size:12px;background:var(--surface-2);padding:12px;border-radius:6px;overflow-x:auto"><?php echo htmlspecialchars(json_encode($live_info, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)); ?></pre>
         <?php endif; ?>
       </div>
     </div>
@@ -165,7 +165,7 @@ require_once '../../includes/header.php';
         ['Registered', format_date($dom['created_at'])],
         ['Expires',    format_date($dom['expiry_date'])],
         ['Days Left',  "<span style=\"font-weight:700;color:" . ($days_left <= 30 ? 'var(--danger)' : ($days_left <= 60 ? 'var(--warning)' : 'var(--text)')) . "\">{$days_left} days</span>"],
-        ['Auto Renew', $dom['auto_renew'] ? '<span class="badge badge-success">Yes</span>' : '<span class="badge" style="background:#6b728020;color:#6b7280">No</span>'],
+        ['Auto Renew', $dom['auto_renew'] ? '<span class="badge badge-success">Yes</span>' : '<span class="badge" style="background:var(--neutral-bg);color:var(--text-muted)">No</span>'],
         ['EPP Code',   $dom['epp_code'] ? '<code style="font-size:12px">' . htmlspecialchars($dom['epp_code']) . '</code>' : '<span style="color:var(--text-muted)">Not set</span>'],
       ];
       if ($dom['first_name']):

@@ -126,7 +126,7 @@ require_once '../includes/header.php';
       <tr>
         <td>
           <a href="<?php echo APP_URL; ?>/tickets/view.php?id=<?php echo $t['id']; ?>"
-             style="font-weight:700;color:var(--navy);text-decoration:none;font-size:12px">
+             style="font-weight:700;color:var(--text);text-decoration:none;font-size:12px">
             <?php echo h($t['ticket_number']); ?>
           </a>
         </td>
@@ -138,7 +138,7 @@ require_once '../includes/header.php';
         </td>
         <td>
           <?php if ($t['client_id']): ?>
-            <a href="<?php echo APP_URL; ?>/clients/view.php?id=<?php echo $t['client_id']; ?>" style="color:var(--navy);text-decoration:none">
+            <a href="<?php echo APP_URL; ?>/clients/view.php?id=<?php echo $t['client_id']; ?>" style="color:var(--text);text-decoration:none">
               <?php echo h(trim($t['client_name'])); ?>
             </a>
           <?php elseif (!empty($t['guest_name'])): ?>

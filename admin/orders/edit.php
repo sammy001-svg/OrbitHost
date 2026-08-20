@@ -88,7 +88,7 @@ require_once '../includes/header.php';
   <div class="form-wrap">
     <div style="background:var(--bg);border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:13.5px">
       <strong>Client:</strong>
-      <a href="<?php echo APP_URL; ?>/clients/view.php?id=<?php echo $order['client_id']; ?>" style="color:var(--navy)">
+      <a href="<?php echo APP_URL; ?>/clients/view.php?id=<?php echo $order['client_id']; ?>" style="color:var(--text)">
         <?php echo h($order['client_name']); ?>
       </a>
       &nbsp;&nbsp; Created: <?php echo format_date($order['created_at']); ?>

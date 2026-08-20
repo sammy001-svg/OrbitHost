@@ -145,7 +145,7 @@ require_once '../includes/header.php';
           <a href="<?php echo APP_URL; ?>/billing/collect.php?invoice_id=<?php echo $inv['id']; ?>" class="data-list" style="text-decoration:none;display:block;padding:0 18px">
             <div class="row">
               <div>
-                <div class="fw-600" style="font-size:13px;color:var(--navy)"><?php echo h($inv['invoice_number']); ?></div>
+                <div class="fw-600" style="font-size:13px;color:var(--text)"><?php echo h($inv['invoice_number']); ?></div>
                 <div class="td-sub"><?php echo $inv['first_name'] ? h($inv['first_name'] . ' ' . $inv['last_name']) : 'Client'; ?> · <?php echo badge($inv['status']); ?></div>
               </div>
               <div style="text-align:right">

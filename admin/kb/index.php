@@ -155,8 +155,8 @@ require_once '../includes/header.php';
 </div>
 
 <div class="flex-gap" style="margin:22px 0 12px">
-  <i class="fas fa-folder" style="color:var(--navy)"></i>
-  <span style="font-weight:700;font-size:14.5px;color:var(--navy)">Categories</span>
+  <i class="fas fa-folder" style="color:var(--text)"></i>
+  <span style="font-weight:700;font-size:14.5px;color:var(--text)">Categories</span>
 </div>
 <?php if (!$categories): ?>
   <div class="card"><div class="card-body"><span class="text-muted" style="font-size:13px">No categories yet — articles will show as uncategorised.</span></div></div>
@@ -181,8 +181,8 @@ require_once '../includes/header.php';
 <?php endif; ?>
 
 <div class="flex-gap" style="margin:22px 0 12px">
-  <i class="fas fa-book" style="color:var(--navy)"></i>
-  <span style="font-weight:700;font-size:14.5px;color:var(--navy)">Articles</span>
+  <i class="fas fa-book" style="color:var(--text)"></i>
+  <span style="font-weight:700;font-size:14.5px;color:var(--text)">Articles</span>
 </div>
 <div class="table-wrap">
   <div class="table-scroll">
