@@ -241,6 +241,10 @@ final class OrderCart
             $lines[] = [
                 'type' => 'addon',
                 'addon_id' => (int) $a['id'],
+                // label is for display; name/cycle are the raw values
+                // _place.php snapshots onto the client's subscription.
+                'name'  => (string) $a['name'],
+                'cycle' => (string) $a['billing_cycle'],
                 'label' => $a['name'] . ServiceAddon::cycleSuffix($a['billing_cycle']),
                 'amount' => ServiceAddon::price($a, $currency),
             ];

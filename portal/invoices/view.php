@@ -319,6 +319,21 @@ require_once '../includes/header.php';
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;font-weight:700"><i class="fas fa-lock"></i> Pay <?php echo format_money((float) $inv['total'], $inv_currency); ?></button>
         </form>
+        <?php
+        // Kopo Kopo settles in shillings only, so dp_active_gateways() drops
+        // it from a USD invoice. Say so rather than silently offering fewer
+        // options than the client expects — an M-Pesa customer looking at a
+        // dollar invoice would otherwise just assume we don't take M-Pesa.
+        if (!isset($gateways['kopokopo']) && strtoupper($inv_currency) !== 'KES'
+            && Provider::isActive('kopokopo') && Provider::isConfigured('kopokopo')): ?>
+          <p style="font-size:12.5px;color:var(--text-muted);margin:12px 0 0;line-height:1.6">
+            <i class="fas fa-circle-info"></i>
+            Paying by M-Pesa? M-Pesa settles in Kenyan shillings, and this invoice is in
+            <?php echo htmlspecialchars(strtoupper($inv_currency)); ?>.
+            <a href="<?php echo PORTAL_URL; ?>/tickets/add.php?subject=<?php echo urlencode('Re-issue invoice ' . $inv['invoice_number'] . ' in KES'); ?>" style="font-weight:600">Ask us to re-issue it in KES</a>
+            and you can pay it straight from your phone.
+          </p>
+        <?php endif; ?>
         <script>
           document.querySelectorAll('input[name="gateway"]').forEach(function (r) {
             r.addEventListener('change', function () {

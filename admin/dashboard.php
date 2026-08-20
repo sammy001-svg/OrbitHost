@@ -110,63 +110,100 @@ function activity_icon(string $entity): string
 require_once __DIR__ . '/includes/header.php';
 ?>
 
-<div class="content-header">
+<?php
+// Greeting reflects the admin's local time of day, not the server's —
+// a small thing, but a dashboard that says "Good morning" at 9pm reads
+// like it was built by someone who never used it.
+$_hour = (int) date('G');
+$_greet = $_hour < 12 ? 'Good morning' : ($_hour < 18 ? 'Good afternoon' : 'Good evening');
+?>
+<div class="dash-head">
   <div>
-    <h1 class="content-title">Dashboard</h1>
-    <p class="page-subtitle">Welcome back, <?php echo h(current_admin()['name']); ?>. Here's your platform at a glance.</p>
+    <div class="dash-greet"><?php echo $_greet; ?>, <?php echo h(explode(' ', current_admin()['name'])[0]); ?></div>
+    <div class="dash-sub"><?php echo date('l, j F Y'); ?> · <?php echo number_format($active_services); ?> active services · <?php echo number_format($total_clients); ?> clients</div>
   </div>
   <div class="page-header-actions">
-    <a href="<?php echo APP_URL; ?>/services/create.php" class="btn btn-primary"><i class="fas fa-plus"></i> Create Service</a>
+    <?php if (can('admin')): ?>
+      <a href="<?php echo APP_URL; ?>/orders/index.php" class="btn btn-ghost btn-sm"><i class="fas fa-box"></i> Orders</a>
+      <a href="<?php echo APP_URL; ?>/services/create.php" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Create Service</a>
+    <?php endif; ?>
   </div>
 </div>
 
-<div class="stat-grid">
-  <div class="stat-card">
-    <div class="stat-icon green"><i class="fas fa-layer-group"></i></div>
-    <div><div class="stat-label">Active Services</div><div class="stat-value"><?php echo number_format($active_services); ?></div>
-      <div class="stat-sub"><?php echo $pending_services; ?> pending provisioning</div></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon navy"><i class="fas fa-users"></i></div>
-    <div><div class="stat-label">Active Clients</div><div class="stat-value"><?php echo number_format($total_clients); ?></div>
-      <div class="stat-sub"><?php echo $new_clients_month; ?> new this month</div></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon green"><i class="fas fa-arrow-trend-up"></i></div>
-    <div><div class="stat-label">MRR</div><div class="stat-value" style="font-size:22px"><?php echo format_money($mrr); ?></div>
-      <div class="stat-sub">Recurring / month</div></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon orange"><i class="fas fa-sack-dollar"></i></div>
-    <div><div class="stat-label">Revenue This Month</div><div class="stat-value" style="font-size:22px"><?php echo format_money($month_revenue); ?></div>
-      <div class="stat-sub">
-        <?php if ($revenue_delta === null): ?>
-          vs last month
-        <?php else: ?>
-          <span class="stat-delta <?php echo $revenue_delta >= 0 ? 'up' : 'down'; ?>"><i class="fas fa-arrow-<?php echo $revenue_delta >= 0 ? 'up' : 'down'; ?>"></i> <?php echo abs($revenue_delta); ?>%</span> vs last month
-        <?php endif; ?>
-        <?php if ($kes_revenue_month > 0): ?><br />+ KSh <?php echo number_format($kes_revenue_month, 2); ?> (KES, shown separately)<?php endif; ?>
-      </div></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon purple"><i class="fas fa-headset"></i></div>
-    <div><div class="stat-label">Open Tickets</div><div class="stat-value"><?php echo number_format($open_tickets); ?></div>
-      <div class="stat-sub"><?php echo $urgent_tickets ? $urgent_tickets . ' urgent / high priority' : 'None urgent'; ?></div></div>
-  </div>
-</div>
-
-<?php if ($pending_services || $failed_services || $overdue_invoices || $suspended_services || $failed_emails_7d): ?>
-<div class="alert alert-warning" style="margin-bottom:20px; flex-wrap: wrap">
-  <i class="fas fa-triangle-exclamation"></i>
-  <span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-    <?php if ($pending_services): ?><a href="<?php echo APP_URL; ?>/services/?status=pending" style="color:inherit;font-weight:700;text-decoration:underline"><?php echo $pending_services; ?> service(s) need provisioning</a><?php endif; ?>
-    <?php if ($failed_services): ?><span>&nbsp;·&nbsp;</span><a href="<?php echo APP_URL; ?>/services/?status=failed" style="color:inherit;font-weight:700;text-decoration:underline"><?php echo $failed_services; ?> failed provisioning</a><?php endif; ?>
-    <?php if ($suspended_services): ?><span>&nbsp;·&nbsp;</span><a href="<?php echo APP_URL; ?>/services/?status=suspended" style="color:inherit;font-weight:700;text-decoration:underline"><?php echo $suspended_services; ?> suspended service(s)</a><?php endif; ?>
-    <?php if ($overdue_invoices): ?><span>&nbsp;·&nbsp;</span><a href="<?php echo APP_URL; ?>/invoices/?status=overdue" style="color:inherit;font-weight:700;text-decoration:underline"><?php echo $overdue_invoices; ?> overdue invoice(s)</a><?php endif; ?>
-    <?php if ($failed_emails_7d): ?><span>&nbsp;·&nbsp;</span><a href="<?php echo APP_URL; ?>/notifications/#delivery" style="color:inherit;font-weight:700;text-decoration:underline"><?php echo $failed_emails_7d; ?> email(s) failed to send (7d)</a><?php endif; ?>
-  </span>
+<?php
+// The attention strip is the first thing on the page because it is the
+// only part that ever needs acting on. It renders nothing at all when
+// there is nothing wrong, rather than showing a row of reassuring zeros.
+$_attn = [];
+if ($pending_services)   $_attn[] = ['n'=>$pending_services,   'l'=>'need provisioning', 'c'=>'orange', 'u'=>'/services/?status=pending'];
+if ($failed_services)    $_attn[] = ['n'=>$failed_services,    'l'=>'failed to provision','c'=>'red',    'u'=>'/services/?status=failed'];
+if ($suspended_services) $_attn[] = ['n'=>$suspended_services, 'l'=>'suspended services', 'c'=>'red',    'u'=>'/services/?status=suspended'];
+if ($overdue_invoices)   $_attn[] = ['n'=>$overdue_invoices,   'l'=>'overdue invoices',   'c'=>'red',    'u'=>'/invoices/?status=overdue'];
+if ($urgent_tickets)     $_attn[] = ['n'=>$urgent_tickets,     'l'=>'urgent tickets',     'c'=>'orange', 'u'=>'/tickets/?priority=urgent'];
+if ($failed_emails_7d)   $_attn[] = ['n'=>$failed_emails_7d,   'l'=>'emails failed (7d)', 'c'=>'blue',   'u'=>'/notifications/#delivery'];
+?>
+<?php if ($_attn): ?>
+<div class="attn-grid">
+  <?php foreach ($_attn as $a): ?>
+    <a class="attn <?php echo $a['c']; ?>" href="<?php echo APP_URL . $a['u']; ?>">
+      <div>
+        <div class="attn-n"><?php echo number_format($a['n']); ?></div>
+        <div class="attn-l"><?php echo h($a['l']); ?></div>
+      </div>
+      <i class="fas fa-chevron-right attn-go"></i>
+    </a>
+  <?php endforeach; ?>
 </div>
 <?php endif; ?>
+
+<div class="kpi-grid">
+  <div class="kpi is-green">
+    <div class="kpi-top">
+      <span class="kpi-label">Monthly Recurring</span>
+      <span class="kpi-icon"><i class="fas fa-arrow-trend-up"></i></span>
+    </div>
+    <div class="kpi-value"><?php echo format_money($mrr); ?></div>
+    <div class="kpi-foot">Committed revenue per month</div>
+  </div>
+
+  <div class="kpi is-blue">
+    <div class="kpi-top">
+      <span class="kpi-label">Revenue This Month</span>
+      <span class="kpi-icon"><i class="fas fa-sack-dollar"></i></span>
+    </div>
+    <div class="kpi-value"><?php echo format_money($month_revenue); ?></div>
+    <div class="kpi-foot">
+      <?php if ($revenue_delta === null): ?>
+        <span class="kpi-delta flat">—</span> no comparison yet
+      <?php else: ?>
+        <span class="kpi-delta <?php echo $revenue_delta > 0 ? 'up' : ($revenue_delta < 0 ? 'down' : 'flat'); ?>">
+          <i class="fas fa-arrow-<?php echo $revenue_delta >= 0 ? 'up' : 'down'; ?>"></i><?php echo abs($revenue_delta); ?>%
+        </span> vs last month
+      <?php endif; ?>
+    </div>
+    <?php if ($kes_revenue_month > 0): ?>
+      <div class="kpi-foot" style="margin-top:4px">+ KSh <?php echo number_format($kes_revenue_month, 2); ?> billed in shillings</div>
+    <?php endif; ?>
+  </div>
+
+  <div class="kpi is-green">
+    <div class="kpi-top">
+      <span class="kpi-label">Active Services</span>
+      <span class="kpi-icon"><i class="fas fa-layer-group"></i></span>
+    </div>
+    <div class="kpi-value"><?php echo number_format($active_services); ?></div>
+    <div class="kpi-foot"><?php echo $pending_services ? number_format($pending_services) . ' awaiting provisioning' : 'All provisioned'; ?></div>
+  </div>
+
+  <div class="kpi <?php echo $open_tickets ? 'is-orange' : 'is-green'; ?>">
+    <div class="kpi-top">
+      <span class="kpi-label">Open Tickets</span>
+      <span class="kpi-icon"><i class="fas fa-headset"></i></span>
+    </div>
+    <div class="kpi-value"><?php echo number_format($open_tickets); ?></div>
+    <div class="kpi-foot"><?php echo $urgent_tickets ? number_format($urgent_tickets) . ' urgent or high priority' : 'Nothing urgent'; ?></div>
+  </div>
+</div>
 
 <div class="charts-grid">
   <div class="card">
@@ -174,11 +211,11 @@ require_once __DIR__ . '/includes/header.php';
       <div class="card-title"><i class="fas fa-chart-line" style="color:var(--green)"></i> Revenue — last 6 months</div>
       <a href="<?php echo APP_URL; ?>/invoices/" class="btn btn-ghost btn-sm">Invoices</a>
     </div>
-    <div class="card-body"><canvas id="revenueChart" height="92"></canvas></div>
+    <div class="card-body"><div class="chart-wrap"><canvas id="revenueChart"></canvas></div></div>
   </div>
   <div class="card">
     <div class="card-header"><div class="card-title"><i class="fas fa-chart-pie" style="color:var(--navy)"></i> Services by status</div></div>
-    <div class="card-body"><canvas id="svcChart" height="180"></canvas></div>
+    <div class="card-body"><div class="chart-wrap"><canvas id="svcChart"></canvas></div></div>
   </div>
 </div>
 
@@ -295,26 +332,71 @@ require_once __DIR__ . '/includes/header.php';
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" crossorigin="anonymous"></script>
 <script>
 if (window.Chart) {
+  // Chart.js paints on canvas, so it can't inherit CSS variables — read the
+  // resolved tokens instead, and repaint when the theme changes. Otherwise
+  // the axes and legend stay near-black on a dark background.
+  var css = getComputedStyle(document.documentElement);
+  var tok = function (n, fallback) { return (css.getPropertyValue(n) || '').trim() || fallback; };
+
+  var ink   = tok('--text-2', '#475569');
+  var grid  = tok('--border', '#eef1f6');
+  var green = tok('--green-500', '#1A8A45');
+  var panel = tok('--surface', '#ffffff');
+
   Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
   Chart.defaults.font.size = 12;
+  Chart.defaults.color = ink;
 
-  new Chart(document.getElementById('revenueChart'), {
+  var charts = [];
+
+  charts.push(new Chart(document.getElementById('revenueChart'), {
     type: 'line',
     data: { labels: <?php echo json_encode($rev_labels); ?>, datasets: [{
       label: 'Revenue', data: <?php echo json_encode($rev_amounts); ?>,
-      borderColor: '#1A8A45', backgroundColor: 'rgba(26,138,69,.08)', tension: .35, fill: true,
-      pointBackgroundColor: '#1A8A45', pointRadius: 3, pointHoverRadius: 6, borderWidth: 2 }] },
-    options: { responsive: true, plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true, grid: { color: '#eef1f6' }, ticks: { callback: v => v.toLocaleString() } }, x: { grid: { display: false } } } }
-  });
+      borderColor: green, backgroundColor: 'rgba(46,167,90,.12)', tension: .35, fill: true,
+      pointBackgroundColor: green, pointBorderColor: panel, pointBorderWidth: 2,
+      pointRadius: 3, pointHoverRadius: 6, borderWidth: 2 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, border: { display: false }, grid: { color: grid },
+             ticks: { color: ink, callback: function (v) { return v.toLocaleString(); } } },
+        x: { border: { display: false }, grid: { display: false }, ticks: { color: ink } }
+      }
+    }
+  }));
 
-  new Chart(document.getElementById('svcChart'), {
+  charts.push(new Chart(document.getElementById('svcChart'), {
     type: 'doughnut',
     data: { labels: <?php echo json_encode($svc_labels); ?>, datasets: [{
       data: <?php echo json_encode($svc_values); ?>,
-      backgroundColor: ['#1A8A45','#d97706','#2563eb','#dc2626','#64748b','#0B1E3D'], borderWidth: 0, hoverOffset: 6 }] },
-    options: { responsive: true, cutout: '66%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14 } } } }
-  });
+      backgroundColor: [green, tok('--warning', '#d97706'), tok('--info', '#2563eb'),
+                        tok('--danger', '#dc2626'), tok('--text-muted', '#64748b'), tok('--border-2', '#0B1E3D')],
+      borderWidth: 2, borderColor: panel, hoverOffset: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '66%',
+      plugins: { legend: { position: 'bottom', labels: { color: ink, boxWidth: 12, padding: 14, usePointStyle: true } } } }
+  }));
+
+  // Repaint on theme switch — the toggle flips data-theme on <html>.
+  new MutationObserver(function () {
+    var c2 = getComputedStyle(document.documentElement);
+    var t2 = function (n, f) { return (c2.getPropertyValue(n) || '').trim() || f; };
+    var ink2 = t2('--text-2', '#475569'), grid2 = t2('--border', '#eef1f6'), panel2 = t2('--surface', '#fff');
+    Chart.defaults.color = ink2;
+    charts.forEach(function (ch) {
+      if (ch.options.scales) {
+        if (ch.options.scales.y) { ch.options.scales.y.grid.color = grid2; ch.options.scales.y.ticks.color = ink2; }
+        if (ch.options.scales.x) { ch.options.scales.x.ticks.color = ink2; }
+      }
+      if (ch.options.plugins.legend.labels) ch.options.plugins.legend.labels.color = ink2;
+      ch.data.datasets.forEach(function (d) {
+        if (d.pointBorderColor) d.pointBorderColor = panel2;
+        if (d.borderColor && ch.config.type === 'doughnut') d.borderColor = panel2;
+      });
+      ch.update('none');
+    });
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 }
 </script>
 

@@ -384,7 +384,33 @@ final class Automation
         // flip the payment to completed FIRST so a concurrent second caller
         // (cron overlapping a webhook, say) hits the "already" branch above
         // instead of double-fulfilling.
-        db()->prepare("UPDATE payments SET status = 'completed' WHERE id = ?")->execute([$payment_id]);
+        //
+        // Record what the gateway says actually moved, not what we asked
+        // for. Every verify() reports in major units, and they can differ
+        // legitimately: M-Pesa settles in whole shillings, so a KES 9,029.44
+        // invoice is pushed — and paid — as 9,030.
+        $collected = (float) ($v['amount'] ?? 0);
+        $expected  = (float) $pay['amount'];
+
+        db()->prepare("UPDATE payments SET status = 'completed', amount = ? WHERE id = ?")
+            ->execute([$collected > 0 ? $collected : $expected, $payment_id]);
+
+        // Short payment: the money arrived, but not all of it. Bank it and
+        // tell someone — never mark the invoice paid or provision a service
+        // off a partial payment. An admin decides whether to accept the
+        // shortfall, chase the balance, or refund.
+        if ($collected > 0 && $collected + 0.01 < $expected) {
+            $cur = $pay['currency'] ?: (defined('CURRENCY') ? CURRENCY : 'USD');
+            self::noteShortPayment($pay, $collected, $expected, $cur);
+            return [
+                'status'  => 'underpaid',
+                'message' => sprintf(
+                    'Received %s %s against %s %s due — invoice left unpaid for review.',
+                    $cur, number_format($collected, 2), $cur, number_format($expected, 2)
+                ),
+            ];
+        }
+
         if ($pay['invoice_id']) {
             db()->prepare("UPDATE invoices SET status = 'paid', paid_date = CURDATE(), payment_method = ? WHERE id = ?")
                 ->execute([$pay['gateway'], $pay['invoice_id']]);
@@ -675,6 +701,27 @@ final class Automation
         try {
             db()->prepare("UPDATE domain_registrations SET notes = CONCAT(COALESCE(notes,''), '\n', ?) WHERE id = ?")
                 ->execute(['[' . date('Y-m-d H:i') . '] ' . $note, $domain_id]);
+        } catch (\Throwable $e) {}
+    }
+
+    /** Flag a payment that arrived for less than it should have. */
+    private static function noteShortPayment(array $pay, float $collected, float $expected, string $currency): void
+    {
+        $detail = sprintf('%s %s received against %s %s due (short by %s).',
+            $currency, number_format($collected, 2),
+            $currency, number_format($expected, 2),
+            number_format($expected - $collected, 2));
+        try {
+            log_activity('payment_short', 'payment', (int) $pay['id'], $detail);
+        } catch (\Throwable $e) {}
+        try {
+            Notifier::sendToAllAdmins('payment_failed', [
+                'client_name' => 'Payment #' . (int) $pay['id'],
+                'amount'      => $currency . ' ' . number_format($collected, 2),
+                'gateway'     => ucfirst(str_replace('_', ' ', (string) $pay['gateway'])),
+                'reason'      => 'Underpayment — ' . $detail . ' The invoice has been left unpaid for review.',
+                'link'        => APP_URL . '/billing/index.php',
+            ]);
         } catch (\Throwable $e) {}
     }
 

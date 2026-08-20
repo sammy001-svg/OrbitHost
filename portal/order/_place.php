@@ -15,6 +15,7 @@ require_once dirname(__DIR__, 2) . '/admin/includes/Automation.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/Notifier.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/Currency.php';
 require_once dirname(__DIR__) . '/includes/order_cart.php';
+require_once dirname(__DIR__, 2) . '/admin/includes/ServiceAddon.php';
 
 /**
  * One column the website checkout adds to domain_registrations:
@@ -92,6 +93,24 @@ function place_hosting_order(array $client, string $currency): array
     $ins = db()->prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (?,?,?,?,?)');
     foreach ($sum['lines'] as $l) {
         $ins->execute([$invoice_id, $l['label'], 1, (float) $l['amount'], (float) $l['amount']]);
+    }
+
+    // ── Subscribed add-ons ───────────────────────────────────────────
+    // The invoice lines above bill them once. These rows are what makes a
+    // recurring add-on actually recur: admin/cron/billing.php reads them
+    // when it raises the renewal invoice, and the client sees (and can
+    // cancel) them on their service. Name/price/cycle are snapshotted so
+    // a later catalogue edit never silently reprices an existing client.
+    if (ServiceAddon::ensureOrderSchema()) {
+        $addIns = db()->prepare('INSERT INTO order_addons (order_id, addon_id, name, billing_cycle, amount, currency)
+                                 VALUES (?,?,?,?,?,?)');
+        foreach ($sum['lines'] as $l) {
+            if (($l['type'] ?? '') !== 'addon') continue;
+            $addIns->execute([
+                $order_id, $l['addon_id'] ?? null, $l['name'] ?? $l['label'],
+                $l['cycle'] ?? 'monthly', (float) $l['amount'], $currency,
+            ]);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────

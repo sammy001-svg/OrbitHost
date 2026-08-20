@@ -34,15 +34,6 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <div class="nav-label">Overview</div>
     <?php _nav(APP_URL . '/dashboard.php', 'fa-gauge-high', 'Dashboard', '', 'dashboard.php'); ?>
 
-    <?php if (can('admin')): // site configuration and public content ?>
-      <div class="nav-label">Website</div>
-      <?php _nav(APP_URL . '/settings/index.php',  'fa-swatchbook', 'Site Settings', 'settings'); ?>
-      <?php _nav(APP_URL . '/marketing/index.php', 'fa-bullhorn',   'Portal Banners', 'marketing'); ?>
-      <?php if (can('super_admin')): ?>
-        <?php _nav(APP_URL . '/staff/index.php', 'fa-users-gear', 'Staff Accounts', 'staff'); ?>
-      <?php endif; ?>
-    <?php endif; ?>
-
     <div class="nav-label">Operations</div>
     <?php _nav(APP_URL . '/services/index.php',  'fa-layer-group',  'Services',  'services'); ?>
     <?php _nav(APP_URL . '/plans/index.php',     'fa-tags',         'Plans & Packages', 'plans'); ?>
@@ -73,6 +64,17 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <?php _nav(APP_URL . '/integrations/domains/index.php', 'fa-globe',  'Domains',       'domains', '', 'integrations'); ?>
     <?php endif; ?>
   </nav>
+
+  <?php if (can('admin')): // configuration lives at the foot, out of the daily path ?>
+  <div class="sidebar-config">
+    <div class="nav-label">Configuration</div>
+    <?php _nav(APP_URL . '/settings/index.php',  'fa-sliders',    'Site Settings',  'settings'); ?>
+    <?php _nav(APP_URL . '/marketing/index.php', 'fa-bullhorn',   'Portal Banners', 'marketing'); ?>
+    <?php if (can('super_admin')): ?>
+      <?php _nav(APP_URL . '/staff/index.php',   'fa-users-gear', 'Staff Accounts', 'staff'); ?>
+    <?php endif; ?>
+  </div>
+  <?php endif; ?>
 
   <div class="sidebar-footer">
     <a href="<?php echo APP_URL; ?>/profile.php" class="admin-mini" title="My Account" style="text-decoration:none">

@@ -35,6 +35,67 @@ final class ServiceAddon
     }
 
     /**
+     * Add-ons a client has actually bought, attached to their order.
+     *
+     * Separate from service_addons (the catalogue) because this has to
+     * survive the catalogue changing: name, price and cycle are snapshotted
+     * at purchase, so renaming an add-on or repricing it never silently
+     * alters what an existing client is billed, and deleting it from the
+     * catalogue doesn't wipe their subscription.
+     */
+    public static function ensureOrderSchema(): bool
+    {
+        static $done = null;
+        if ($done !== null) return $done;
+        try {
+            db()->exec("CREATE TABLE IF NOT EXISTS order_addons (
+                id            INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                order_id      INT UNSIGNED NOT NULL,
+                addon_id      INT UNSIGNED DEFAULT NULL,
+                name          VARCHAR(150) NOT NULL,
+                billing_cycle ENUM('monthly','annual','one_time') NOT NULL DEFAULT 'monthly',
+                amount        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                currency      VARCHAR(3)   NOT NULL DEFAULT 'USD',
+                status        ENUM('active','cancelled') NOT NULL DEFAULT 'active',
+                created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_oa_order (order_id),
+                FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            return $done = true;
+        } catch (\Throwable $e) {
+            return $done = false;
+        }
+    }
+
+    /** Add-ons still running on an order. */
+    public static function forOrder(int $orderId, bool $activeOnly = true): array
+    {
+        if (!self::ensureOrderSchema()) return [];
+        try {
+            $sql = 'SELECT * FROM order_addons WHERE order_id = ?'
+                 . ($activeOnly ? " AND status = 'active'" : '')
+                 . ' ORDER BY id';
+            $stmt = db()->prepare($sql);
+            $stmt->execute([$orderId]);
+            return $stmt->fetchAll();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * The add-ons that renew alongside an order on $cycle.
+     * One-off add-ons were settled by the first invoice and never recur.
+     */
+    public static function recurringForOrder(int $orderId, string $cycle): array
+    {
+        return array_values(array_filter(
+            self::forOrder($orderId),
+            fn($a) => $a['billing_cycle'] === $cycle && $a['billing_cycle'] !== 'one_time'
+        ));
+    }
+
+    /**
      * Active add-ons offered with $category. A row with an empty
      * `categories` list is offered everywhere; otherwise the category has
      * to appear in its comma-separated list.

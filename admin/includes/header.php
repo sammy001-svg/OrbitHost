@@ -5,12 +5,20 @@ $_flash = flash_get();
 $_admin = current_admin();
 $_unread = Notifier::unreadCount('admin', (int) $_admin['id']);
 $_notifs = Notifier::listFor('admin', (int) $_admin['id'], 8);
+
+// Theme is rendered server-side from the cookie the toggle sets, so the
+// page paints in the right theme on the very first frame — a client-side
+// switch would flash the default theme first on every navigation.
+// Dark is the default; only an explicit "light" opts out.
+$_theme = ($_COOKIE['orbit_admin_theme'] ?? '') === 'light' ? 'light' : 'dark';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<?php echo $_theme; ?>">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="<?php echo $_theme === 'light' ? '#ffffff' : '#070d17'; ?>" />
   <title><?php echo isset($page_title) ? h($page_title) . ' — ' : ''; ?><?php echo APP_NAME; ?></title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="<?php echo APP_URL; ?>/css/admin.css?v=<?php echo @filemtime(__DIR__ . '/../css/admin.css') ?: time(); ?>" />
@@ -27,6 +35,11 @@ $_notifs = Notifier::listFor('admin', (int) $_admin['id'], 8);
     </button>
     <div class="topbar-title"><?php echo isset($page_title) ? h($page_title) : ''; ?></div>
     <div class="topbar-right">
+      <button type="button" class="topbar-icon" id="themeToggle"
+              title="Switch to light mode" aria-label="Switch colour theme">
+        <i class="fas <?php echo $_theme === 'light' ? 'fa-moon' : 'fa-sun'; ?>"></i>
+      </button>
+
       <a href="<?php echo APP_URL; ?>/tickets/" class="topbar-icon" title="Support Tickets">
         <i class="fas fa-comments"></i>
       </a>

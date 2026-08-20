@@ -3,9 +3,33 @@ require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once dirname(__DIR__) . '/admin/includes/functions.php';
 
+require_once dirname(__DIR__) . '/admin/includes/ServiceAddon.php';
+
 portal_check();
 $page_title = 'My Services';
 $cid = current_client()['id'];
+
+// ── Cancel a subscribed add-on ──
+// Marks it cancelled rather than deleting: the invoices that already
+// billed it stay truthful, and the next renewal simply stops including it.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cancel_addon') {
+    portal_csrf_verify();
+    $aid = (int) ($_POST['addon_row'] ?? 0);
+    if ($aid && ServiceAddon::ensureOrderSchema()) {
+        // Scoped through orders so one client can't cancel another's add-on.
+        $stmt = db()->prepare("UPDATE order_addons oa
+                               JOIN orders o ON o.id = oa.order_id
+                               SET oa.status = 'cancelled'
+                               WHERE oa.id = ? AND o.client_id = ?");
+        $stmt->execute([$aid, $cid]);
+        portal_flash_set($stmt->rowCount() ? 'success' : 'error',
+            $stmt->rowCount()
+                ? 'Add-on cancelled — it will not appear on your next renewal invoice.'
+                : 'That add-on could not be cancelled.');
+    }
+    header('Location: ' . PORTAL_URL . '/services.php');
+    exit;
+}
 
 $orders = db()->query("
     SELECT o.*, s.name svc_name, s.category,
@@ -96,6 +120,29 @@ require_once __DIR__ . '/includes/header.php';
         </a>
       </div>
     </div>
+
+    <?php $svc_addons = ServiceAddon::forOrder((int) $o['id']); if ($svc_addons): ?>
+    <div style="border-top:1px solid var(--border);padding:14px 24px;background:var(--green-light)">
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Add-ons on this service</div>
+      <?php foreach ($svc_addons as $a): ?>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0;flex-wrap:wrap">
+          <span style="font-size:13.5px;color:var(--navy);font-weight:600"><i class="fas fa-puzzle-piece" style="font-size:11px;color:var(--green)"></i> <?php echo htmlspecialchars($a['name']); ?></span>
+          <span style="display:flex;align-items:center;gap:12px">
+            <span style="font-weight:700;font-size:13.5px"><?php echo format_money((float) $a['amount'], $a['currency']); ?><span style="font-weight:500;color:var(--text-muted);font-size:11.5px">/<?php echo str_replace('_', ' ', $a['billing_cycle']); ?></span></span>
+            <?php if ($a['billing_cycle'] !== 'one_time'): ?>
+              <form method="POST" style="margin:0">
+                <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
+                <input type="hidden" name="action" value="cancel_addon" />
+                <input type="hidden" name="addon_row" value="<?php echo (int) $a['id']; ?>" />
+                <button type="submit" class="btn btn-ghost btn-sm" style="border:1px solid var(--border);background:#fff"
+                        onclick="return confirm('Cancel <?php echo htmlspecialchars(addslashes($a['name']), ENT_QUOTES); ?>? It stays active until your current period ends, then will not be billed again.')">Cancel</button>
+              </form>
+            <?php endif; ?>
+          </span>
+        </div>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
 
     <div style="border-top:1px solid var(--border);padding:16px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
       <div>

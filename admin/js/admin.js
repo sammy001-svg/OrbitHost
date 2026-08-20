@@ -28,6 +28,32 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // ── Colour theme (dark by default, light opt-in) ─────────
+  // The cookie is what header.php reads to stamp data-theme on <html>
+  // server-side, so every subsequent page loads already in the right
+  // theme. Flipping the attribute here just makes the current page
+  // respond instantly, without a reload.
+  (function () {
+    var btn = document.getElementById('themeToggle');
+    if (!btn) return;
+
+    btn.addEventListener('click', function () {
+      var root = document.documentElement;
+      var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      root.setAttribute('data-theme', next);
+
+      // One year, site-wide, so the choice survives across the panel.
+      document.cookie = 'orbit_admin_theme=' + next + ';path=/;max-age=31536000;samesite=lax';
+
+      var icon = btn.querySelector('i');
+      if (icon) icon.className = 'fas ' + (next === 'light' ? 'fa-moon' : 'fa-sun');
+      btn.title = next === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
+
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', next === 'light' ? '#ffffff' : '#070d17');
+    });
+  })();
+
   // ── Auto-dismiss alerts after 5 s ───────────────────────
   document.querySelectorAll('.alert').forEach(function (el) {
     setTimeout(function () {

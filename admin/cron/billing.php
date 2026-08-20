@@ -39,8 +39,23 @@ if (!$is_cli) {
     header('Content-Type: text/plain');
 }
 
+require_once __DIR__ . '/../includes/SiteSettings.php';
+require_once __DIR__ . '/../includes/ServiceAddon.php';
+
 Notifier::ensureTables();
 Automation::ensureSchema();
+
+// Renewals are taxed exactly like the checkout that created the service —
+// same Site Settings rate, so a client's first invoice and every one after
+// it agree. Previously every renewal was written with tax 0.
+$billing  = SiteSettings::billing();
+$vat_rate = $billing['vat_enabled'] ? (float) $billing['vat_rate'] : 0.0;
+
+/** Subtotal -> [tax, total], rounded the same way OrderCart::summary() does. */
+$tax_of = function (float $subtotal) use ($vat_rate): array {
+    $tax = round($subtotal * $vat_rate / 100, 2);
+    return [$tax, round($subtotal + $tax, 2)];
+};
 
 $made = 0; $suspended = 0; $errors = [];
 
@@ -58,17 +73,29 @@ $due = db()->query(
 
 foreach ($due as $o) {
     try {
+        // Add-ons the client subscribed to renew with the plan. Without
+        // this the renewal bills orders.amount alone — the plan price —
+        // and every recurring add-on is charged once at checkout and then
+        // silently never again.
+        $addons   = ServiceAddon::recurringForOrder((int) $o['id'], (string) $o['billing_cycle']);
+        $subtotal = round((float) $o['amount'] + array_sum(array_map(
+            fn($a) => (float) $a['amount'], $addons)), 2);
+        [$tax, $total] = $tax_of($subtotal);
+
         $inv_no = generate_invoice_number();
         db()->prepare("INSERT INTO invoices (invoice_number, client_id, order_id, subtotal, tax_rate, tax_amount, total, status, due_date, currency)
-                       VALUES (?,?,?,?,0,0,?, 'sent', ?,?)")
-            ->execute([$inv_no, $o['client_id'], $o['id'], $o['amount'], $o['amount'], $o['next_due'], $o['currency'] ?? 'USD']);
+                       VALUES (?,?,?,?,?,?,?, 'sent', ?,?)")
+            ->execute([$inv_no, $o['client_id'], $o['id'], $subtotal, $vat_rate, $tax, $total, $o['next_due'], $o['currency'] ?? 'USD']);
         $invoice_id = (int) db()->lastInsertId();
 
         $desc = 'Renewal: ' . ($o['service_name'] ?: 'Service')
               . ($o['domain_name'] ? ' — ' . $o['domain_name'] : '')
               . ' (' . str_replace('_', ' ', $o['billing_cycle']) . ')';
-        db()->prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (?,?,1,?,?)')
-            ->execute([$invoice_id, $desc, $o['amount'], $o['amount']]);
+        $item = db()->prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (?,?,1,?,?)');
+        $item->execute([$invoice_id, $desc, $o['amount'], $o['amount']]);
+        foreach ($addons as $a) {
+            $item->execute([$invoice_id, 'Renewal: ' . $a['name'], $a['amount'], $a['amount']]);
+        }
 
         Notifier::sendInvoiceEmail($invoice_id, 'invoice_new');
         $made++;
@@ -119,10 +146,12 @@ try {
 
 foreach ($due_cs as $cs) {
     try {
+        [$tax, $total] = $tax_of(round((float) $cs['amount'], 2));
+
         $inv_no = generate_invoice_number();
         db()->prepare("INSERT INTO invoices (invoice_number, client_id, client_service_id, subtotal, tax_rate, tax_amount, total, status, due_date, currency)
-                       VALUES (?,?,?,?,0,0,?, 'sent', ?,?)")
-            ->execute([$inv_no, $cs['client_id'], $cs['id'], $cs['amount'], $cs['amount'], $cs['next_due_date'], $cs['currency'] ?? 'USD']);
+                       VALUES (?,?,?,?,?,?,?, 'sent', ?,?)")
+            ->execute([$inv_no, $cs['client_id'], $cs['id'], $cs['amount'], $vat_rate, $tax, $total, $cs['next_due_date'], $cs['currency'] ?? 'USD']);
         $invoice_id = (int) db()->lastInsertId();
 
         $desc = 'Renewal: ' . ($cs['label'] ?: 'Service')
