@@ -27,12 +27,19 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
     $active = ($file && $_cur === $file) || ($dir && $_cdir === $dir) ? ' active' : '';
     echo "<a href=\"$href\" class=\"nav-link$active\">$label</a>";
 }
+
+// An explicit choice is stamped on <html> so the page paints correctly on
+// the first frame. With no cookie we stamp nothing, and portal.css falls
+// through to @media (prefers-color-scheme) — the client's own OS setting.
+$_theme = $_COOKIE['orbit_portal_theme'] ?? '';
+$_theme = in_array($_theme, ['light', 'dark'], true) ? $_theme : '';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"<?php echo $_theme ? ' data-theme="' . $_theme . '"' : ''; ?>>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
   <title><?php echo isset($page_title) ? htmlspecialchars($page_title, ENT_QUOTES) . ' — ' : ''; ?>Orbit Cloud Client Portal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css?v=<?php echo @filemtime(__DIR__ . '/../css/portal.css') ?: time(); ?>" />
@@ -75,6 +82,10 @@ function pnav(string $href, string $label, string $file = '', string $dir = ''):
     </nav>
 
     <div class="ph-right">
+      <button type="button" class="ph-icon" id="portalThemeToggle"
+              title="Switch colour theme" aria-label="Switch colour theme">
+        <i class="fas fa-circle-half-stroke"></i>
+      </button>
       <div class="currency-toggle" role="group" aria-label="Currency">
         <button type="button" data-cur="USD">USD</button>
         <button type="button" data-cur="KES">KSh</button>

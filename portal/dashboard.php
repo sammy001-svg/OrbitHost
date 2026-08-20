@@ -72,8 +72,24 @@ require_once __DIR__ . '/includes/header.php';
 <div class="page-hero">
   <div class="container">
     <div>
-      <h1>Welcome back, <?php echo htmlspecialchars($c['name']); ?> 👋</h1>
-      <p>Here's an overview of your account</p>
+      <?php
+      // First name only — "Welcome back, Grace" reads like a person wrote it;
+      // the full legal name on the account does not.
+      $_first = trim(explode(' ', trim($c['name']))[0]) ?: 'there';
+      $_hour  = (int) date('G');
+      $_greet = $_hour < 12 ? 'Good morning' : ($_hour < 18 ? 'Good afternoon' : 'Good evening');
+      ?>
+      <h1><?php echo $_greet; ?>, <?php echo htmlspecialchars($_first); ?></h1>
+      <p>Here's where your account stands today</p>
+      <div class="dash-hero-meta">
+        <span><i class="fas fa-calendar-day"></i> <?php echo date('l, j F Y'); ?></span>
+        <?php if ($active_orders): ?>
+          <span><i class="fas fa-circle-check"></i> <?php echo (int) $active_orders; ?> active service<?php echo $active_orders == 1 ? '' : 's'; ?></span>
+        <?php endif; ?>
+        <?php if ($unpaid_invoices): ?>
+          <span><i class="fas fa-file-invoice-dollar"></i> <?php echo (int) $unpaid_invoices; ?> invoice<?php echo $unpaid_invoices == 1 ? '' : 's'; ?> awaiting payment</span>
+        <?php endif; ?>
+      </div>
     </div>
     <a href="<?php echo PORTAL_URL; ?>/tickets/add.php" class="btn btn-white">
       <i class="fas fa-plus"></i> Open Support Ticket

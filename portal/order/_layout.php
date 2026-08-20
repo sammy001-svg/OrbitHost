@@ -66,17 +66,18 @@ function checkout_head(string $title, int $active): void
     $brand = SiteSettings::brandName();
     $logo  = SiteSettings::logoImgTag(30, 130);
     ?><!DOCTYPE html>
-<html lang="en">
+<html lang="en"<?php $_t = $_COOKIE['orbit_portal_theme'] ?? ''; echo in_array($_t, ['light','dark'], true) ? ' data-theme="' . $_t . '"' : ''; ?>>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
   <meta name="robots" content="noindex" />
   <title><?php echo h($title); ?> — <?php echo h($brand); ?></title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css?v=<?php echo @filemtime(dirname(__DIR__) . '/css/portal.css') ?: time(); ?>" />
   <style>
-    body { background: var(--bg, #f4f6fb); }
-    .co-bar { background: var(--navy); padding: 14px 0; }
+    body { background: var(--bg); color: var(--text); }
+    .co-bar { background: var(--header-bg); padding: 14px 0; }
     .co-bar-in { max-width: 1080px; margin: 0 auto; padding: 0 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
     .co-brand { display: flex; align-items: center; gap: 10px; color: #fff; font-weight: 700; font-size: 15px; text-decoration: none; }
     .co-orb { width: 32px; height: 32px; background: var(--green); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; }
@@ -85,17 +86,17 @@ function checkout_head(string $title, int $active): void
 
     .co-steps { display: flex; align-items: center; gap: 6px; margin-bottom: 24px; flex-wrap: wrap; }
     .co-step { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
-    .co-step .n { width: 25px; height: 25px; border-radius: 50%; background: #fff; border: 2px solid var(--border-2); display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 800; }
+    .co-step .n { width: 25px; height: 25px; border-radius: 50%; background: var(--surface); border: 2px solid var(--border-2); display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 800; }
     .co-step.done .n { background: var(--green); border-color: var(--green); color: #fff; }
-    .co-step.active { color: var(--navy); }
-    .co-step.active .n { background: var(--navy); border-color: var(--navy); color: #fff; }
+    .co-step.active { color: var(--text); }
+    .co-step.active .n { background: var(--green); border-color: var(--green); color: #fff; }
     .co-sep { flex: 1 1 18px; min-width: 14px; height: 2px; background: var(--border-2); border-radius: 2px; }
 
     .co-grid { display: grid; grid-template-columns: 1fr 330px; gap: 20px; align-items: start; }
-    .co-panel { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    .co-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
     .co-panel + .co-panel { margin-top: 16px; }
     .co-panel-head { padding: 15px 20px; border-bottom: 1px solid var(--border); }
-    .co-panel-head h2 { font-size: 15px; color: var(--navy); font-weight: 700; margin: 0; }
+    .co-panel-head h2 { font-size: 15px; color: var(--text); font-weight: 700; margin: 0; }
     .co-panel-head p { font-size: 12.5px; color: var(--text-muted); margin: 4px 0 0; }
     .co-panel-body { padding: 20px; }
 
@@ -104,20 +105,20 @@ function checkout_head(string $title, int $active): void
     .co-opt:hover { border-color: var(--border-2); }
     .co-opt.sel { border-color: var(--green); background: var(--green-light); }
     .co-opt input { margin-top: 3px; flex: 0 0 auto; }
-    .co-opt-t { font-weight: 700; font-size: 13.5px; color: var(--navy); }
+    .co-opt-t { font-weight: 700; font-size: 13.5px; color: var(--text); }
     .co-opt-d { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
 
     .co-sum { position: sticky; top: 18px; }
     .co-sum-line { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 8px 0; border-bottom: 1px dashed var(--border); }
     .co-sum-line:last-of-type { border-bottom: none; }
-    .co-sum-line .l { color: var(--text-sub, #4b5878); min-width: 0; }
-    .co-sum-line .v { font-weight: 700; white-space: nowrap; color: var(--navy); }
+    .co-sum-line .l { color: var(--text-2); min-width: 0; }
+    .co-sum-line .v { font-weight: 700; white-space: nowrap; color: var(--text); }
     .co-sum-sub { display: flex; justify-content: space-between; font-size: 13px; padding: 7px 0; }
-    .co-sum-total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 12px; margin-top: 6px; border-top: 2px solid var(--border); font-size: 17px; font-weight: 800; color: var(--navy); }
+    .co-sum-total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 12px; margin-top: 6px; border-top: 2px solid var(--border); font-size: 17px; font-weight: 800; color: var(--text); }
 
     .co-actions { display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-top: 18px; flex-wrap: wrap; }
     .co-back { font-size: 13px; color: var(--text-muted); text-decoration: none; }
-    .co-back:hover { color: var(--navy); }
+    .co-back:hover { color: var(--text); }
 
     @media (max-width: 900px) {
       .co-grid { grid-template-columns: 1fr; }

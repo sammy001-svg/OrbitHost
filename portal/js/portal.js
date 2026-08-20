@@ -102,3 +102,56 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
 });
+
+/* ── Colour theme ────────────────────────────────────────────
+   Three states, cycled by the header button: follow the system
+   (no cookie), force light, force dark. The cookie is what
+   includes/header.php reads to stamp data-theme server-side, so
+   every later page already paints in the chosen theme. */
+(function () {
+  var btn = document.getElementById('portalThemeToggle');
+  if (!btn) return;
+
+  var root = document.documentElement;
+
+  function systemIsDark() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  function label(mode) {
+    return mode === 'light' ? 'Light theme — click for dark'
+         : mode === 'dark'  ? 'Dark theme — click to follow your system'
+         : 'Following your system theme — click for light';
+  }
+
+  function icon(mode) {
+    return mode === 'light' ? 'fa-sun' : mode === 'dark' ? 'fa-moon' : 'fa-circle-half-stroke';
+  }
+
+  function paint(mode) {
+    var i = btn.querySelector('i');
+    if (i) i.className = 'fas ' + icon(mode);
+    btn.title = label(mode);
+  }
+
+  var current = root.getAttribute('data-theme') || '';
+  paint(current);
+
+  btn.addEventListener('click', function () {
+    // system → light → dark → system
+    var next = current === '' ? 'light' : current === 'light' ? 'dark' : '';
+    current = next;
+
+    if (next) root.setAttribute('data-theme', next);
+    else root.removeAttribute('data-theme');
+
+    document.cookie = 'orbit_portal_theme=' + next + ';path=/;max-age=' + (next ? 31536000 : 0) + ';samesite=lax';
+    paint(next);
+
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      var dark = next === 'dark' || (next === '' && systemIsDark());
+      meta.setAttribute('content', dark ? '#070d17' : '#0B1E3D');
+    }
+  });
+})();
