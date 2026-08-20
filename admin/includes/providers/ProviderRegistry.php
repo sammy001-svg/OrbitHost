@@ -210,10 +210,15 @@ final class ProviderRegistry
                 'client'   => 'PaymentClient',
                 'docs'     => 'https://api-docs.kopokopo.com/',
                 'fields'   => [
-                    ['key'=>'client_id',     'label'=>'Client ID',       'type'=>'text',   'required'=>true, 'hint'=>'Kopo Kopo dashboard › Settings › API Applications.'],
+                    ['key'=>'client_id',     'label'=>'Client ID',       'type'=>'text',   'required'=>true, 'hint'=>'Kopo Kopo dashboard › Settings › API Keys. Sandbox and live keys are different.'],
                     ['key'=>'client_secret', 'label'=>'Client Secret',   'type'=>'secret', 'required'=>true],
-                    ['key'=>'till_number',   'label'=>'Till Number',     'type'=>'text',   'required'=>true, 'placeholder'=>'K000000', 'hint'=>'Your Kopo Kopo online payments till. Charges are in KES.'],
-                    ['key'=>'sandbox',       'label'=>'Sandbox mode',    'type'=>'toggle', 'default'=>true],
+                    // The third credential. Kopo Kopo signs every webhook with
+                    // it (HMAC-SHA256 in X-KopoKopo-Signature) and requires it
+                    // to create webhook subscriptions, so till payments made
+                    // outside an STK push can reach us at all.
+                    ['key'=>'api_key',       'label'=>'API Key',         'type'=>'secret', 'required'=>true, 'hint'=>'Same screen as the Client ID. Signs incoming webhooks and authorises webhook subscriptions — payments made straight to your till need this.'],
+                    ['key'=>'till_number',   'label'=>'Till Number',     'type'=>'text',   'required'=>true, 'placeholder'=>'K000000', 'hint'=>'Your Kopo Kopo online payments till. Kopo Kopo settles in KES only.'],
+                    ['key'=>'sandbox',       'label'=>'Sandbox mode',    'type'=>'toggle', 'default'=>true, 'hint'=>"Point at the Kopo Kopo sandbox. Turn OFF to take real money."],
                 ],
             ],
             'flutterwave' => [

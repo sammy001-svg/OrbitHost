@@ -46,6 +46,37 @@ final class PaymentClient
         return $this->dispatch('verify', [$ref]);
     }
 
+    /**
+     * Register the gateway's webhooks so payments that happen WITHOUT us
+     * starting them still reach the app — someone paying the till directly
+     * from their phone, or a settlement landing in the bank account.
+     * @param string $baseUrl site root, e.g. https://orbitcloud.co.ke
+     */
+    public function subscribeWebhooks(string $baseUrl): array
+    {
+        return $this->dispatch('subscribeWebhooks', [$baseUrl]);
+    }
+
+    /** What the gateway currently has registered. */
+    public function listWebhooks(): array
+    {
+        return $this->dispatch('listWebhooks', []);
+    }
+
+    /**
+     * Is this webhook body genuinely from the gateway?
+     * @param string $raw       exact request body, unparsed
+     * @param string $signature value of the provider's signature header
+     */
+    public function verifyWebhook(string $raw, string $signature): bool
+    {
+        try {
+            return (bool) $this->dispatch('verifyWebhook', [$raw, $signature])['valid'];
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
     /** Offline (instruction-based) methods share one implementation. */
     private const OFFLINE = ['bank_transfer', 'mpesa_manual', 'cheque'];
 
@@ -241,6 +272,81 @@ final class PaymentClient
         return ['success' => true, 'mode' => 'push', 'ref' => $resource,
                 'message' => 'STK push sent to ' . $phone . ' — enter the M-Pesa PIN on the phone to approve, then verify below.'];
     }
+    /**
+     * Events worth subscribing to. Without these, the ONLY payments this
+     * app ever learns about are the STK pushes it started itself — a
+     * customer who pays the till directly from their M-Pesa menu is
+     * invisible, and so is the settlement into your bank account.
+     */
+    private const KK_EVENTS = [
+        'buygoods_transaction_received',
+        'b2b_transaction_received',
+        'settlement_transfer_completed',
+    ];
+
+    private function kopokopoSubscribeWebhooks(string $baseUrl): array
+    {
+        $token = $this->kopokopoToken();
+        $url   = rtrim($baseUrl, '/') . '/api/webhooks/kopokopo.php';
+        $done  = [];
+        $failed = [];
+
+        foreach (self::KK_EVENTS as $event) {
+            $r = $this->http($this->kopokopoBase() . '/api/v1/webhook_subscriptions', 'POST',
+                ['Authorization: Bearer ' . $token, 'Content-Type: application/json', 'Accept: application/json'],
+                [
+                    'event_type'  => $event,
+                    'url'         => $url,
+                    'scope'       => 'till',
+                    'scope_reference' => $this->cfg['till_number'] ?? '',
+                ]);
+            // 201 created, or 409/422 when it is already registered — both fine.
+            if (in_array($r['code'], [200, 201], true)) {
+                $done[] = $event;
+            } elseif (in_array($r['code'], [409, 422], true)) {
+                $done[] = $event . ' (already registered)';
+            } else {
+                $msg = $r['data']['error_message'] ?? $r['data']['error_description'] ?? ('HTTP ' . $r['code']);
+                $failed[] = $event . ': ' . $msg;
+            }
+        }
+
+        if ($failed) {
+            return ['success' => false, 'message' => 'Registered ' . count($done) . ' of ' . count(self::KK_EVENTS)
+                    . '. Failed — ' . implode('; ', $failed), 'registered' => $done];
+        }
+        return ['success' => true, 'message' => 'Webhooks registered for ' . implode(', ', $done) . '. Callback URL: ' . $url,
+                'registered' => $done];
+    }
+
+    private function kopokopoListWebhooks(): array
+    {
+        $token = $this->kopokopoToken();
+        $r = $this->http($this->kopokopoBase() . '/api/v1/webhook_subscriptions', 'GET',
+            ['Authorization: Bearer ' . $token, 'Accept: application/json']);
+        $items = $r['data']['data'] ?? [];
+        $out = [];
+        foreach ((array) $items as $it) {
+            $a = $it['attributes'] ?? $it;
+            if (!empty($a['event_type'])) $out[] = ['event' => $a['event_type'], 'url' => $a['url'] ?? ''];
+        }
+        return ['success' => $r['code'] < 400, 'subscriptions' => $out,
+                'message' => $r['code'] < 400 ? (count($out) . ' subscription(s) registered.') : ('HTTP ' . $r['code'])];
+    }
+
+    /**
+     * Kopo Kopo signs the raw body with the API Key using HMAC-SHA256 and
+     * sends it as X-KopoKopo-Signature. Compared with hash_equals so the
+     * check is not timing-attackable.
+     */
+    private function kopokopoVerifyWebhook(string $raw, string $signature): array
+    {
+        $key = (string) ($this->cfg['api_key'] ?? '');
+        if ($key === '' || $signature === '') return ['valid' => false];
+        $expected = hash_hmac('sha256', $raw, $key);
+        return ['valid' => hash_equals($expected, strtolower(trim($signature)))];
+    }
+
     private function kopokopoVerify(string $ref): array
     {
         // ref is the payment-request URL Kopo Kopo gave us; never fetch anything else.

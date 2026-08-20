@@ -59,6 +59,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash_set('success', $def['name'] . ($enable ? ' enabled.' : ' disabled.'));
             }
 
+        } elseif ($action === 'webhooks') {
+            // Registering webhooks is what lets money reach us when the
+            // client never touched our checkout — see KK_EVENTS.
+            require_role('admin', APP_URL . '/integrations/index.php');
+            $site = preg_replace('#/admin/?$#', '', APP_URL);
+            $r = Provider::payment($provider)->subscribeWebhooks($site);
+            flash_set(!empty($r['success']) ? 'success' : 'error',
+                ($r['success'] ? '✓ ' : '✗ ') . $def['name'] . ' webhooks: ' . ($r['message'] ?? ''));
+
         } elseif ($action === 'test') {
             if ($def['category'] === 'email') {
                 require_once '../includes/Mailer.php';
@@ -267,6 +276,26 @@ require_once '../includes/header.php';
         </button>
       </form>
     </div>
+
+    <?php if ($key === 'kopokopo'): ?>
+    <div class="drawer-foot" style="flex-direction:column;align-items:stretch;gap:8px;border-top:none;padding-top:0">
+      <label class="form-label" style="margin:0">Webhooks</label>
+      <small class="form-hint" style="margin:0 0 4px">
+        Register these once, after saving your keys. Without them the only payments
+        that reach the system are STK pushes it started itself — someone paying your
+        till directly from their phone would never appear.
+      </small>
+      <form method="POST" style="margin:0">
+        <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+        <input type="hidden" name="action" value="webhooks" />
+        <input type="hidden" name="provider" value="<?php echo $key; ?>" />
+        <button type="submit" class="btn btn-outline btn-block"><i class="fas fa-satellite-dish"></i> Register webhooks with Kopo Kopo</button>
+      </form>
+      <small class="form-hint" style="margin:0">
+        Callback URL: <code class="code-chip"><?php echo h(preg_replace('#/admin/?$#', '', APP_URL) . '/api/webhooks/kopokopo.php'); ?></code>
+      </small>
+    </div>
+    <?php endif; ?>
 
     <?php if ($def['category'] === 'email'): ?>
     <div class="drawer-foot" style="flex-direction:column;align-items:stretch;gap:8px">

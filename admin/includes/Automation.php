@@ -704,6 +704,78 @@ final class Automation
         } catch (\Throwable $e) {}
     }
 
+    /**
+     * Bank a payment we did not initiate.
+     *
+     * A client can pay the till straight from their M-Pesa menu, without
+     * ever touching an invoice page. Nothing in this app started it, so
+     * there is no payments row and no invoice to settle — but the money is
+     * real and has to be visible. Record it as a completed, unallocated
+     * payment and tell the team, so an admin can match it to an invoice.
+     *
+     * Idempotent on the gateway reference: Kopo Kopo retries webhooks, and
+     * a retry must not create a second payment row.
+     */
+    public static function recordUnsolicitedPayment(string $gateway, array $payload): array
+    {
+        $res = $payload['data']['attributes']['event']['resource'] ?? [];
+        $ref = (string) ($res['reference'] ?? $payload['data']['id'] ?? '');
+        $amount = (float) ($res['amount'] ?? 0);
+        $currency = (string) ($res['currency'] ?? 'KES');
+        $phone = (string) ($res['sender_phone_number'] ?? $res['sender_msisdn'] ?? '');
+        $name = trim(($res['sender_first_name'] ?? '') . ' ' . ($res['sender_last_name'] ?? ''));
+
+        if ($ref === '' || $amount <= 0) {
+            return ['status' => 'ignored', 'message' => 'Webhook carried no usable payment reference or amount.'];
+        }
+
+        try {
+            $stmt = db()->prepare('SELECT id FROM payments WHERE gateway = ? AND gateway_ref = ? LIMIT 1');
+            $stmt->execute([$gateway, $ref]);
+            if ($stmt->fetchColumn()) {
+                return ['status' => 'already', 'message' => 'Already recorded.'];
+            }
+
+            // Match the payer to a client by phone where we can, so the
+            // payment at least lands against the right account.
+            $client_id = null;
+            if ($phone !== '') {
+                $tail = substr(preg_replace('/\D/', '', $phone), -9);
+                if ($tail !== '') {
+                    $c = db()->prepare("SELECT id FROM clients WHERE REPLACE(REPLACE(phone,' ',''),'+','') LIKE ? LIMIT 1");
+                    $c->execute(['%' . $tail]);
+                    $client_id = $c->fetchColumn() ?: null;
+                }
+            }
+
+            db()->prepare("INSERT INTO payments (invoice_id, client_id, gateway, gateway_ref, amount, currency, status, raw)
+                           VALUES (NULL, ?, ?, ?, ?, ?, 'completed', ?)")
+                ->execute([$client_id, $gateway, $ref, $amount, $currency,
+                           json_encode(['unsolicited' => true, 'webhook' => $payload])]);
+            $pid = (int) db()->lastInsertId();
+
+            $who = $name !== '' ? $name : ($phone !== '' ? $phone : 'an unknown payer');
+            log_activity('payment_unallocated', 'payment', $pid,
+                sprintf('%s %s received from %s via %s (ref %s) — not linked to an invoice.',
+                        $currency, number_format($amount, 2), $who, $gateway, $ref));
+
+            try {
+                Notifier::sendToAllAdmins('payment_reference_submitted', [
+                    'client_name' => $who,
+                    'amount'      => $currency . ' ' . number_format($amount, 2),
+                    'gateway'     => ucfirst($gateway),
+                    'reference'   => $ref,
+                    'link'        => APP_URL . '/billing/index.php',
+                ]);
+            } catch (\Throwable $e) { /* the row is what matters */ }
+
+            return ['status' => 'recorded', 'payment_id' => $pid,
+                    'message' => 'Unallocated payment recorded for review.'];
+        } catch (\Throwable $e) {
+            return ['status' => 'failed', 'message' => $e->getMessage()];
+        }
+    }
+
     /** Flag a payment that arrived for less than it should have. */
     private static function noteShortPayment(array $pay, float $collected, float $expected, string $currency): void
     {
