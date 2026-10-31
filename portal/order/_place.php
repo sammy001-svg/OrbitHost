@@ -114,8 +114,11 @@ function invoice_apply_promo(int $invoice_id, array $sum): void
     }
 }
 
-/** Record every cart domain on an invoice. */
-function place_cart_domains(array $sum, int $cid, int $invoice_id, string $hosting_domain = '', ?int $order_id = null): array
+/**
+ * Record every cart domain on an invoice.
+ * @param array $order_for_domain [domain => order id] for domains a hosting package uses
+ */
+function place_cart_domains(array $sum, int $cid, int $invoice_id, array $order_for_domain = []): array
 {
     $names = [];
     $idp = [];
@@ -125,7 +128,7 @@ function place_cart_domains(array $sum, int $cid, int $invoice_id, string $hosti
     foreach ($sum['lines'] as $l) {
         if (($l['type'] ?? '') !== 'cart_domain') continue;
         record_pending_domain($cid, $l['domain'], $l['mode'], (int) $l['years'], $invoice_id,
-            $l['domain'] === $hosting_domain ? $order_id : null, (string) $l['epp'], !empty($idp[$l['domain']]));
+            $order_for_domain[$l['domain']] ?? null, (string) $l['epp'], !empty($idp[$l['domain']]));
         $names[] = $l['domain'];
     }
     return $names;
@@ -162,6 +165,9 @@ function place_domain_only_order(array $client, string $currency, array $sum): a
 }
 
 /**
+ * Turn the whole cart into ONE invoice: one order per hosting package
+ * (each provisioned on its own once paid) plus every domain item.
+ *
  * @return array{order_id:int,invoice_id:int,invoice_number:string}
  * @throws RuntimeException when the cart no longer prices (plan withdrawn mid-checkout)
  */
@@ -170,11 +176,13 @@ function place_hosting_order(array $client, string $currency): array
     if (!OrderCart::checkoutReady()) {
         throw new RuntimeException('Your cart is empty or incomplete. Please check it and try again.');
     }
-    $plan = OrderCart::plan();
-    if ((int) OrderCart::get('plan_id', 0) && !$plan) {
-        throw new RuntimeException('That package is no longer available. Please start again.');
+    foreach (OrderCart::hostingItems() as $it) {
+        if (!OrderCart::planById((int) ($it['plan_id'] ?? 0))) {
+            throw new RuntimeException('One of the hosting packages in your cart is no longer available. Remove it from your cart and try again.');
+        }
     }
 
+    $packages = OrderCart::allHosting();
     $sum = OrderCart::summary($currency);
     $cid = (int) $client['id'];
 
@@ -186,108 +194,131 @@ function place_hosting_order(array $client, string $currency): array
             $taken[] = $l['domain'];
         }
     }
+    foreach ($packages as $pk) {
+        if ($pk['domain_mode'] === 'register' && OrderCart::domainTaken($pk['domain_name']) === true) $taken[] = $pk['domain_name'];
+    }
     if ($taken) {
         throw new RuntimeException('Sorry — ' . implode(', ', $taken) . (count($taken) === 1 ? ' was' : ' were')
             . ' registered by someone else a moment ago. Remove ' . (count($taken) === 1 ? 'it' : 'them') . ' from your cart and choose another name.');
     }
 
     Currency::ensureSchema();
-    Automation::ensureSchema();   // invoices.order_id, domain_registrations.invoice_id …
+    Automation::ensureSchema();   // invoices.order_id, orders.checkout_invoice_id, domain_registrations.invoice_id …
 
-    if (!$plan) {
+    if (!$packages) {
         return place_domain_only_order($client, $currency, $sum);
     }
 
-    // ── The order ────────────────────────────────────────────────────
-    // orders.amount is the RECURRING figure — what a renewal invoice will
-    // be for — so it's the plan price alone, never the one-off checkout
-    // total (which carries setup fees and the domain).
-    $amt   = Currency::planAmount($plan, $currency);
-    $cycle = (string) $plan['billing_cycle'];
-    $next  = $cycle === 'monthly' ? date('Y-m-d', strtotime('+1 month'))
-           : ($cycle === 'annual' ? date('Y-m-d', strtotime('+1 year')) : null);
+    // ── Invoice + orders, all or nothing ─────────────────────────────
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        $inv_no = generate_invoice_number();
+        $pdo->prepare("INSERT INTO invoices (invoice_number, client_id, subtotal, tax_rate, tax_amount, total, status, due_date, currency)
+                       VALUES (?,?,?,?,?,?,'sent',CURDATE(),?)")
+            ->execute([$inv_no, $cid, $sum['subtotal'], $sum['vat_rate'], $sum['vat'], $sum['total'], $currency]);
+        $invoice_id = (int) $pdo->lastInsertId();
 
-    $domain = (string) OrderCart::get('domain_name', '');
-    $mode   = (string) OrderCart::get('domain_mode', '');
+        $ins = $pdo->prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (?,?,?,?,?)');
+        foreach ($sum['lines'] as $l) {
+            $ins->execute([$invoice_id, $l['label'], 1, (float) $l['amount'], (float) $l['amount']]);
+        }
 
-    $notes = 'Ordered from the website checkout. Domain: ' . $domain . ' (' . $mode . ').';
-    if (OrderCart::get('id_protection')) $notes .= ' ID Protection requested.';
-
-    db()->prepare('INSERT INTO orders (client_id, service_id, service_name, domain_name, amount, billing_cycle, status, start_date, next_due, notes, currency)
-                   VALUES (?,?,?,?,?,?,?,CURDATE(),?,?,?)')
-        ->execute([$cid, (int) $plan['id'], $plan['name'], $domain ?: null, (float) $amt['price'], $cycle,
-                   'pending', $next, $notes, $currency]);
-    $order_id = (int) db()->lastInsertId();
-
-    // ── The invoice ──────────────────────────────────────────────────
-    $inv_no = generate_invoice_number();
-    db()->prepare("INSERT INTO invoices (invoice_number, client_id, order_id, subtotal, tax_rate, tax_amount, total, status, due_date, currency)
-                   VALUES (?,?,?,?,?,?,?,'sent',CURDATE(),?)")
-        ->execute([$inv_no, $cid, $order_id, $sum['subtotal'], $sum['vat_rate'], $sum['vat'], $sum['total'], $currency]);
-    $invoice_id = (int) db()->lastInsertId();
-
-    $ins = db()->prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (?,?,?,?,?)');
-    foreach ($sum['lines'] as $l) {
-        $ins->execute([$invoice_id, $l['label'], 1, (float) $l['amount'], (float) $l['amount']]);
+        // One order per package. orders.amount is the RECURRING figure —
+        // what a renewal invoice will be for — so the plan price alone,
+        // never setup fees or the domain.
+        $order_ids = [];   // uid => order id
+        $order_for_domain = [];
+        $has_link = true;
+        foreach ($packages as $uid => $pk) {
+            $plan  = $pk['plan'];
+            $amt   = Currency::planAmount($plan, $currency);
+            $cycle = (string) $plan['billing_cycle'];
+            $next  = $cycle === 'monthly' ? date('Y-m-d', strtotime('+1 month'))
+                   : ($cycle === 'annual' ? date('Y-m-d', strtotime('+1 year')) : null);
+            $notes = 'Ordered from the website checkout (invoice ' . $inv_no . '). Domain: ' . $pk['domain_name'] . ' (' . $pk['domain_mode'] . ').'
+                   . (!empty($pk['id_protection']) ? ' ID Protection requested.' : '');
+            $vals = [$cid, (int) $plan['id'], $plan['name'], $pk['domain_name'] ?: null, (float) $amt['price'], $cycle, 'pending', $next, $notes, $currency];
+            if ($has_link) {
+                // checkout_invoice_id is how paying this invoice finds every
+                // package on it — invoices.order_id can only name one.
+                try {
+                    $pdo->prepare('INSERT INTO orders (client_id, service_id, service_name, domain_name, amount, billing_cycle, status, start_date, next_due, notes, currency, checkout_invoice_id)
+                                   VALUES (?,?,?,?,?,?,?,CURDATE(),?,?,?,?)')->execute(array_merge($vals, [$invoice_id]));
+                } catch (\PDOException $e) {
+                    if (!str_contains($e->getMessage(), 'checkout_invoice_id')) throw $e;
+                    $has_link = false; // column not migrated: only the first package auto-provisions
+                }
+            }
+            if (!$has_link) {
+                $pdo->prepare('INSERT INTO orders (client_id, service_id, service_name, domain_name, amount, billing_cycle, status, start_date, next_due, notes, currency)
+                               VALUES (?,?,?,?,?,?,?,CURDATE(),?,?,?)')->execute($vals);
+            }
+            $order_ids[$uid] = (int) $pdo->lastInsertId();
+            if ($pk['domain_name'] !== '') $order_for_domain[$pk['domain_name']] = $order_ids[$uid];
+        }
+        $first_order = (int) reset($order_ids);
+        $pdo->prepare('UPDATE invoices SET order_id = ? WHERE id = ?')->execute([$first_order, $invoice_id]);
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        error_log('place_hosting_order: ' . $e->getMessage());
+        throw new RuntimeException('We couldn\'t place your order just now — nothing was charged. Please try again in a moment.');
     }
     invoice_apply_promo($invoice_id, $sum);
 
-    // ── Subscribed add-ons ───────────────────────────────────────────
-    // The invoice lines above bill them once. These rows are what makes a
-    // recurring add-on actually recur: admin/cron/billing.php reads them
-    // when it raises the renewal invoice, and the client sees (and can
-    // cancel) them on their service. Name/price/cycle are snapshotted so
-    // a later catalogue edit never silently reprices an existing client.
-    if (ServiceAddon::ensureOrderSchema()) {
-        $addIns = db()->prepare('INSERT INTO order_addons (order_id, addon_id, name, billing_cycle, amount, currency)
-                                 VALUES (?,?,?,?,?,?)');
-        foreach ($sum['lines'] as $l) {
-            if (($l['type'] ?? '') !== 'addon') continue;
-            $addIns->execute([
-                $order_id, $l['addon_id'] ?? null, $l['name'] ?? $l['label'],
-                $l['cycle'] ?? 'monthly', (float) $l['amount'], $currency,
-            ]);
-        }
-    }
-
     // ─────────────────────────────────────────────────────────────────
-    // COMMITTED. The order and its invoice now exist, so from here on
+    // COMMITTED. The invoice and its orders now exist, so from here on
     // nothing may throw out of this function: the caller reports a
-    // failure by re-rendering the review page, and the client clicking
+    // failure by re-rendering the checkout, and the client clicking
     // "Complete Order" again would place the whole order a second time.
-    // Everything below is a side effect — record it, but never let it
-    // turn a successful sale into a duplicate one.
     // ─────────────────────────────────────────────────────────────────
     try {
+        // Subscribed add-ons — what makes a recurring add-on recur
+        // (admin/cron/billing.php renews from these). Snapshotted so a
+        // later catalogue edit never silently reprices a client.
+        if (ServiceAddon::ensureOrderSchema()) {
+            $addIns = db()->prepare('INSERT INTO order_addons (order_id, addon_id, name, billing_cycle, amount, currency) VALUES (?,?,?,?,?,?)');
+            foreach ($sum['lines'] as $l) {
+                if (($l['type'] ?? '') !== 'addon' || !isset($order_ids[$l['item'] ?? ''])) continue;
+                $addIns->execute([$order_ids[$l['item']], $l['addon_id'] ?? null, $l['name'] ?? $l['label'],
+                                  $l['cycle'] ?? 'monthly', (float) $l['amount'], $currency]);
+            }
+        }
 
-    // ── Domain record ────────────────────────────────────────────────
-    // Registering/transferring is recorded as pending now so the client
-    // and the team both see it; it's actually submitted to the registrar
-    // once the invoice is paid (Automation::fulfilOrderDomain).
-    // Domains bought alongside the package (including the one the hosting
-    // uses, when it came from the cart).
-    place_cart_domains($sum, $cid, $invoice_id, $domain, $order_id);
-
-    if ($domain !== '' && in_array($mode, ['register', 'transfer'], true)) {
+        // Domains: cart items (incl. ones a package uses), then each
+        // package's own registration/transfer. Submitted once paid.
+        place_cart_domains($sum, $cid, $invoice_id, $order_for_domain);
         order_domain_columns();
-        record_pending_domain($cid, $domain, $mode, OrderCart::domainYears(), $invoice_id, $order_id,
-            $mode === 'transfer' ? (string) OrderCart::get('epp_code', '') : '', (bool) OrderCart::get('id_protection'));
-    }
+        foreach ($packages as $uid => $pk) {
+            if (!in_array($pk['domain_mode'], ['register', 'transfer'], true)) continue;
+            record_pending_domain($cid, $pk['domain_name'], $pk['domain_mode'], max(1, min(10, (int) ($pk['domain_years'] ?? 1))),
+                $invoice_id, $order_ids[$uid], $pk['domain_mode'] === 'transfer' ? (string) ($pk['epp_code'] ?? '') : '', !empty($pk['id_protection']));
+        }
 
-    log_activity('order_checkout', 'order', $order_id, 'Website checkout — ' . $plan['name'] . ' for ' . $domain);
-
+        foreach ($packages as $uid => $pk) {
+            log_activity('order_checkout', 'order', $order_ids[$uid], 'Website checkout — ' . $pk['plan']['name'] . ' for ' . $pk['domain_name'] . ' (invoice ' . $inv_no . ')');
+        }
+        if (!$has_link && count($order_ids) > 1) {
+            Notifier::sendToAllAdmins('order_new_admin', [
+                'client_name' => trim(($client['first_name'] ?? '') . ' ' . ($client['last_name'] ?? '')),
+                'item' => 'Multi-package order ' . $inv_no . ' — only the first package will auto-provision (database is missing orders.checkout_invoice_id); provision the rest by hand',
+                'amount' => '—', 'gateway' => 'checkout', 'link' => APP_URL . '/orders/index.php',
+            ]);
+        }
     } catch (\Throwable $e) {
-        error_log('place_hosting_order: post-commit step failed for order '
-                  . $order_id . ' — ' . $e->getMessage());
+        error_log('place_hosting_order: post-commit step failed for invoice ' . $invoice_id . ' — ' . $e->getMessage());
     }
 
     OrderCart::clear();
 
-    $extra = array_values(array_filter(array_map(fn($l) => ($l['type'] ?? '') === 'cart_domain' && $l['domain'] !== $domain ? $l['domain'] : null, $sum['lines'])));
+    $names = array_map(fn($pk) => $pk['plan']['name'] . ' (' . $pk['domain_name'] . ')', $packages);
+    $extra = array_values(array_filter(array_map(fn($l) => ($l['type'] ?? '') === 'cart_domain' && !isset($order_for_domain[$l['domain']]) ? $l['domain'] : null, $sum['lines'])));
+    $first = reset($packages);
     return [
-        'order_id' => $order_id, 'invoice_id' => $invoice_id, 'invoice_number' => $inv_no,
-        'plan_name' => (string) $plan['name'], 'domain' => $domain, 'total' => $sum['total'],
-        'item' => $plan['name'] . ' (' . $domain . ')' . ($extra ? ' + ' . implode(', ', $extra) : ''),
+        'order_id' => $first_order, 'invoice_id' => $invoice_id, 'invoice_number' => $inv_no,
+        'plan_name' => (string) $first['plan']['name'], 'domain' => (string) $first['domain_name'], 'total' => $sum['total'],
+        'item' => implode(' + ', $names) . ($extra ? ' + ' . implode(', ', $extra) : ''),
     ];
 }
 

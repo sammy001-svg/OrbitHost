@@ -131,6 +131,17 @@ final class Automation
         } catch (\Throwable $e) {
             // no ALTER privilege — checkout falls back to order-linked domains only
         }
+
+        try {
+            // A checkout with several hosting packages makes one order per
+            // package, all on ONE invoice. invoices.order_id can name only
+            // one of them; this is how paying the invoice finds the rest.
+            if (!db()->query("SHOW COLUMNS FROM orders LIKE 'checkout_invoice_id'")->fetch()) {
+                db()->exec('ALTER TABLE orders ADD COLUMN checkout_invoice_id INT UNSIGNED DEFAULT NULL, ADD INDEX idx_orders_checkout_inv (checkout_invoice_id)');
+            }
+        } catch (\Throwable $e) {
+            // no ALTER privilege — only the invoice's own order auto-provisions
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -254,6 +265,20 @@ final class Automation
         // already submitted for registration.
         $domains = self::fulfilInvoiceDomains($invoice_id);
 
+        // The other packages bought on this same invoice (multi-package
+        // checkout). Each is a first payment: register its domain, then
+        // provision it. The invoice's own order_id carries on below.
+        $extra = [];
+        try {
+            $q = db()->prepare("SELECT * FROM orders WHERE checkout_invoice_id = ? AND id <> ? AND status = 'pending'");
+            $q->execute([$invoice_id, $order_id]);
+            foreach ($q->fetchAll() as $o) {
+                self::fulfilOrderDomain($o);
+                $r = self::provisionOrder((int) $o['id']);
+                $extra[] = ($o['service_name'] ?: 'Order #' . $o['id']) . ': ' . ($r['message'] ?? $r['status']);
+            }
+        } catch (\Throwable $e) { /* column not migrated — single-package behaviour */ }
+
         if (!$order_id && $domains) {
             return ['status' => 'domains', 'message' => implode(' ', $domains)];
         }
@@ -272,7 +297,12 @@ final class Automation
             // (portal/order/) — do that before provisioning so the cPanel
             // account is created against a domain we actually control.
             self::fulfilOrderDomain($o);
-            return self::provisionOrder($order_id); // first payment → provision
+            $r = self::provisionOrder($order_id); // first payment → provision
+            if ($extra) {
+                $r['message'] = trim(($r['message'] ?? '') . ' Also: ' . implode(' ', $extra));
+                $r['orders']  = count($extra) + 1;
+            }
+            return $r;
         }
 
         // Renewal: advance the due date one cycle from whichever is later —

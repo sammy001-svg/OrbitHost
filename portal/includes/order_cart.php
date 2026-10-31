@@ -73,7 +73,9 @@ final class OrderCart
     /** Finished packages, [uid => item]. */
     public static function hostingItems(): array
     {
-        return array_filter((array) ($_SESSION[self::HOSTING] ?? []), 'is_array');
+        $items = array_filter((array) ($_SESSION[self::HOSTING] ?? []), 'is_array');
+        uasort($items, fn($a, $b) => ($a['pos'] ?? 0) <=> ($b['pos'] ?? 0));
+        return $items;
     }
 
     /** File the package being configured into the cart, if it's complete. */
@@ -83,6 +85,8 @@ final class OrderCart
         $item = self::all();
         $uid  = (string) ($item['uid'] ?? '') ?: bin2hex(random_bytes(4));
         unset($item['uid']);
+        // Keep its place in the cart — editing a package mustn't move it.
+        $item['pos'] = $item['pos'] ?? microtime(true);
         $_SESSION[self::HOSTING][$uid] = $item;
         self::clearHosting();
         return $uid;
@@ -112,7 +116,10 @@ final class OrderCart
     public static function allHosting(): array
     {
         $items = self::hostingItems();
-        if (self::hostingComplete()) $items[(string) (self::get('uid') ?: 'current')] = self::all();
+        if (self::hostingComplete()) {
+            $items[(string) (self::get('uid') ?: 'current')] = self::all() + ['pos' => PHP_FLOAT_MAX];
+            uasort($items, fn($a, $b) => ($a['pos'] ?? 0) <=> ($b['pos'] ?? 0));
+        }
         $out = [];
         foreach ($items as $uid => $it) {
             $p = self::planById((int) ($it['plan_id'] ?? 0));
