@@ -255,7 +255,69 @@ final class PaymentClient
      * credentials for what might be a 404, a proxy block or an HTML error
      * page.
      */
-    private function kopokopoToken(): string
+    /**
+     * A Kopo Kopo access token, reused until shortly before it expires.
+     *
+     * Tokens live an hour. Fetching a fresh one for every call doubled the
+     * round trips on each STK push and status check — and the waiting
+     * screen checks every few seconds — so it's cached in the database,
+     * keyed by environment + client id, so changing keys or flipping
+     * sandbox mode can never serve a token for the wrong account.
+     */
+    private function kopokopoToken(bool $fresh = false): string
+    {
+        $id   = trim((string) ($this->cfg['client_id'] ?? ''));
+        $slot = 'kopokopo:' . (!empty($this->cfg['sandbox']) ? 'sandbox' : 'live') . ':' . substr(hash('sha256', $id), 0, 16);
+
+        if (!$fresh && function_exists('db')) {
+            try {
+                $s = db()->prepare('SELECT token FROM gateway_tokens WHERE slot = ? AND expires_at > NOW()');
+                $s->execute([$slot]);
+                $t = $s->fetchColumn();
+                if ($t) return (string) $t;
+            } catch (\Throwable $e) {
+                try {
+                    db()->exec('CREATE TABLE IF NOT EXISTS gateway_tokens (
+                        slot       VARCHAR(80) NOT NULL PRIMARY KEY,
+                        token      TEXT NOT NULL,
+                        expires_at DATETIME NOT NULL
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+                } catch (\Throwable $e2) { /* no CREATE privilege — just fetch every time */ }
+            }
+        }
+
+        [$token, $ttl] = $this->kopokopoFetchToken();
+        if (function_exists('db')) {
+            try {
+                // Expire our copy two minutes early so an in-flight call never
+                // carries a token that dies mid-request.
+                db()->prepare('REPLACE INTO gateway_tokens (slot, token, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))')
+                    ->execute([$slot, $token, max(60, $ttl - 120)]);
+            } catch (\Throwable $e) {}
+        }
+        return $token;
+    }
+
+    /**
+     * An authenticated Kopo Kopo call. A 401 means the cached token was
+     * revoked or the keys changed — fetch a new one and retry once.
+     */
+    private function kopokopoApi(string $url, string $method, $body = null): array
+    {
+        $call = function (string $token) use ($url, $method, $body) {
+            $h = ['Authorization: Bearer ' . $token, 'Accept: application/json'];
+            if ($body !== null) $h[] = 'Content-Type: application/json';
+            return $this->http($url, $method, $h, $body);
+        };
+        $r = $call($this->kopokopoToken());
+        if ((int) $r['code'] === 401) {
+            $r = $call($this->kopokopoToken(true));
+        }
+        return $r;
+    }
+
+    /** @return array{0:string,1:int} [access token, lifetime in seconds] */
+    private function kopokopoFetchToken(): array
     {
         // Trim defensively: these are pasted from a dashboard, and a trailing
         // newline or non-breaking space is invisible in the form field.
@@ -287,7 +349,7 @@ final class PaymentClient
                     . ' (check outbound HTTPS is allowed from this server).');
             }
             if (!empty($r['data']['access_token'])) {
-                return (string) $r['data']['access_token'];
+                return [(string) $r['data']['access_token'], (int) ($r['data']['expires_in'] ?? 3600)];
             }
             $tried[] = $label . ' → ' . $this->kopokopoAuthProblem($r);
         }
@@ -341,45 +403,113 @@ final class PaymentClient
             : 'Sandbox mode is OFF, so these must be your LIVE keys from app.kopokopo.com — sandbox keys will always fail here.';
     }
 
+    /**
+     * Credentials, plus the two settings that make STK pushes silently fail
+     * later: the till number, and a callback URL Kopo Kopo can't reach.
+     */
     private function kopokopoTestConnection(): array
     {
-        $this->kopokopoToken();
-        return ['success' => true, 'message' => 'Kopo Kopo credentials valid'];
+        $this->kopokopoToken(true);
+        $notes = [];
+        $till = trim((string) ($this->cfg['till_number'] ?? ''));
+        if (!preg_match('/^K?\d{4,8}$/i', $till)) {
+            $notes[] = 'Till number "' . $till . '" doesn\'t look like a Kopo Kopo online-payments till (e.g. K123456)';
+        }
+        if (defined('APP_URL')) {
+            $host = (string) parse_url(APP_URL, PHP_URL_HOST);
+            if (!str_starts_with(strtolower(APP_URL), 'https://')
+                || in_array($host, ['localhost', '127.0.0.1'], true) || preg_match('/^(10|192\.168|172\.(1[6-9]|2\d|3[01]))\./', $host)) {
+                $notes[] = 'this site (' . $host . ') isn\'t public HTTPS, so Kopo Kopo can\'t deliver payment callbacks — payments will still confirm, but only while the client watches the payment screen or when the payments cron runs';
+            }
+        }
+        return ['success' => true, 'message' => 'Kopo Kopo credentials valid (' . (!empty($this->cfg['sandbox']) ? 'SANDBOX' : 'LIVE') . ').'
+            . ($notes ? ' Warning: ' . implode('; ', $notes) . '.' : ' Till and callback URL look right.')];
     }
+
+    /**
+     * A Safaricom M-Pesa number in Kopo Kopo's +2547XXXXXXXX / +2541XXXXXXXX
+     * form, or null. Accepts 07…, 01…, 7…, 1…, 254…, +254… and spaces/dashes.
+     */
+    public static function mpesaPhone(?string $raw): ?string
+    {
+        $n = preg_replace('/\D+/', '', (string) $raw);
+        if (strlen($n) === 9 && ($n[0] === '7' || $n[0] === '1')) $n = '254' . $n;
+        elseif (strlen($n) === 10 && $n[0] === '0')               $n = '254' . substr($n, 1);
+        return preg_match('/^254[71]\d{8}$/', $n) ? '+' . $n : null;
+    }
+
+    /** "+254712345678" → "0712 ••• 678", for showing back to the payer. */
+    public static function maskPhone(string $e164): string
+    {
+        $n = preg_replace('/\D+/', '', $e164);
+        $local = '0' . substr($n, 3);
+        return strlen($local) === 10 ? substr($local, 0, 4) . ' ••• ' . substr($local, -3) : $e164;
+    }
+
     private function kopokopoCreateCheckout(float $amount, string $currency, string $ref, array $c, array $urls): array
     {
-        $phone = preg_replace('/\D/', '', $c['phone'] ?? '');
-        if (!$phone) return ['success' => false, 'message' => 'A phone number is required for M-Pesa STK Push.'];
-        // Normalise to +2547XXXXXXXX (Kopo Kopo wants E.164)
-        if (str_starts_with($phone, '0'))     $phone = '254' . substr($phone, 1);
-        elseif (str_starts_with($phone, '7')) $phone = '254' . $phone;
-        $phone = '+' . $phone;
+        $phone = self::mpesaPhone($c['phone'] ?? '');
+        if (!$phone) {
+            return ['success' => false, 'message' => trim((string) ($c['phone'] ?? '')) === ''
+                ? 'Enter the M-Pesa phone number to send the payment prompt to.'
+                : 'That doesn\'t look like a Safaricom M-Pesa number. Use the format 0712 345 678.'];
+        }
+        // M-Pesa moves whole shillings only; settlePayment() records what
+        // actually arrived, so rounding up never shorts an invoice.
+        $value = (int) ceil(round($amount, 2));
+        if ($value < 1) return ['success' => false, 'message' => 'Nothing to charge.'];
+        if ($value > 250000) return ['success' => false, 'message' => 'M-Pesa caps a single payment at KES 250,000 — please pay this amount by bank transfer.'];
 
-        $name  = trim($c['name'] ?? '');
+        $name  = trim(preg_replace('/\s+/', ' ', (string) ($c['name'] ?? '')));
         $first = $name !== '' ? explode(' ', $name)[0] : 'Customer';
         $last  = trim(substr($name, strlen($first))) ?: $first;
 
-        $token = $this->kopokopoToken();
-        $r = $this->http($this->kopokopoBase() . '/api/v1/incoming_payments', 'POST',
-            ['Authorization: Bearer ' . $token, 'Content-Type: application/json', 'Accept: application/json'],
-            [
-                'payment_channel' => 'M-PESA STK Push',
-                'till_number'     => $this->cfg['till_number'] ?? '',
-                'subscriber'      => ['first_name' => $first, 'last_name' => $last, 'phone_number' => $phone, 'email' => $c['email'] ?? ''],
-                // Kopo Kopo STK charges are KES-only; M-Pesa amounts are whole shillings.
-                'amount'          => ['currency' => 'KES', 'value' => (int) ceil($amount)],
-                'metadata'        => ['reference' => $ref],
-                '_links'          => ['callback_url' => $urls['callback'] ?? ($urls['return'] ?? '')],
-            ]);
+        $r = $this->kopokopoApi($this->kopokopoBase() . '/api/v1/incoming_payments', 'POST', [
+            'payment_channel' => 'M-PESA STK Push',
+            'till_number'     => trim((string) ($this->cfg['till_number'] ?? '')),
+            'subscriber'      => array_filter(['first_name' => $first, 'last_name' => $last, 'phone_number' => $phone, 'email' => $c['email'] ?? '']),
+            'amount'          => ['currency' => 'KES', 'value' => $value],
+            'metadata'        => ['reference' => $ref, 'notes' => 'Orbit Cloud ' . $ref],
+            '_links'          => ['callback_url' => $urls['callback'] ?? ($urls['return'] ?? '')],
+        ]);
 
         $resource = $r['headers']['location'] ?? '';
-        if ($r['code'] !== 201 || $resource === '') {
+        if ((int) $r['code'] !== 201 || $resource === '') {
             $msg = $r['data']['error_message'] ?? ($r['data']['error_description'] ?? null);
-            if (!$msg && !empty($r['data']['errors'])) $msg = json_encode($r['data']['errors']);
-            return ['success' => false, 'message' => 'Kopo Kopo rejected the STK push: ' . ($msg ?: 'HTTP ' . $r['code'])];
+            if (!$msg && !empty($r['data']['errors'])) $msg = is_string($r['data']['errors']) ? $r['data']['errors'] : json_encode($r['data']['errors']);
+            return ['success' => false, 'message' => 'M-Pesa couldn\'t send the prompt: ' . ($msg ?: 'Kopo Kopo returned HTTP ' . $r['code']) . '. Please try again.'];
         }
         return ['success' => true, 'mode' => 'push', 'ref' => $resource,
-                'message' => 'STK push sent to ' . $phone . ' — enter the M-Pesa PIN on the phone to approve, then verify below.'];
+                'phone'   => $phone, 'charged' => $value,
+                'message' => 'We\'ve sent an M-Pesa prompt for KES ' . number_format($value) . ' to ' . self::maskPhone($phone)
+                           . '. Enter your M-Pesa PIN on your phone to approve it.'];
+    }
+
+    /**
+     * Kopo Kopo / Safaricom failure text → something a customer can act on.
+     * The original is kept in brackets for support.
+     */
+    private static function kopokopoFailureReason($errors): string
+    {
+        $raw = is_array($errors) ? implode('; ', array_map(fn($e) => is_array($e) ? json_encode($e) : (string) $e, $errors)) : trim((string) $errors);
+        $l = strtolower($raw);
+        $map = [
+            'cancel'        => 'You cancelled the M-Pesa prompt.',
+            'insufficient'  => 'Your M-Pesa balance was too low for this payment.',
+            'timeout'       => 'The prompt timed out before the PIN was entered.',
+            'timed out'     => 'The prompt timed out before the PIN was entered.',
+            'ds timeout'    => 'Your phone couldn\'t be reached — make sure it\'s on and has signal, then try again.',
+            'unreachable'   => 'Your phone couldn\'t be reached — make sure it\'s on and has signal, then try again.',
+            'initiator'     => 'The wrong M-Pesa PIN was entered.',
+            'pin'           => 'The wrong M-Pesa PIN was entered.',
+            'limit'         => 'This payment is above your M-Pesa transaction limit.',
+            'locked'        => 'Your M-Pesa account is locked — contact Safaricom, or pay another way.',
+            'not registered'=> 'That number isn\'t registered for M-Pesa.',
+        ];
+        foreach ($map as $needle => $friendly) {
+            if (str_contains($l, $needle)) return $friendly . ($raw !== '' ? ' (' . $raw . ')' : '');
+        }
+        return 'The M-Pesa payment wasn\'t completed' . ($raw !== '' ? ': ' . $raw : '.');
     }
     /**
      * Events worth subscribing to. Without these, the ONLY payments this
@@ -395,14 +525,12 @@ final class PaymentClient
 
     private function kopokopoSubscribeWebhooks(string $baseUrl): array
     {
-        $token = $this->kopokopoToken();
         $url   = rtrim($baseUrl, '/') . '/api/webhooks/kopokopo.php';
         $done  = [];
         $failed = [];
 
         foreach (self::KK_EVENTS as $event) {
-            $r = $this->http($this->kopokopoBase() . '/api/v1/webhook_subscriptions', 'POST',
-                ['Authorization: Bearer ' . $token, 'Content-Type: application/json', 'Accept: application/json'],
+            $r = $this->kopokopoApi($this->kopokopoBase() . '/api/v1/webhook_subscriptions', 'POST',
                 [
                     'event_type'  => $event,
                     'url'         => $url,
@@ -430,9 +558,7 @@ final class PaymentClient
 
     private function kopokopoListWebhooks(): array
     {
-        $token = $this->kopokopoToken();
-        $r = $this->http($this->kopokopoBase() . '/api/v1/webhook_subscriptions', 'GET',
-            ['Authorization: Bearer ' . $token, 'Accept: application/json']);
+        $r = $this->kopokopoApi($this->kopokopoBase() . '/api/v1/webhook_subscriptions', 'GET');
         $items = $r['data']['data'] ?? [];
         $out = [];
         foreach ((array) $items as $it) {
@@ -462,22 +588,28 @@ final class PaymentClient
         if (!str_starts_with($ref, $this->kopokopoBase() . '/')) {
             return ['success' => false, 'status' => 'failed', 'amount' => 0, 'message' => 'Invalid Kopo Kopo payment reference.'];
         }
-        $token = $this->kopokopoToken();
-        $r = $this->http($ref, 'GET', ['Authorization: Bearer ' . $token, 'Accept: application/json']);
+        $r = $this->kopokopoApi($ref, 'GET');
+        if ((int) $r['code'] === 0 || (int) $r['code'] >= 500 || (int) $r['code'] === 429) {
+            // Kopo Kopo hiccup — not an answer about the payment. Stay pending.
+            return ['success' => false, 'status' => 'pending', 'amount' => 0,
+                    'message' => 'Still waiting for M-Pesa to confirm…'];
+        }
         $attr   = $r['data']['data']['attributes'] ?? [];
-        $status = $attr['status'] ?? 'unknown';
+        $status = (string) ($attr['status'] ?? 'unknown');
+        $res    = $attr['event']['resource'] ?? [];
 
         if (strcasecmp($status, 'Success') === 0) {
             return ['success' => true, 'status' => 'completed',
-                    'amount' => (float) ($attr['event']['resource']['amount'] ?? 0),
-                    'message' => 'Payment completed.'];
+                    'amount'  => (float) ($res['amount'] ?? 0),
+                    'mpesa_ref' => (string) ($res['reference'] ?? ''),
+                    'message' => 'Payment received' . (!empty($res['reference']) ? ' — M-Pesa code ' . $res['reference'] : '') . '.'];
         }
         if (strcasecmp($status, 'Failed') === 0) {
             return ['success' => false, 'status' => 'failed', 'amount' => 0,
-                    'message' => $attr['event']['errors'] ?? 'Payment was not completed (cancelled, timed out or insufficient funds).'];
+                    'message' => self::kopokopoFailureReason($attr['event']['errors'] ?? '')];
         }
         return ['success' => false, 'status' => 'pending', 'amount' => 0,
-                'message' => 'Payment not confirmed yet — waiting for the customer to complete it on their phone.'];
+                'message' => 'Waiting for you to approve the prompt on your phone…'];
     }
 
     // ══════════════════════════════════════════════════════════

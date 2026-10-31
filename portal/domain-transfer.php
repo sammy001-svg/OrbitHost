@@ -143,6 +143,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
             } elseif (($r['mode'] ?? '') === 'redirect' && !empty($r['redirect_url'])) {
                 header('Location: ' . $r['redirect_url']);
                 exit;
+            } elseif (($r['mode'] ?? '') === 'push') {
+                // Redirect so a refresh re-checks instead of re-sending the prompt.
+                header('Location: ' . PORTAL_URL . '/domain-transfer.php?pay=' . $pay_id);
+                exit;
             } else {
                 $view = 'pending';
                 $push_msg = $r['message'] ?? 'Payment request sent — approve it, then click Verify below.';
@@ -201,6 +205,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
       <p style="font-size:13.5px;color:var(--text-muted)"><?php echo htmlspecialchars($tf_note ?: 'Your transfer request has been submitted.'); ?></p>
       <?php if ($tf_ok === false): ?><p style="font-size:12.5px;color:var(--warning);margin-top:8px"><i class="fas fa-triangle-exclamation"></i> Our team has been notified and will complete this manually.</p><?php endif; ?>
       <a href="<?php echo PORTAL_URL; ?>/domains.php" class="btn btn-primary btn-pay" style="margin-top:20px"><i class="fas fa-globe"></i> Back to My Domains</a>
+
+    <?php elseif ($view === 'pending' && ($stk = dp_payment_row($pay_id, $client_id)) && $stk['gateway'] === 'kopokopo'): ?>
+      <?php stk_wait_panel($stk, PORTAL_URL . '/domain-transfer.php?pay={pay}', PORTAL_URL . '/domain-transfer.php'); ?>
 
     <?php elseif ($view === 'pending'): ?>
       <div class="co-info" style="white-space:pre-line;text-align:left"><i class="fas fa-mobile-screen"></i> <?php echo htmlspecialchars($push_msg ?: 'Waiting for payment confirmation.'); ?></div>
@@ -282,5 +289,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
 
   <a href="<?php echo PORTAL_URL; ?>/domains.php" class="back-link">← Back to My Domains</a>
 </div>
+<?php stk_submit_guard(); ?>
 </body>
 </html>

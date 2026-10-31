@@ -16,11 +16,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reche
     require_role('admin', APP_URL . '/billing/index.php');
     $pid = (int) ($_POST['id'] ?? 0);
     $r = Automation::settlePayment($pid);
-    $labels = ['completed' => 'success', 'already' => 'success', 'failed' => 'error', 'pending' => 'info', 'not_found' => 'error'];
+    $labels = ['completed' => 'success', 'already' => 'success', 'failed' => 'error', 'pending' => 'info', 'not_found' => 'error', 'underpaid' => 'warning'];
     flash_set($labels[$r['status']] ?? 'info', 'Re-check: ' . ($r['message'] ?? $r['status']));
-    header('Location: ' . APP_URL . '/billing/index.php');
+    header('Location: ' . APP_URL . ($r['status'] === 'underpaid' ? '/billing/short.php?id=' . $pid : '/billing/index.php'));
     exit;
 }
+
+Automation::ensureSchema();
 
 // KPIs
 $collected = (float) db()->query("SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='completed' AND MONTH(created_at)=MONTH(CURDATE()) AND YEAR(created_at)=YEAR(CURDATE())")->fetchColumn();
@@ -45,6 +47,21 @@ try {
     )->fetchAll();
 } catch (\Throwable $e) {
     $unallocated = [];
+}
+
+// Payments that came in short — the invoice is held open and nothing is
+// fulfilled until someone decides (billing/short.php).
+try {
+    $short_queue = db()->query(
+        "SELECT p.*, CONCAT(COALESCE(c.first_name,''),' ',COALESCE(c.last_name,'')) client_name, i.invoice_number
+         FROM payments p
+         LEFT JOIN clients c  ON c.id = p.client_id
+         LEFT JOIN invoices i ON i.id = p.invoice_id
+         WHERE p.review IN ('" . Automation::REVIEW_SHORT . "','" . Automation::REVIEW_CHASING . "')
+         ORDER BY p.review = '" . Automation::REVIEW_SHORT . "' DESC, p.updated_at ASC"
+    )->fetchAll();
+} catch (\Throwable $e) {
+    $short_queue = []; // review column not migrated
 }
 
 // Recent payments
@@ -123,6 +140,52 @@ require_once '../includes/header.php';
         <td style="text-align:right">
           <a href="<?php echo APP_URL; ?>/billing/allocate.php?id=<?php echo (int) $u['id']; ?>" class="btn btn-primary btn-xs">
             <i class="fas fa-link"></i> Allocate
+          </a>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
+  </div>
+</div>
+<?php endif; ?>
+
+<?php if ($short_queue && can('admin')): ?>
+<div class="table-wrap" style="margin-bottom:20px;border-color:var(--warning)">
+  <div class="table-toolbar">
+    <span class="card-title"><i class="fas fa-scale-unbalanced" style="color:var(--warning)"></i> Short payments to review</span>
+    <span class="table-count"><?php echo count($short_queue); ?> held</span>
+  </div>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>Invoice</th><th>Client</th><th>Received</th><th>Short by</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      <?php foreach ($short_queue as $s):
+        $sr  = (json_decode((string) $s['raw'], true) ?: [])['short'] ?? [];
+        $gap = $s['invoice_id'] ? Automation::invoiceOutstanding((int) $s['invoice_id']) : max(0, (float) ($sr['expected'] ?? 0) - (float) $s['amount']);
+      ?>
+      <tr>
+        <td>
+          <div class="td-name"><?php echo h($s['invoice_number'] ?: '—'); ?></div>
+          <div class="td-sub mono"><?php echo h((string) $s['gateway_ref']); ?></div>
+        </td>
+        <td><?php echo trim((string) $s['client_name']) !== '' ? h($s['client_name']) : '<span class="text-muted">Unknown</span>'; ?></td>
+        <td>
+          <div class="fw-600"><?php echo h($s['currency']); ?> <?php echo number_format((float) $s['amount'], 2); ?></div>
+          <?php if (isset($sr['expected'])): ?><div class="td-sub">of <?php echo number_format((float) $sr['expected'], 2); ?></div><?php endif; ?>
+        </td>
+        <td class="fw-600" style="color:var(--danger)"><?php echo h($s['currency']); ?> <?php echo number_format($gap, 2); ?></td>
+        <td>
+          <?php if ($s['review'] === Automation::REVIEW_CHASING): ?>
+            <span class="badge badge-primary">Balance requested</span>
+          <?php else: ?>
+            <span class="badge badge-warning">Needs a decision</span>
+          <?php endif; ?>
+          <div class="td-sub"><?php echo time_ago($s['updated_at']); ?></div>
+        </td>
+        <td style="text-align:right">
+          <a href="<?php echo APP_URL; ?>/billing/short.php?id=<?php echo (int) $s['id']; ?>" class="btn btn-primary btn-xs">
+            <i class="fas fa-gavel"></i> Review
           </a>
         </td>
       </tr>

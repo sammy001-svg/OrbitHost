@@ -6,6 +6,16 @@
  */
 require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/providers/Provider.php';
+require_once __DIR__ . '/stk_wait.php';
+
+/** The client's own payment row, or null — for the M-Pesa waiting screen. */
+function dp_payment_row(int $pay_id, int $client_id): ?array
+{
+    if ($pay_id < 1) return null;
+    $s = db()->prepare('SELECT * FROM payments WHERE id = ? AND client_id = ?');
+    $s->execute([$pay_id, $client_id]);
+    return $s->fetch() ?: null;
+}
 
 /**
  * Active + configured payment gateways, optionally filtered to those that

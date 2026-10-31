@@ -73,6 +73,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 require_once '../includes/Mailer.php';
                 $to = trim($_POST['test_to'] ?? '') ?: current_admin()['email'];
                 $result = Mailer::fromConfig()->test($to);
+            } elseif ($def['category'] === 'sms') {
+                $phone = trim($_POST['test_phone'] ?? '');
+                if ($phone === '') {
+                    $result = Provider::sms($provider)->testConnection();
+                } else {
+                    // A real text — spends units — so only on an explicit number.
+                    require_role('admin', APP_URL . '/integrations/index.php');
+                    $r = Provider::sms($provider)->send($phone, 'Orbit Cloud: test message from your admin panel. SMS is working.');
+                    $result = ['success' => $r['success'], 'message' => $r['success']
+                        ? 'Test SMS accepted for ' . $phone . ' (' . number_format((float) $r['units'], 2) . ' units, ' . number_format((float) $r['balance'], 2) . ' left).'
+                        : ($r['message'] ?? 'Failed.')];
+                }
             } else {
                 $result = match ($def['category']) {
                     'panel'     => Provider::panel($provider)->testConnection(),
@@ -309,6 +321,20 @@ require_once '../includes/header.php';
         <button type="submit" class="btn btn-outline" style="white-space:nowrap"><i class="fas fa-paper-plane"></i> Send</button>
       </form>
       <small class="form-hint">Save your settings first — the test uses what's stored in the database.</small>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($def['category'] === 'sms'): ?>
+    <div class="drawer-foot" style="flex-direction:column;align-items:stretch;gap:8px">
+      <label class="form-label" style="margin:0">Send a test SMS</label>
+      <form method="POST" style="margin:0;display:flex;gap:8px">
+        <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+        <input type="hidden" name="action" value="test" />
+        <input type="hidden" name="provider" value="<?php echo $key; ?>" />
+        <input type="tel" name="test_phone" class="form-control" required placeholder="0712 345 678" />
+        <button type="submit" class="btn btn-outline" style="white-space:nowrap"><i class="fas fa-paper-plane"></i> Send</button>
+      </form>
+      <small class="form-hint">Uses one SMS unit. The <strong>Test</strong> button on the card only checks your balance. Campaigns and the SMS log are under <a href="<?php echo APP_URL; ?>/sms/">SMS</a>.</small>
     </div>
     <?php endif; ?>
   </div>

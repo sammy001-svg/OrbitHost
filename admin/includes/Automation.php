@@ -47,6 +47,11 @@ final class Automation
     /** Suspend this many days after next_due if the renewal is unpaid. */
     public const GRACE_DAYS = 5;
 
+    /** payments.review values. NULL = nothing to review. */
+    public const REVIEW_SHORT    = 'short';    // underpaid, nobody has decided yet
+    public const REVIEW_CHASING  = 'chasing';  // client asked to pay the balance
+    public const REVIEW_RESOLVED = 'resolved'; // decided — see raw.short.resolution
+
     /** invoices.order_id links renewal invoices to the order they renew. */
     public static function ensureSchema(): void
     {
@@ -80,6 +85,21 @@ final class Automation
         }
 
         try {
+            // payments.review marks a payment a human still has to decide
+            // on — today only short payments (see noteShortPayment()). The
+            // details live in raw.short; the column is what the queue
+            // filters on, since JSON_EXTRACT on raw isn't portable across
+            // the MySQL/MariaDB versions shared hosts run.
+            $col = db()->query("SHOW COLUMNS FROM payments LIKE 'review'")->fetch();
+            if (!$col) {
+                db()->exec('ALTER TABLE payments ADD COLUMN review VARCHAR(20) DEFAULT NULL, ADD INDEX idx_pay_review (review)');
+            }
+        } catch (\Throwable $e) {
+            // no ALTER privilege — short payments are still logged and
+            // emailed to admins, they just don't appear in the review queue
+        }
+
+        try {
             // noteDomain() has always written to domain_registrations.notes,
             // but no schema file ever created it — so every domain
             // diagnostic (registration failed, transfer lodged, renewal
@@ -90,6 +110,26 @@ final class Automation
             }
         } catch (\Throwable $e) {
             // no ALTER privilege — domain notes stay unrecorded, as before
+        }
+
+        try {
+            // Domains sold through the website checkout: which invoice pays
+            // for each (invoice_id), what was asked for (order_mode), and
+            // when it was actually lodged with the registrar (lodged_at —
+            // a transfer stays 'pending' for days afterwards, so status
+            // alone can't stop a second payment path lodging it again).
+            foreach ([
+                'invoice_id' => 'ADD COLUMN invoice_id INT UNSIGNED DEFAULT NULL, ADD INDEX idx_dr_invoice (invoice_id)',
+                'order_mode' => 'ADD COLUMN order_mode VARCHAR(20) DEFAULT NULL',
+                'lodged_at'  => 'ADD COLUMN lodged_at DATETIME DEFAULT NULL',
+                'id_protection' => 'ADD COLUMN id_protection TINYINT(1) NOT NULL DEFAULT 0',
+            ] as $col => $ddl) {
+                if (!db()->query("SHOW COLUMNS FROM domain_registrations LIKE '$col'")->fetch()) {
+                    db()->exec("ALTER TABLE domain_registrations $ddl");
+                }
+            }
+        } catch (\Throwable $e) {
+            // no ALTER privilege — checkout falls back to order-linked domains only
         }
     }
 
@@ -208,6 +248,16 @@ final class Automation
             return ['status' => 'none', 'message' => 'No order link column.'];
         }
 
+        // Every domain this invoice paid for — a domain-only checkout, or
+        // the extra domains bought alongside a hosting package. Runs before
+        // provisioning so the hosting account is created on a domain we've
+        // already submitted for registration.
+        $domains = self::fulfilInvoiceDomains($invoice_id);
+
+        if (!$order_id && $domains) {
+            return ['status' => 'domains', 'message' => implode(' ', $domains)];
+        }
+
         if (!$order_id) {
             return $cs_id ? self::servicePaid($cs_id) : ['status' => 'none', 'message' => 'Invoice not linked to an order or service.'];
         }
@@ -271,13 +321,55 @@ final class Automation
             return; // domain table not migrated — nothing to do
         }
         if (!$row) return; // "use my existing domain", or already handled
+        self::fulfilDomainRow($row);
+    }
 
+    /**
+     * Register / transfer every pending domain an invoice paid for.
+     * @return string[] one human line per domain handled
+     */
+    private static function fulfilInvoiceDomains(int $invoice_id): array
+    {
+        try {
+            $s = db()->prepare("SELECT * FROM domain_registrations WHERE invoice_id = ? AND status = 'pending' AND lodged_at IS NULL");
+            $s->execute([$invoice_id]);
+            $rows = $s->fetchAll();
+        } catch (\Throwable $e) {
+            return []; // columns not migrated — order-linked path still runs
+        }
+        $out = [];
+        foreach ($rows as $row) {
+            $out[] = self::fulfilDomainRow($row);
+        }
+        return $out;
+    }
+
+    /**
+     * Submit one pending domain_registrations row to the active registrar.
+     * Idempotent: claims the row (lodged_at) before calling out, so two
+     * payment paths racing each other can't register or transfer it twice.
+     */
+    private static function fulfilDomainRow(array $row): string
+    {
+        $domain = (string) $row['domain_name'];
+        if (array_key_exists('lodged_at', $row)) {
+            if (!empty($row['lodged_at'])) return $domain . ': already submitted.';
+            $claim = db()->prepare('UPDATE domain_registrations SET lodged_at = NOW() WHERE id = ? AND lodged_at IS NULL');
+            $claim->execute([(int) $row['id']]);
+            if ($claim->rowCount() === 0) return $domain . ': already submitted.';
+        }
+        $unclaim = function () use ($row): void {
+            try { db()->prepare('UPDATE domain_registrations SET lodged_at = NULL WHERE id = ?')->execute([(int) $row['id']]); } catch (\Throwable $e) {}
+        };
+
+        $order = ['client_id' => (int) $row['client_id']];
         $reg_key = Provider::activeFor('registrar');
         if (!$reg_key) {
             self::noteDomain((int) $row['id'], 'Paid — awaiting manual '
                 . ((($row['order_mode'] ?? 'register') === 'transfer') ? 'transfer' : 'registration')
                 . ' (no registrar is active).');
-            return;
+            $unclaim();
+            return $domain . ': paid — our team will complete it by hand.';
         }
 
         $stmt = db()->prepare('SELECT * FROM clients WHERE id = ?');
@@ -307,7 +399,8 @@ final class Automation
 
         if ($is_transfer && $epp === '') {
             self::noteDomain((int) $row['id'], 'Paid — transfer needs the EPP/auth code before it can be lodged.');
-            return;
+            $unclaim();
+            return $domain . ': transfer needs the EPP/auth code.';
         }
 
         try {
@@ -328,12 +421,22 @@ final class Automation
                     } catch (\Throwable $e) {}
                 }
                 self::noteDomain((int) $row['id'], $verb . ' lodged with ' . $reg_key . ' after payment.');
-            } else {
-                self::noteDomain((int) $row['id'], $verb . ' failed — ' . ($r['message'] ?? 'registrar rejected the request.'));
+                return $domain . ': ' . strtolower($verb) . ' submitted.';
             }
+            self::noteDomain((int) $row['id'], $verb . ' failed — ' . ($r['message'] ?? 'registrar rejected the request.'));
         } catch (\Throwable $e) {
             self::noteDomain((int) $row['id'], $verb . ' error — ' . $e->getMessage());
         }
+        $unclaim();
+        try {
+            Notifier::sendToAllAdmins('order_new_admin', [
+                'client_name' => trim(($client['first_name'] ?? '') . ' ' . ($client['last_name'] ?? '')),
+                'item'    => 'Domain ' . strtolower($verb) . ' FAILED after payment: ' . $domain . ' — finish it by hand',
+                'amount'  => '—', 'gateway' => 'registrar',
+                'link'    => APP_URL . '/integrations/domains/index.php',
+            ]);
+        } catch (\Throwable $e) {}
+        return $domain . ': ' . strtolower($verb) . ' is being completed by our team.';
     }
 
     /**
@@ -386,7 +489,10 @@ final class Automation
 
         if (empty($v['success'])) {
             if (($v['status'] ?? '') === 'failed') {
-                db()->prepare("UPDATE payments SET status = 'failed' WHERE id = ?")->execute([$payment_id]);
+                // Keep the reason: the payment screen shows it to the client.
+                $fr = json_decode($pay['raw'] ?? '', true) ?: [];
+                $fr['failure'] = (string) ($v['message'] ?? 'Payment failed.');
+                db()->prepare("UPDATE payments SET status = 'failed', raw = ? WHERE id = ?")->execute([json_encode($fr), $payment_id]);
                 self::notifyPaymentOutcome($pay, false, $v['message'] ?? 'Payment failed.');
                 return ['status' => 'failed', 'message' => $v['message'] ?? 'Payment failed.'];
             }
@@ -408,11 +514,33 @@ final class Automation
         db()->prepare("UPDATE payments SET status = 'completed', amount = ? WHERE id = ?")
             ->execute([$collected > 0 ? $collected : $expected, $payment_id]);
 
+        // The M-Pesa confirmation code is what the client sees on their
+        // phone and quotes to support — keep it with the payment.
+        if (!empty($v['mpesa_ref'])) {
+            try {
+                $rq = db()->prepare('SELECT raw FROM payments WHERE id = ?');
+                $rq->execute([$payment_id]);
+                $rr = json_decode((string) $rq->fetchColumn(), true) ?: [];
+                $rr['mpesa_ref'] = $v['mpesa_ref'];
+                db()->prepare('UPDATE payments SET raw = ? WHERE id = ?')->execute([json_encode($rr), $payment_id]);
+                $pay['raw'] = json_encode($rr);
+            } catch (\Throwable $e) {}
+        }
+
         // Short payment: the money arrived, but not all of it. Bank it and
         // tell someone — never mark the invoice paid or provision a service
-        // off a partial payment. An admin decides whether to accept the
-        // shortfall, chase the balance, or refund.
-        if ($collected > 0 && $collected + 0.01 < $expected) {
+        // off a partial payment. An admin decides in the review queue
+        // (billing/short.php) whether to write off the shortfall, cover it
+        // from credit, chase the balance, or refund.
+        //
+        // "Short" is judged against what this payment was meant to cover,
+        // but forgiven when the invoice ends up fully covered anyway (an
+        // earlier part-payment plus this one).
+        $is_short = $collected > 0 && $collected + 0.01 < $expected;
+        if ($is_short && $pay['invoice_id'] && self::invoiceOutstanding((int) $pay['invoice_id']) <= 0.01) {
+            $is_short = false;
+        }
+        if ($is_short) {
             $cur = $pay['currency'] ?: (defined('CURRENCY') ? CURRENCY : 'USD');
             self::noteShortPayment($pay, $collected, $expected, $cur);
             return [
@@ -424,13 +552,96 @@ final class Automation
             ];
         }
 
+        $result = ['status' => 'completed', 'message' => 'Payment settled.'];
         if ($pay['invoice_id']) {
-            db()->prepare("UPDATE invoices SET status = 'paid', paid_date = CURDATE(), payment_method = ? WHERE id = ?")
-                ->execute([$pay['gateway'], $pay['invoice_id']]);
+            $pay['amount'] = $collected > 0 ? $collected : $expected;
+            $settled = self::settleInvoice((int) $pay['invoice_id'], $pay);
+            return array_merge($result, $settled['fulfilment'] ?? []);
+        }
+        return array_merge($result, self::dispatchFulfilment($pay));
+    }
+
+    /**
+     * What is still owed on an invoice: its total less every completed
+     * payment against it (account credit included, refunds excluded).
+     */
+    public static function invoiceOutstanding(int $invoice_id): float
+    {
+        $stmt = db()->prepare("SELECT i.total - COALESCE((SELECT SUM(p.amount) FROM payments p
+                                                          WHERE p.invoice_id = i.id AND p.status = 'completed'), 0)
+                               FROM invoices i WHERE i.id = ?");
+        $stmt->execute([$invoice_id]);
+        return max(0.0, round((float) $stmt->fetchColumn(), 2));
+    }
+
+    /**
+     * Mark an invoice paid and run whatever fulfilment it was raised for.
+     * Every "the invoice is now covered" path ends here — a gateway
+     * settling in full, a balance paid after a short payment, a shortfall
+     * written off or covered from credit — so they all behave identically.
+     *
+     * Fulfilment comes from the payment that STARTED the purchase. When an
+     * invoice was short-paid and then topped up, that's the original short
+     * payment — its raw.context is the cart / order / renewal snapshot —
+     * not the balance payment, which knows only "pay this invoice".
+     *
+     * Refuses an invoice that is already paid: invoicePaid() advances
+     * renewal dates, so running it twice would give a free billing cycle.
+     *
+     * @param array $trigger the payments row that completed the invoice
+     * @return array{status:string, message:string, fulfilment?:array}
+     */
+    public static function settleInvoice(int $invoice_id, array $trigger): array
+    {
+        self::ensureSchema();
+        $stmt = db()->prepare('SELECT status FROM invoices WHERE id = ?');
+        $stmt->execute([$invoice_id]);
+        $status = $stmt->fetchColumn();
+        if ($status === false) return ['status' => 'not_found', 'message' => 'Invoice not found.'];
+        if ($status === 'paid') {
+            try {
+                log_activity('payment_on_paid_invoice', 'payment', (int) $trigger['id'],
+                    'Payment completed against an invoice that was already paid — check for a duplicate charge.');
+            } catch (\Throwable $e) {}
+            return ['status' => 'already', 'message' => 'Invoice was already paid — fulfilment not repeated.'];
         }
 
+        // Claim the invoice before fulfilling, so a racing caller sees 'paid'.
+        $claim = db()->prepare("UPDATE invoices SET status = 'paid', paid_date = CURDATE(), payment_method = ? WHERE id = ? AND status <> 'paid'");
+        $claim->execute([$trigger['gateway'], $invoice_id]);
+        if ($claim->rowCount() === 0) return ['status' => 'already', 'message' => 'Invoice was already paid.'];
+
+        // An open short-payment review on this invoice is now answered.
+        $origin = null;
+        try {
+            $q = db()->prepare('SELECT * FROM payments WHERE invoice_id = ? AND review IN (?, ?) ORDER BY id ASC');
+            $q->execute([$invoice_id, self::REVIEW_SHORT, self::REVIEW_CHASING]);
+            foreach ($q->fetchAll() as $sp) {
+                $origin = $origin ?? $sp;
+                $raw = json_decode($sp['raw'] ?? '', true) ?: [];
+                if (empty($raw['short']['resolution'])) {
+                    $raw['short']['resolution'] = ['action' => 'balance_paid', 'payment_id' => (int) $trigger['id'], 'at' => date('c')];
+                }
+                db()->prepare('UPDATE payments SET review = ?, raw = ? WHERE id = ?')
+                    ->execute([self::REVIEW_RESOLVED, json_encode($raw), (int) $sp['id']]);
+            }
+        } catch (\Throwable $e) { /* no review column — nothing was ever flagged */ }
+
+        $fulfil = $origin ?? $trigger;
+        if ($origin) {
+            // Re-read so dispatch sees the raw just written above.
+            $q = db()->prepare('SELECT * FROM payments WHERE id = ?');
+            $q->execute([(int) $origin['id']]);
+            $fulfil = $q->fetch() ?: $origin;
+        }
+        return ['status' => 'completed', 'message' => 'Invoice settled.', 'fulfilment' => self::dispatchFulfilment($fulfil)];
+    }
+
+    /** Run the fulfilment a payment's raw.context asks for. */
+    private static function dispatchFulfilment(array $pay): array
+    {
         $ctx = (json_decode($pay['raw'] ?? '', true) ?: [])['context'] ?? [];
-        $result = ['status' => 'completed', 'message' => 'Payment settled.'];
+        $result = [];
 
         switch ($ctx['action'] ?? '') {
             case 'domain_checkout':
@@ -799,18 +1010,174 @@ final class Automation
             $currency, number_format($collected, 2),
             $currency, number_format($expected, 2),
             number_format($expected - $collected, 2));
+
+        // Persist what was owed: settlePayment() has just overwritten
+        // payments.amount with what was collected, so this is the only
+        // durable record of the expected figure.
+        try {
+            self::ensureSchema();
+            $q = db()->prepare('SELECT raw FROM payments WHERE id = ?');
+            $q->execute([(int) $pay['id']]);
+            $raw = json_decode((string) $q->fetchColumn(), true) ?: [];
+            $raw['short'] = [
+                'expected'   => round($expected, 2),
+                'collected'  => round($collected, 2),
+                'currency'   => $currency,
+                'flagged_at' => date('c'),
+            ];
+            db()->prepare('UPDATE payments SET review = ?, raw = ? WHERE id = ?')
+                ->execute([self::REVIEW_SHORT, json_encode($raw), (int) $pay['id']]);
+        } catch (\Throwable $e) { /* no review column — the log + email below still go out */ }
+
         try {
             log_activity('payment_short', 'payment', (int) $pay['id'], $detail);
         } catch (\Throwable $e) {}
         try {
-            Notifier::sendToAllAdmins('payment_failed', [
-                'client_name' => 'Payment #' . (int) $pay['id'],
-                'amount'      => $currency . ' ' . number_format($collected, 2),
-                'gateway'     => ucfirst(str_replace('_', ' ', (string) $pay['gateway'])),
-                'reason'      => 'Underpayment — ' . $detail . ' The invoice has been left unpaid for review.',
-                'link'        => APP_URL . '/billing/index.php',
+            // An admin-audience type: 'payment_failed' is a CLIENT type, and
+            // sending it to admin ids looked those ids up in `clients`.
+            Notifier::sendToAllAdmins('payment_short_admin', [
+                'payment_label' => 'Payment #' . (int) $pay['id'],
+                'amount'        => $currency . ' ' . number_format($collected, 2),
+                'gateway'       => ucfirst(str_replace('_', ' ', (string) $pay['gateway'])),
+                'detail'        => $detail,
+                'link'          => APP_URL . '/billing/short.php?id=' . (int) $pay['id'],
             ]);
         } catch (\Throwable $e) {}
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    /**
+     * An admin's decision on a short payment (billing/short.php).
+     *
+     *   write_off    accept the shortfall: invoice paid, service fulfilled
+     *   apply_credit cover the shortfall from the client's account credit
+     *   chase        email the client the balance; invoice stays open and
+     *                settles itself (with fulfilment) when the rest arrives
+     *   refunded     record that the money was sent back outside the app;
+     *                the payment stops counting and the invoice is owed in full
+     *
+     * @return array{ok:bool, message:string}
+     */
+    public static function resolveShortPayment(int $payment_id, string $action, int $admin_id, string $note = ''): array
+    {
+        self::ensureSchema();
+        $stmt = db()->prepare('SELECT p.*, i.invoice_number, i.status inv_status, i.notes inv_notes
+                               FROM payments p LEFT JOIN invoices i ON i.id = p.invoice_id
+                               WHERE p.id = ? AND p.review IN (?, ?)');
+        $stmt->execute([$payment_id, self::REVIEW_SHORT, self::REVIEW_CHASING]);
+        $pay = $stmt->fetch();
+        if (!$pay) return ['ok' => false, 'message' => 'That payment is not awaiting review.'];
+
+        $note     = mb_substr(trim($note), 0, 500);
+        $cur      = $pay['currency'] ?: (defined('CURRENCY') ? CURRENCY : 'USD');
+        $inv_id   = (int) $pay['invoice_id'];
+        $raw      = json_decode($pay['raw'] ?? '', true) ?: [];
+        $decision = ['action' => $action, 'by' => $admin_id, 'at' => date('c'), 'note' => $note];
+        $money    = fn(float $v) => $cur . ' ' . number_format($v, 2);
+        // These fulfilment paths email their own receipt — don't send a second.
+        $receipt  = !in_array($raw['context']['action'] ?? '', ['domain_checkout', 'renew', 'transfer'], true);
+
+        if ($inv_id && in_array($pay['inv_status'], ['paid', 'cancelled'], true) && $action !== 'refunded') {
+            return ['ok' => false, 'message' => 'Invoice ' . $pay['invoice_number'] . ' is already ' . $pay['inv_status'] . ' — only a refund can still be recorded.'];
+        }
+        $left = $inv_id ? self::invoiceOutstanding($inv_id) : 0.0;
+
+        // Always re-read raw before writing: settleInvoice() and the
+        // fulfilment it dispatches write to this same row in between.
+        // For the settling actions, call this AFTER settleInvoice() — that
+        // way settleInvoice() still finds this payment as the open review
+        // and fulfils from ITS context, then the admin's decision replaces
+        // the generic 'balance_paid' resolution it recorded.
+        $save = function (string $review) use (&$decision, $payment_id): void {
+            $q = db()->prepare('SELECT raw FROM payments WHERE id = ?');
+            $q->execute([$payment_id]);
+            $raw = json_decode((string) $q->fetchColumn(), true) ?: [];
+            $raw['short']['resolution'] = $decision;
+            db()->prepare('UPDATE payments SET review = ?, raw = ? WHERE id = ?')
+                ->execute([$review, json_encode($raw), $payment_id]);
+        };
+
+        switch ($action) {
+            case 'write_off':
+                if (!$inv_id) return ['ok' => false, 'message' => 'This payment is not linked to an invoice.'];
+                $decision['amount'] = $left;
+                $line = sprintf('[%s] Shortfall of %s written off (payment #%d)%s', date('Y-m-d'), $money($left), $payment_id, $note !== '' ? ': ' . $note : '.');
+                db()->prepare('UPDATE invoices SET notes = TRIM(CONCAT(COALESCE(notes, ""), "\n", ?)) WHERE id = ?')->execute([$line, $inv_id]);
+                $s = self::settleInvoice($inv_id, $pay);
+                $save(self::REVIEW_RESOLVED);
+                if ($receipt) {
+                    try { Notifier::sendInvoiceEmail($inv_id, 'invoice_paid', ['gateway' => ucfirst(str_replace('_', ' ', (string) $pay['gateway'])), 'amount' => $money((float) $pay['amount'])]); } catch (\Throwable $e) {}
+                }
+                log_activity('payment_short_write_off', 'payment', $payment_id, strip_tags($line));
+                return ['ok' => true, 'message' => $pay['invoice_number'] . ' settled — ' . $money($left) . ' written off. ' . self::fulfilmentSummary($s)];
+
+            case 'apply_credit':
+                if (!$inv_id || !$pay['client_id']) return ['ok' => false, 'message' => 'Needs both an invoice and a client.'];
+                $q = db()->prepare('SELECT COALESCE(SUM(amount),0) FROM client_credits WHERE client_id = ?');
+                try { $q->execute([(int) $pay['client_id']]); $bal = (float) $q->fetchColumn(); } catch (\Throwable $e) { $bal = 0.0; }
+                if ($bal + 0.01 < $left) {
+                    return ['ok' => false, 'message' => 'Not enough account credit: ' . $money($bal) . ' available, ' . $money($left) . ' needed.'];
+                }
+                db()->prepare('INSERT INTO client_credits (client_id, amount, reason, invoice_id, created_by) VALUES (?,?,?,?,?)')
+                    ->execute([(int) $pay['client_id'], -1 * $left, 'Shortfall on ' . $pay['invoice_number'] . ' (payment #' . $payment_id . ')', $inv_id, $admin_id]);
+                db()->prepare("INSERT INTO payments (invoice_id, client_id, gateway, gateway_ref, amount, currency, status) VALUES (?,?,?,?,?,?,'completed')")
+                    ->execute([$inv_id, (int) $pay['client_id'], 'credit', 'CREDIT-' . strtoupper(bin2hex(random_bytes(4))), $left, $cur]);
+                $credit_pay_id = (int) db()->lastInsertId();
+                $decision['amount'] = $left;
+                $decision['payment_id'] = $credit_pay_id;
+                $q = db()->prepare('SELECT * FROM payments WHERE id = ?');
+                $q->execute([$credit_pay_id]);
+                $s = self::settleInvoice($inv_id, $q->fetch());
+                $save(self::REVIEW_RESOLVED);
+                if ($receipt) {
+                    try { Notifier::sendInvoiceEmail($inv_id, 'invoice_paid', ['gateway' => ucfirst(str_replace('_', ' ', (string) $pay['gateway'])) . ' + Account Credit']); } catch (\Throwable $e) {}
+                }
+                log_activity('payment_short_credit', 'payment', $payment_id, 'Shortfall of ' . $money($left) . ' on ' . $pay['invoice_number'] . ' covered from account credit.');
+                return ['ok' => true, 'message' => $pay['invoice_number'] . ' settled — ' . $money($left) . ' taken from account credit. ' . self::fulfilmentSummary($s)];
+
+            case 'chase':
+                if (!$inv_id || !$pay['client_id']) return ['ok' => false, 'message' => 'Needs both an invoice and a client.'];
+                if ($left <= 0.01) return ['ok' => false, 'message' => 'Nothing is outstanding on ' . $pay['invoice_number'] . '.'];
+                $decision['amount'] = $left;
+                // Not resolved yet — it stays in the queue as "chasing" until
+                // the balance lands (settleInvoice() closes it) or an admin
+                // decides otherwise.
+                $raw['short']['chased'][] = $decision;
+                db()->prepare('UPDATE payments SET review = ?, raw = ? WHERE id = ?')
+                    ->execute([self::REVIEW_CHASING, json_encode($raw), $payment_id]);
+                try {
+                    Notifier::sendInvoiceEmail($inv_id, 'invoice_balance_due', [
+                        'paid'    => $money((float) $pay['amount']),
+                        'balance' => $money($left),
+                        'gateway' => ucfirst(str_replace('_', ' ', (string) $pay['gateway'])),
+                        'note'    => $note !== '' ? '<p>' . htmlspecialchars($note) . '</p>' : '',
+                    ]);
+                } catch (\Throwable $e) {
+                    return ['ok' => false, 'message' => 'Marked as chasing, but the email failed: ' . $e->getMessage()];
+                }
+                log_activity('payment_short_chase', 'payment', $payment_id, 'Client asked to pay the ' . $money($left) . ' balance on ' . $pay['invoice_number'] . '.');
+                return ['ok' => true, 'message' => 'Balance request for ' . $money($left) . ' sent — the invoice settles itself when it arrives.'];
+
+            case 'refunded':
+                if ($note === '') return ['ok' => false, 'message' => 'Give the refund reference so the books can be reconciled.'];
+                $save(self::REVIEW_RESOLVED);
+                db()->prepare("UPDATE payments SET status = 'refunded' WHERE id = ?")->execute([$payment_id]);
+                log_activity('payment_short_refund', 'payment', $payment_id, 'Short payment of ' . $money((float) $pay['amount']) . ' refunded outside the app: ' . $note);
+                return ['ok' => true, 'message' => 'Recorded as refunded. ' . ($inv_id ? $pay['invoice_number'] . ' is owed in full again.' : '')];
+        }
+        return ['ok' => false, 'message' => 'Unknown action.'];
+    }
+
+    /** One readable line out of settleInvoice()'s fulfilment result. */
+    private static function fulfilmentSummary(array $settled): string
+    {
+        if (($settled['status'] ?? '') !== 'completed') return $settled['message'] ?? '';
+        $f = $settled['fulfilment'] ?? [];
+        foreach (['invoice', 'order', 'renewal', 'transfer'] as $k) {
+            if (!empty($f[$k]['message'])) return $f[$k]['message'];
+        }
+        if (!empty($f['fulfilment'])) return 'Domain order fulfilled.';
+        return '';
     }
 
     /** Client-facing failure notification, used by settlePayment()'s cron/webhook path. */

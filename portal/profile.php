@@ -42,6 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_notify_prefs']
     portal_csrf_verify();
     db()->prepare('UPDATE clients SET notify_reminders=?, notify_announcements=? WHERE id=?')
         ->execute([!empty($_POST['notify_reminders']) ? 1 : 0, !empty($_POST['notify_announcements']) ? 1 : 0, $cid]);
+    try {
+        db()->prepare('UPDATE clients SET sms_marketing=? WHERE id=?')->execute([!empty($_POST['sms_marketing']) ? 1 : 0, $cid]);
+    } catch (\Throwable $e) { /* column not migrated */ }
     portal_flash_set('success', 'Notification preferences updated.');
     header('Location: ' . PORTAL_URL . '/profile.php');
     exit;
@@ -54,16 +57,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
     $new  = $_POST['new_password']     ?? '';
     $new2 = $_POST['new_password2']    ?? '';
 
-    $policy_errors = password_policy_errors($new, [$client['email'], $client['first_name'], $client['last_name']]);
+    $policy_errors = password_policy_errors($new, [$client['email'], $client['first_name'], $client['last_name'], (string) ($client['portal_username'] ?? '')]);
     if (!password_verify($cur, $client['portal_password'] ?? '')) {
         $errors = 'Current password is incorrect.';
     } elseif ($policy_errors) {
         $errors = implode(' ', $policy_errors);
     } elseif ($new !== $new2) {
         $errors = 'New passwords do not match.';
+    } elseif (password_verify($new, $client['portal_password'] ?? '')) {
+        $errors = 'Choose a new password — not the one you were given.';
     } else {
         $hash = password_hash($new, PASSWORD_BCRYPT);
         db()->prepare('UPDATE clients SET portal_password=? WHERE id=?')->execute([$hash,$cid]);
+        try { db()->prepare('UPDATE clients SET must_change_password=0 WHERE id=?')->execute([$cid]); } catch (\Throwable $e) {}
+        $_SESSION['must_change_password'] = false;
         Notifier::send('password_changed', (int) $cid, [
             'client_name' => $client['first_name'],
             'email'       => $client['email'],
@@ -143,6 +150,9 @@ require_once __DIR__ . '/includes/header.php';
 <div class="page-body">
 <div class="container" style="max-width:700px">
 
+  <?php if (!empty($_SESSION['must_change_password'])): ?>
+    <div class="p-alert p-alert-info"><i class="fas fa-key"></i> Your login was set up by our team. Please choose your own password below before continuing — use the password from your email as the current password.</div>
+  <?php endif; ?>
   <?php if ($errors): ?><div class="p-alert p-alert-error"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($errors); ?></div><?php endif; ?>
 
   <!-- Profile form -->
@@ -193,7 +203,7 @@ require_once __DIR__ . '/includes/header.php';
   </div>
 
   <!-- Change password -->
-  <div class="p-form-card">
+  <div class="p-form-card" id="change-password">
     <h2 style="font-size:16px;font-weight:700;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)">
       <i class="fas fa-lock" style="color:var(--green);margin-right:8px"></i>Change Password
     </h2>
@@ -291,6 +301,15 @@ require_once __DIR__ . '/includes/header.php';
         </div>
         <label class="switch"><input type="checkbox" name="notify_announcements" <?php echo $client['notify_announcements'] ? 'checked' : ''; ?> /><span class="track"></span></label>
       </div>
+      <?php if (array_key_exists('sms_marketing', $client)): ?>
+      <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <div style="font-weight:600;font-size:13.5px">SMS offers</div>
+          <div style="font-size:12px;color:var(--text-muted)">Promotions by text message<?php echo $client['phone'] ? ' to ' . htmlspecialchars($client['phone']) : ''; ?>. Texts about your invoices, payments and services still arrive.</div>
+        </div>
+        <label class="switch"><input type="checkbox" name="sms_marketing" <?php echo $client['sms_marketing'] ? 'checked' : ''; ?> /><span class="track"></span></label>
+      </div>
+      <?php endif; ?>
       <div class="form-actions">
         <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Preferences</button>
       </div>

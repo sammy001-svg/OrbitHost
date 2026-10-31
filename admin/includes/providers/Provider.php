@@ -72,6 +72,13 @@ final class Provider
         return new PaymentClient($key, self::config($key));
     }
 
+    public static function sms(string $key): SmsClient
+    {
+        self::assertCategory($key, 'sms');
+        require_once __DIR__ . '/SmsClient.php';
+        return new SmsClient($key, self::config($key));
+    }
+
     /** The active provider key for a category, or null. First active wins. */
     public static function activeFor(string $category): ?string
     {

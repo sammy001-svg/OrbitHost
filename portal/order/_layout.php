@@ -13,15 +13,30 @@ require_once dirname(__DIR__, 2) . '/admin/includes/SiteSettings.php';
 require_once dirname(__DIR__, 2) . '/admin/includes/Currency.php';
 require_once dirname(__DIR__) . '/includes/order_cart.php';
 
-/** The funnel, in order. */
+/**
+ * The funnel, in order. A hosting order walks the four package steps; a
+ * cart of only domains is just Cart → Checkout.
+ */
 function checkout_steps(): array
 {
+    if (!OrderCart::plan()) {
+        return [
+            1 => ['label' => 'Cart',     'file' => '../cart.php'],
+            2 => ['label' => 'Checkout', 'file' => 'review.php'],
+        ];
+    }
     return [
         1 => ['label' => 'Domain',          'file' => 'index.php'],
         2 => ['label' => 'Configure',       'file' => 'configure.php'],
         3 => ['label' => 'Domain Setup',    'file' => 'domain-config.php'],
-        4 => ['label' => 'Review & Checkout','file' => 'review.php'],
+        4 => ['label' => 'Checkout',        'file' => 'review.php'],
     ];
+}
+
+/** The checkout step number, whichever flow this is. */
+function checkout_review_step(): int
+{
+    return OrderCart::plan() ? 4 : 2;
 }
 
 function checkout_url(string $file): string
@@ -40,7 +55,8 @@ function checkout_require(string $step): void
         header('Location: ' . checkout_url('index.php'));
         exit;
     }
-    header('Location: ' . checkout_no_plan_url());
+    // Checkout with nothing (or only domains) in it belongs to the cart.
+    header('Location: ' . ($step === 'review' || OrderCart::domains() ? PORTAL_URL . '/cart.php' : checkout_no_plan_url()));
     exit;
 }
 
@@ -135,11 +151,21 @@ function checkout_head(string $title, int $active): void
         <span class="co-orb">O</span><span><?php echo h($brand); ?></span>
       <?php endif; ?>
     </a>
-    <span class="co-secure"><i class="fas fa-lock"></i> Secure checkout</span>
+    <span style="display:flex;align-items:center;gap:16px">
+      <?php $n = OrderCart::count(); ?>
+      <a href="<?php echo PORTAL_URL; ?>/cart.php" class="co-secure" style="text-decoration:none;color:#fff"><i class="fas fa-cart-shopping"></i> Cart<?php echo $n ? ' (' . $n . ')' : ''; ?></a>
+      <?php if (!empty($_SESSION['client_id'])): ?>
+        <a href="<?php echo PORTAL_URL; ?>/dashboard.php" class="co-secure" style="text-decoration:none"><i class="fas fa-user"></i> Client area</a>
+      <?php else: ?>
+        <a href="<?php echo PORTAL_URL; ?>/login.php" class="co-secure" style="text-decoration:none"><i class="fas fa-user"></i> Sign in</a>
+      <?php endif; ?>
+      <span class="co-secure"><i class="fas fa-lock"></i> Secure checkout</span>
+    </span>
   </div>
 </div>
 
 <div class="co-wrap">
+  <?php if ($active > 0): ?>
   <div class="co-steps">
     <?php $steps = checkout_steps(); $last = array_key_last($steps); ?>
     <?php foreach ($steps as $n => $s): ?>
@@ -150,6 +176,7 @@ function checkout_head(string $title, int $active): void
       <?php if ($n !== $last): ?><span class="co-sep"></span><?php endif; ?>
     <?php endforeach; ?>
   </div>
+  <?php endif; ?>
 <?php
 }
 

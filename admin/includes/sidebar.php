@@ -39,6 +39,9 @@ function _nav(string $href, string $icon, string $label, string $dir = '', strin
     <?php _nav(APP_URL . '/plans/index.php',     'fa-tags',         'Plans & Packages', 'plans'); ?>
     <?php _nav(APP_URL . '/addons/index.php',    'fa-puzzle-piece', 'Add-on Services', 'addons'); ?>
     <?php _nav(APP_URL . '/clients/index.php',   'fa-users',        'Clients',   'clients'); ?>
+    <?php if (can('admin')): ?>
+      <?php _nav(APP_URL . '/sms/index.php',     'fa-comment-sms',  'SMS',       'sms'); ?>
+    <?php endif; ?>
     <?php _nav(APP_URL . '/orders/index.php',    'fa-box',          'Orders',    'orders'); ?>
 
     <div class="nav-label">Billing</div>

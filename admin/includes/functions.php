@@ -223,6 +223,12 @@ function ensure_client_notification_prefs(): void
     } catch (\Throwable $e) {
         // no ALTER privilege — every client stays opted in until schema is added manually
     }
+    try {
+        // SMS offers opt-out (Sms.php creates it too; whichever runs first wins).
+        if (!db()->query("SHOW COLUMNS FROM clients LIKE 'sms_marketing'")->fetch()) {
+            db()->exec('ALTER TABLE clients ADD COLUMN sms_marketing TINYINT(1) NOT NULL DEFAULT 1');
+        }
+    } catch (\Throwable $e) {}
 }
 
 /**

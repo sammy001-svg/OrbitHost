@@ -150,6 +150,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
             } elseif (($r['mode'] ?? '') === 'redirect' && !empty($r['redirect_url'])) {
                 header('Location: ' . $r['redirect_url']);
                 exit;
+            } elseif (($r['mode'] ?? '') === 'push') {
+                // Redirect so a refresh re-checks instead of re-sending the prompt.
+                header('Location: ' . PORTAL_URL . '/order.php?pay=' . $pay_id);
+                exit;
             } else {
                 $view = 'pending';
                 $push_msg = $r['message'] ?? 'Payment started — complete it, then click Verify below.';
@@ -189,6 +193,11 @@ require_once __DIR__ . '/includes/header.php';
       <a href="<?php echo PORTAL_URL; ?>/services.php" class="btn btn-primary"><i class="fas fa-box"></i> My Services</a>
       <a href="<?php echo PORTAL_URL; ?>/order.php" class="btn btn-ghost" style="border:1px solid var(--border)">Order another</a>
     </div>
+  </div>
+
+<?php elseif ($view === 'pending' && ($stk = dp_payment_row($pay_id, $cid)) && $stk['gateway'] === 'kopokopo'): ?>
+  <div class="p-card" style="max-width:560px;margin:0 auto;padding:32px">
+    <?php stk_wait_panel($stk, PORTAL_URL . '/order.php?pay={pay}', PORTAL_URL . '/order.php'); ?>
   </div>
 
 <?php elseif ($view === 'pending'): ?>
@@ -347,4 +356,5 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 </div>
 
+<?php stk_submit_guard(); ?>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

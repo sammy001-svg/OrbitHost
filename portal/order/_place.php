@@ -46,21 +46,140 @@ function order_domain_columns(): bool
 }
 
 /**
+ * Record a domain as bought-but-not-yet-registered, tied to the invoice
+ * that pays for it. Automation::invoicePaid() submits it once paid.
+ *
+ * domain_name is UNIQUE. An existing row is only ever taken over when it
+ * is this client's own, or an abandoned pending/expired/cancelled one —
+ * never someone else's live domain. That case is left alone and flagged
+ * for the team rather than silently reassigned.
+ */
+function record_pending_domain(int $cid, string $domain, string $mode, int $years, int $invoice_id, ?int $order_id, string $epp, bool $idp): void
+{
+    Automation::ensureSchema();
+    $s = db()->prepare('SELECT id, client_id, status FROM domain_registrations WHERE domain_name = ?');
+    $s->execute([$domain]);
+    $row = $s->fetch();
+
+    if ($row && (int) $row['client_id'] !== $cid && in_array($row['status'], ['active', 'transferred'], true)) {
+        log_activity('order_domain_conflict', 'invoice', $invoice_id,
+            $domain . ' is already on client #' . $row['client_id'] . ' — not reassigned; check before registering.');
+        try {
+            Notifier::sendToAllAdmins('order_new_admin', [
+                'client_name' => 'Client #' . $cid, 'item' => 'Domain conflict: ' . $domain . ' is already on another client — review invoice before fulfilling',
+                'amount' => '—', 'gateway' => 'checkout', 'link' => APP_URL . '/integrations/domains/index.php',
+            ]);
+        } catch (\Throwable $e) {}
+        return;
+    }
+
+    $vals = [$cid, $order_id, $invoice_id, $years, $mode, $mode === 'transfer' ? $epp : null, $idp ? 1 : 0];
+    try {
+        if ($row) {
+            db()->prepare("UPDATE domain_registrations SET client_id = ?, order_id = ?, invoice_id = ?, registrar = 'manual',
+                               registration_date = CURDATE(), expiry_date = DATE_ADD(CURDATE(), INTERVAL ? YEAR),
+                               status = 'pending', order_mode = ?, epp_code = ?, id_protection = ?, lodged_at = NULL WHERE id = ?")
+                ->execute(array_merge($vals, [(int) $row['id']]));
+        } else {
+            db()->prepare("INSERT INTO domain_registrations (client_id, order_id, invoice_id, domain_name, registrar, registration_date, expiry_date,
+                                                             status, auto_renew, order_mode, epp_code, id_protection)
+                           VALUES (?,?,?,?, 'manual', CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? YEAR), 'pending', 1, ?,?,?)")
+                ->execute([$cid, $order_id, $invoice_id, $domain, $years, $mode, $mode === 'transfer' ? $epp : null, $idp ? 1 : 0]);
+        }
+    } catch (\Throwable $e) {
+        // Columns not migrated (no ALTER) — keep the bare record so the
+        // domain is at least visible; the invoice lines carry the rest.
+        try {
+            db()->prepare("INSERT IGNORE INTO domain_registrations (client_id, domain_name, registrar, registration_date, expiry_date, status, auto_renew)
+                           VALUES (?,?, 'manual', CURDATE(), DATE_ADD(CURDATE(), INTERVAL ? YEAR), 'pending', 1)")
+                ->execute([$cid, $domain, $years]);
+        } catch (\Throwable $e2) {}
+        error_log('record_pending_domain(' . $domain . '): ' . $e->getMessage());
+    }
+}
+
+/** Record every cart domain on an invoice. */
+function place_cart_domains(array $sum, int $cid, int $invoice_id, string $hosting_domain = '', ?int $order_id = null): array
+{
+    $names = [];
+    $idp = [];
+    foreach ($sum['lines'] as $l) {
+        if (($l['type'] ?? '') === 'id_protection' && !empty($l['domain'])) $idp[$l['domain']] = true;
+    }
+    foreach ($sum['lines'] as $l) {
+        if (($l['type'] ?? '') !== 'cart_domain') continue;
+        record_pending_domain($cid, $l['domain'], $l['mode'], (int) $l['years'], $invoice_id,
+            $l['domain'] === $hosting_domain ? $order_id : null, (string) $l['epp'], !empty($idp[$l['domain']]));
+        $names[] = $l['domain'];
+    }
+    return $names;
+}
+
+/** Domains with no hosting: one invoice, fulfilled by Automation::invoicePaid(). */
+function place_domain_only_order(array $client, string $currency, array $sum): array
+{
+    $cid    = (int) $client['id'];
+    $inv_no = generate_invoice_number();
+    db()->prepare("INSERT INTO invoices (invoice_number, client_id, subtotal, tax_rate, tax_amount, total, status, due_date, currency)
+                   VALUES (?,?,?,?,?,?,'sent',CURDATE(),?)")
+        ->execute([$inv_no, $cid, $sum['subtotal'], $sum['vat_rate'], $sum['vat'], $sum['total'], $currency]);
+    $invoice_id = (int) db()->lastInsertId();
+    $ins = db()->prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES (?,?,?,?,?)');
+    foreach ($sum['lines'] as $l) {
+        $ins->execute([$invoice_id, $l['label'], 1, (float) $l['amount'], (float) $l['amount']]);
+    }
+
+    // Committed — nothing below may throw (see place_hosting_order()).
+    $names = [];
+    try {
+        $names = place_cart_domains($sum, $cid, $invoice_id);
+        log_activity('order_checkout', 'invoice', $invoice_id, 'Website checkout — domains: ' . implode(', ', $names));
+    } catch (\Throwable $e) {
+        error_log('place_domain_only_order: post-commit step failed for invoice ' . $invoice_id . ' — ' . $e->getMessage());
+    }
+
+    OrderCart::clear();
+    return ['order_id' => 0, 'invoice_id' => $invoice_id, 'invoice_number' => $inv_no,
+            'plan_name' => '', 'domain' => implode(', ', $names), 'total' => $sum['total'],
+            'item' => (count($names) === 1 ? 'Domain ' : 'Domains ') . implode(', ', $names)];
+}
+
+/**
  * @return array{order_id:int,invoice_id:int,invoice_number:string}
  * @throws RuntimeException when the cart no longer prices (plan withdrawn mid-checkout)
  */
 function place_hosting_order(array $client, string $currency): array
 {
+    if (!OrderCart::checkoutReady()) {
+        throw new RuntimeException('Your cart is empty or incomplete. Please check it and try again.');
+    }
     $plan = OrderCart::plan();
-    if (!$plan) {
+    if ((int) OrderCart::get('plan_id', 0) && !$plan) {
         throw new RuntimeException('That package is no longer available. Please start again.');
     }
 
     $sum = OrderCart::summary($currency);
     $cid = (int) $client['id'];
 
+    // Last word on availability, right before anything is written: a name
+    // can be registered by someone else between the search and checkout.
+    $taken = [];
+    foreach ($sum['lines'] as $l) {
+        if (($l['type'] ?? '') === 'cart_domain' && $l['mode'] === 'register' && OrderCart::domainTaken($l['domain']) === true) {
+            $taken[] = $l['domain'];
+        }
+    }
+    if ($taken) {
+        throw new RuntimeException('Sorry — ' . implode(', ', $taken) . (count($taken) === 1 ? ' was' : ' were')
+            . ' registered by someone else a moment ago. Remove ' . (count($taken) === 1 ? 'it' : 'them') . ' from your cart and choose another name.');
+    }
+
     Currency::ensureSchema();
-    Automation::ensureSchema();   // guarantees invoices.order_id exists
+    Automation::ensureSchema();   // invoices.order_id, domain_registrations.invoice_id …
+
+    if (!$plan) {
+        return place_domain_only_order($client, $currency, $sum);
+    }
 
     // ── The order ────────────────────────────────────────────────────
     // orders.amount is the RECURRING figure — what a renewal invoice will
@@ -127,26 +246,14 @@ function place_hosting_order(array $client, string $currency): array
     // Registering/transferring is recorded as pending now so the client
     // and the team both see it; it's actually submitted to the registrar
     // once the invoice is paid (Automation::fulfilOrderDomain).
+    // Domains bought alongside the package (including the one the hosting
+    // uses, when it came from the cart).
+    place_cart_domains($sum, $cid, $invoice_id, $domain, $order_id);
+
     if ($domain !== '' && in_array($mode, ['register', 'transfer'], true)) {
-        $years = OrderCart::domainYears();
         order_domain_columns();
-        try {
-            db()->prepare('INSERT INTO domain_registrations (client_id, order_id, domain_name, registrar, registration_date, expiry_date, status, auto_renew, order_mode, epp_code)
-                           VALUES (?,?,?,?,CURDATE(),DATE_ADD(CURDATE(), INTERVAL ? YEAR),?,1,?,?)
-                           ON DUPLICATE KEY UPDATE client_id = VALUES(client_id), order_id = VALUES(order_id),
-                                                   order_mode = VALUES(order_mode), epp_code = VALUES(epp_code)')
-                ->execute([$cid, $order_id, $domain, 'manual', $years, 'pending', $mode,
-                           $mode === 'transfer' ? (string) OrderCart::get('epp_code', '') : null]);
-        } catch (\Throwable $e) {
-            // Legacy schema without the two columns — still record the domain
-            // so the client and the team see it; the order notes carry the rest.
-            try {
-                db()->prepare('INSERT INTO domain_registrations (client_id, domain_name, registrar, registration_date, expiry_date, status, auto_renew)
-                               VALUES (?,?,?,CURDATE(),DATE_ADD(CURDATE(), INTERVAL ? YEAR),?,1)
-                               ON DUPLICATE KEY UPDATE client_id = VALUES(client_id)')
-                    ->execute([$cid, $domain, 'manual', $years, 'pending']);
-            } catch (\Throwable $e2) { /* order and invoice already exist either way */ }
-        }
+        record_pending_domain($cid, $domain, $mode, OrderCart::domainYears(), $invoice_id, $order_id,
+            $mode === 'transfer' ? (string) OrderCart::get('epp_code', '') : '', (bool) OrderCart::get('id_protection'));
     }
 
     log_activity('order_checkout', 'order', $order_id, 'Website checkout — ' . $plan['name'] . ' for ' . $domain);
@@ -158,9 +265,11 @@ function place_hosting_order(array $client, string $currency): array
 
     OrderCart::clear();
 
+    $extra = array_values(array_filter(array_map(fn($l) => ($l['type'] ?? '') === 'cart_domain' && $l['domain'] !== $domain ? $l['domain'] : null, $sum['lines'])));
     return [
         'order_id' => $order_id, 'invoice_id' => $invoice_id, 'invoice_number' => $inv_no,
         'plan_name' => (string) $plan['name'], 'domain' => $domain, 'total' => $sum['total'],
+        'item' => $plan['name'] . ' (' . $domain . ')' . ($extra ? ' + ' . implode(', ', $extra) : ''),
     ];
 }
 
@@ -196,7 +305,7 @@ function notify_hosting_order(array $placed, array $client, string $currency): v
     try {
         Notifier::sendToAllAdmins('order_new_admin', [
             'client_name' => $name ?: ($client['email'] ?? 'A client'),
-            'item'        => $placed['plan_name'] . ' (' . $placed['domain'] . ')',
+            'item'        => $placed['item'] ?? ($placed['plan_name'] . ' (' . $placed['domain'] . ')'),
             'amount'      => $currency . ' ' . number_format((float) $placed['total'], 2),
             'gateway'     => 'Awaiting payment',
             'link'        => APP_URL . '/orders/index.php',

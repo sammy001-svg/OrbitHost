@@ -117,6 +117,10 @@ if ($renewable && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? 
         } elseif (($r['mode'] ?? '') === 'redirect' && !empty($r['redirect_url'])) {
             header('Location: ' . $r['redirect_url']);
             exit;
+        } elseif (($r['mode'] ?? '') === 'push') {
+            // Redirect so a refresh re-checks instead of re-sending the prompt.
+            header('Location: ' . PORTAL_URL . '/domain-renew.php?id=' . $id . '&pay=' . $pay_id);
+            exit;
         } else {
             $view = 'pending';
             $push_msg = $r['message'] ?? 'Payment request sent — approve it, then click Verify below.';
@@ -176,6 +180,9 @@ $days_left = $dom['expiry_date'] ? (int) ceil((strtotime($dom['expiry_date']) - 
         <span><?php echo $renew_ok === false ? 'Processing' : 'Renewed'; ?></span></div>
       <?php if ($renew_note): ?><p style="font-size:13px;color:var(--text-muted);margin-top:10px"><?php echo htmlspecialchars($renew_note); ?></p><?php endif; ?>
       <a href="<?php echo PORTAL_URL; ?>/domains.php" class="btn btn-primary btn-pay" style="margin-top:20px"><i class="fas fa-globe"></i> Back to My Domains</a>
+
+    <?php elseif ($view === 'pending' && ($stk = dp_payment_row($pay_id, $client_id)) && $stk['gateway'] === 'kopokopo'): ?>
+      <?php stk_wait_panel($stk, PORTAL_URL . '/domain-renew.php?id=' . $id . '&pay={pay}', PORTAL_URL . '/domain-renew.php?id=' . $id); ?>
 
     <?php elseif ($view === 'pending'): ?>
       <div class="co-info" style="white-space:pre-line;text-align:left"><i class="fas fa-mobile-screen"></i> <?php echo htmlspecialchars($push_msg ?: 'Waiting for payment confirmation.'); ?></div>
@@ -243,5 +250,6 @@ $days_left = $dom['expiry_date'] ? (int) ceil((strtotime($dom['expiry_date']) - 
 
   <a href="<?php echo PORTAL_URL; ?>/domains.php" class="back-link">← Back to My Domains</a>
 </div>
+<?php stk_submit_guard(); ?>
 </body>
 </html>

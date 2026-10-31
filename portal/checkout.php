@@ -212,9 +212,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
                         'link' => APP_URL . '/billing/collect.php?invoice_id=' . $invoice_id,
                     ]);
                 } else {
-                    db()->prepare('UPDATE payments SET gateway_ref=? WHERE id=?')->execute([$r['ref'] ?? '', $pay_id]);
+                    db()->prepare('UPDATE payments SET gateway_ref=?, raw=? WHERE id=?')
+                        ->execute([$r['ref'] ?? '', json_encode(['context' => $context, 'checkout' => $r]), $pay_id]);
                     if (($r['mode'] ?? '') === 'redirect' && !empty($r['redirect_url'])) {
                         header('Location: ' . $r['redirect_url']);
+                        exit;
+                    }
+                    if (($r['mode'] ?? '') === 'push') {
+                        // Redirect so a refresh re-checks instead of re-sending the prompt.
+                        header('Location: ' . PORTAL_URL . '/checkout.php?pay=' . $pay_id);
                         exit;
                     }
                     $view = 'pending';
@@ -291,6 +297,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
       <p style="font-size:12.5px;color:var(--text-muted);margin:14px 0">We've saved your order and emailed our team. Once the payment reaches us it will be confirmed and your domains registered — you'll get an email. You can check the status any time:</p>
       <a href="<?php echo PORTAL_URL; ?>/checkout.php?pay=<?php echo $pay_id; ?>" class="btn btn-primary btn-pay"><i class="fas fa-rotate"></i> Check payment status</a>
 
+    <?php elseif ($view === 'pending' && ($stk = dp_payment_row($pay_id, $client_id)) && $stk['gateway'] === 'kopokopo'): ?>
+      <?php stk_wait_panel($stk, PORTAL_URL . '/checkout.php?pay={pay}', PORTAL_URL . '/checkout.php'); ?>
+
     <?php elseif ($view === 'pending'): ?>
       <div class="co-info"><i class="fas fa-mobile-screen"></i> <?php echo htmlspecialchars($push_msg ?: 'Waiting for payment confirmation.'); ?></div>
       <?php if ($error): ?><div class="co-error" style="background:#fffbeb;color:#92400e"><i class="fas fa-hourglass-half"></i> <?php echo htmlspecialchars($error); ?></div><?php endif; ?>
@@ -356,5 +365,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
 
   <a href="<?php echo PORTAL_URL; ?>/cart.php" class="back-link">← Back to cart</a>
 </div>
+<?php stk_submit_guard(); ?>
 </body>
 </html>

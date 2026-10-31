@@ -95,6 +95,18 @@ final class Notifier
             }
         }
 
+        // SMS copy for client notifications that define one (see
+        // NotificationRegistry 'sms'). Quiet unless an SMS provider is on;
+        // never allowed to break the email/in-app path.
+        if (!empty($def['sms']) && $def['audience'] === 'client') {
+            try {
+                require_once __DIR__ . '/Sms.php';
+                Sms::notify($type, $recipientId, self::render($def['sms'], $vars));
+            } catch (\Throwable $e) {
+                error_log("Notifier: SMS failed for type={$type} recipient={$recipientId}: " . $e->getMessage());
+            }
+        }
+
         try {
             db()->prepare('INSERT INTO notifications (audience, recipient_id, type, title, message, link, email_sent, email_error) VALUES (?,?,?,?,?,?,?,?)')
                 ->execute([$def['audience'], $recipientId, $type, $title, $message, $link, $emailSent, $emailError]);
@@ -143,6 +155,13 @@ final class Notifier
     /** Broadcast an admin-audience notification to every active admin user. */
     public static function sendToAllAdmins(string $type, array $vars = []): void
     {
+        // A client-audience type sent to admin ids would resolve those ids
+        // against `clients` — emailing (and now texting) an unrelated client.
+        $def = NotificationRegistry::get($type);
+        if ($def && $def['audience'] !== 'admin') {
+            error_log("Notifier: refused to broadcast client-audience type '{$type}' to admins");
+            return;
+        }
         try {
             $ids = db()->query('SELECT id FROM admin_users')->fetchAll(PDO::FETCH_COLUMN);
         } catch (\Throwable $e) {

@@ -103,6 +103,14 @@ require_once '../includes/header.php';
     <a href="<?php echo APP_URL; ?>/clients/invite.php?id=<?php echo $id; ?>" class="btn btn-ghost btn-sm" title="Send portal invite">
       <i class="fas fa-envelope"></i> Portal Invite
     </a>
+    <?php if (can('admin')): ?>
+    <a href="<?php echo APP_URL; ?>/clients/credentials.php?id=<?php echo $id; ?>" class="btn btn-ghost btn-sm" title="Generate a username / password and email it to the client">
+      <i class="fas fa-key"></i> Login Credentials
+    </a>
+    <a href="<?php echo APP_URL; ?>/sms/compose.php?client_id=<?php echo $id; ?>" class="btn btn-ghost btn-sm" title="Text this client via Shanfix SMS">
+      <i class="fas fa-comment-sms"></i> Send SMS
+    </a>
+    <?php endif; ?>
     <form method="POST" action="<?php echo APP_URL; ?>/clients/impersonate.php" style="display:inline">
       <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
       <input type="hidden" name="id" value="<?php echo $id; ?>" />

@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email']    ?? '');
     $pass  =      $_POST['password'] ?? '';
     if (!$email || !$pass) {
-        $error = 'Please enter your email and password.';
+        $error = 'Please enter your email (or username) and password.';
     } else {
         $r = portal_login($email, $pass);
         if (!empty($r['needs_2fa'])) {
@@ -159,10 +159,10 @@ $_brand_logo = SiteSettings::logoImgTag(44, 170);
 
         <form method="POST">
           <div class="form-group">
-            <label class="form-label">Email Address</label>
-            <input type="email" name="email" class="form-control"
+            <label class="form-label">Email or Username</label>
+            <input type="text" name="email" class="form-control"
                    value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>"
-                   placeholder="you@example.com" required autofocus autocomplete="email" />
+                   placeholder="you@example.com or username" required autofocus autocomplete="username" autocapitalize="none" spellcheck="false" />
           </div>
           <div class="form-group">
             <label class="form-label">Password</label>

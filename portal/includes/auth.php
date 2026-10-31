@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../admin/includes/db.php';
 require_once __DIR__ . '/../../admin/includes/LoginGuard.php';
 require_once __DIR__ . '/../../admin/includes/TOTP.php';
+require_once __DIR__ . '/../../admin/includes/ClientCredentials.php';
 
 function portal_start(): void
 {
@@ -54,9 +55,17 @@ function portal_check(): void
         exit;
     }
     $_SESSION['last_active'] = time();
+
+    // An admin-issued password must be replaced before anything else.
+    if (!empty($_SESSION['must_change_password'])
+        && !in_array(basename($_SERVER['SCRIPT_NAME'] ?? ''), ['profile.php', 'logout.php'], true)) {
+        header('Location: ' . PORTAL_URL . '/profile.php?must_change=1#change-password');
+        exit;
+    }
 }
 
 /**
+ * @param string $email the client's email address OR their portal username
  * @return array{ok:bool, needs_2fa?:bool, message?:string}
  * ok=true, needs_2fa=true means the password was correct but the account
  * has 2FA enabled — portal_verify_2fa() must succeed before the session
@@ -66,20 +75,34 @@ function portal_check(): void
 function portal_login(string $email, string $password): array
 {
     ensure_client_2fa_columns();
+    ClientCredentials::ensureSchema();
+    $email = trim($email);
 
-    $blocked = LoginGuard::checkBlocked('portal', $email);
+    $blocked = LoginGuard::checkBlocked('portal', strtolower($email));
     if ($blocked) return ['ok' => false, 'message' => $blocked];
 
-    $stmt = db()->prepare('SELECT id, first_name, last_name, email, status, portal_password, totp_enabled FROM clients WHERE email = ? LIMIT 1');
-    $stmt->execute([$email]);
-    $client = $stmt->fetch();
+    // Emails always contain '@' and usernames never do, so a single
+    // identifier can only ever match one way.
+    if (str_contains($email, '@')) {
+        $stmt = db()->prepare('SELECT * FROM clients WHERE email = ? LIMIT 1');
+        $stmt->execute([$email]);
+    } else {
+        try {
+            $stmt = db()->prepare('SELECT * FROM clients WHERE portal_username = ? LIMIT 1');
+            $stmt->execute([strtolower($email)]);
+        } catch (\Throwable $e) {
+            $stmt = null; // username column not migrated
+        }
+    }
+    $client = $stmt ? $stmt->fetch() : false;
+    $email  = strtolower($email);
 
     $valid = $client && $client['status'] === 'active' && $client['portal_password']
           && password_verify($password, $client['portal_password']);
     LoginGuard::record('portal', $email, (bool) $valid);
 
     if (!$valid) {
-        return ['ok' => false, 'message' => 'Invalid email or password. If you have not set a portal password yet, please use the link in your welcome email.'];
+        return ['ok' => false, 'message' => 'Invalid email/username or password. If you have not set a portal password yet, please use the link in your welcome email.'];
     }
 
     if (!empty($client['totp_enabled'])) {
@@ -101,6 +124,7 @@ function portal_complete_login(array $client): void
     $_SESSION['client_name']  = trim($client['first_name'] . ' ' . $client['last_name']);
     $_SESSION['client_email'] = $client['email'];
     $_SESSION['last_active']  = time();
+    $_SESSION['must_change_password'] = !empty($client['must_change_password']);
 
     db()->prepare('UPDATE clients SET portal_login = NOW() WHERE id = ?')->execute([$client['id']]);
 }

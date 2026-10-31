@@ -20,6 +20,7 @@ final class NotificationRegistry
                 'audience' => 'client', 'icon' => 'fa-reply', 'color' => '#1A8A45', 'email' => true,
                 'title'   => 'New reply on ticket {ticket_number}',
                 'message' => '{admin_name} replied to "{subject}".',
+                'sms'     => 'Orbit Cloud: Support replied to your ticket {ticket_number}. Log in to your client portal to view and respond.',
                 'email_subject' => 'Re: {subject} [{ticket_number}]',
                 'email_body'    => '<p>Hi {client_name},</p><p>Our support team has replied to your ticket <strong>{ticket_number}</strong> — "{subject}".</p><blockquote style="margin:16px 0;padding:12px 16px;background:#f7f9fc;border-left:3px solid #1A8A45;border-radius:6px;color:#334155">{reply_excerpt}</blockquote><p>Log in to the client portal to view the full conversation and reply.</p>',
             ],
@@ -50,6 +51,7 @@ final class NotificationRegistry
                 'audience' => 'client', 'icon' => 'fa-file-invoice', 'color' => '#2563eb', 'email' => true,
                 'title'   => 'New invoice {invoice_number}',
                 'message' => '{amount} due {due_date}.',
+                'sms'     => 'Orbit Cloud: Invoice {invoice_number} for {amount} is due {due_date}. Pay online: {link}',
                 'email_subject' => 'Invoice {invoice_number} — {amount} due {due_date}',
                 'email_body'    => '<p>Hi {client_name},</p><p>A new invoice has been generated on your account.</p>'
                     . '<table style="width:100%;border-collapse:collapse;margin:16px 0">'
@@ -64,16 +66,29 @@ final class NotificationRegistry
                 'audience' => 'client', 'icon' => 'fa-triangle-exclamation', 'color' => '#dc2626', 'email' => true,
                 'title'   => 'Invoice {invoice_number} is overdue',
                 'message' => '{amount} was due {due_date}. Please pay to avoid service interruption.',
+                'sms'     => 'Orbit Cloud: Invoice {invoice_number} ({amount}) was due {due_date} and is now overdue. Pay now to avoid interruption: {link}',
                 'email_subject' => 'Overdue: Invoice {invoice_number} — please pay {amount}',
                 'email_body'    => '<p>Hi {client_name},</p><p>Invoice <strong>{invoice_number}</strong> for <strong>{amount}</strong> was due on {due_date} and is now'
                     . ' <span style="background:{status_color};color:#fff;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">{status}</span>.</p>'
                     . '{items_table}'
                     . '<p>Please log in to the client portal to settle this invoice as soon as possible to avoid service suspension.</p>',
             ],
+            'invoice_balance_due' => [
+                'audience' => 'client', 'icon' => 'fa-scale-unbalanced', 'color' => '#d97706', 'email' => true,
+                'title'   => 'Balance due on {invoice_number}',
+                'message' => 'We received {paid} — {balance} is still outstanding.',
+                'sms'     => 'Orbit Cloud: We received {paid} for invoice {invoice_number}. A balance of {balance} is still due: {link}',
+                'email_subject' => 'Balance of {balance} due on invoice {invoice_number}',
+                'email_body'    => '<p>Hi {client_name},</p><p>Thank you for your payment of <strong>{paid}</strong> via {gateway} towards invoice <strong>{invoice_number}</strong>.'
+                    . ' It came in short of the amount due, so a balance of <strong>{balance}</strong> is still outstanding.</p>'
+                    . '{note}'
+                    . '<p>Once the balance is paid we\'ll complete your order straight away — nothing you\'ve already paid is lost. You can pay the balance from the client portal.</p>',
+            ],
             'invoice_paid' => [
                 'audience' => 'client', 'icon' => 'fa-circle-check', 'color' => '#1A8A45', 'email' => true,
                 'title'   => 'Payment received — {invoice_number}',
                 'message' => 'Thank you! {amount} received via {gateway}.',
+                'sms'     => 'Orbit Cloud: Payment of {amount} for invoice {invoice_number} received via {gateway}. Thank you!',
                 'email_subject' => 'Payment receipt — {invoice_number}',
                 'email_body'    => '<p>Hi {client_name},</p><p>We\'ve received your payment of <strong>{amount}</strong> for invoice <strong>{invoice_number}</strong> via {gateway}. Thank you!</p>'
                     . '<p><span style="background:{status_color};color:#fff;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">{status}</span></p>'
@@ -87,6 +102,13 @@ final class NotificationRegistry
                 'email_subject' => 'We couldn\'t process your payment',
                 'email_body'    => '<p>Hi {client_name},</p><p>Your recent payment attempt of <strong>{amount}</strong> via {gateway} was not successful.</p><p style="color:#64748b;font-size:13px">{reason}</p><p>Please try again from the client portal, or contact support if the problem continues.</p>',
             ],
+            'payment_short_admin' => [
+                'audience' => 'admin', 'icon' => 'fa-scale-unbalanced', 'color' => '#d97706', 'email' => true,
+                'title'   => 'Short payment: {payment_label}',
+                'message' => '{detail}',
+                'email_subject' => 'Short payment needs review — {payment_label}',
+                'email_body'    => '<p>A payment came in for less than was due.</p><p><strong>{amount}</strong> via {gateway} — {detail}</p><p>The invoice has been left unpaid and nothing has been fulfilled. Decide what to do in the short-payment review queue.</p>',
+            ],
             'payment_reference_submitted' => [
                 'audience' => 'admin', 'icon' => 'fa-receipt', 'color' => '#d97706', 'email' => true,
                 'title'   => 'Payment reference submitted — {invoice_number}',
@@ -98,6 +120,7 @@ final class NotificationRegistry
                 'audience' => 'client', 'icon' => 'fa-circle-xmark', 'color' => '#dc2626', 'email' => true,
                 'title'   => 'We couldn\'t verify your payment — {invoice_number}',
                 'message' => '{reason}',
+                'sms'     => 'Orbit Cloud: We could not verify your payment reference for invoice {invoice_number}. Please check it and resubmit in your client portal.',
                 'email_subject' => 'Action needed: payment reference for {invoice_number}',
                 'email_body'    => '<p>Hi {client_name},</p><p>We could not verify the payment reference you submitted for invoice <strong>{invoice_number}</strong>.</p><p style="color:#64748b;font-size:13px">{reason}</p><p>Please double-check the reference number and submit it again from the client portal, or contact support if you believe this is a mistake.</p>',
             ],
@@ -107,6 +130,7 @@ final class NotificationRegistry
                 'audience' => 'client', 'icon' => 'fa-bag-shopping', 'color' => '#1A8A45', 'email' => true,
                 'title'   => 'Order confirmed: {item}',
                 'message' => '{item} — thank you for your purchase!',
+                'sms'     => 'Orbit Cloud: Order confirmed - {item}. Thank you! We will notify you once it is active.',
                 'email_subject' => 'Order confirmed — {item}',
                 'email_body'    => '<p>Hi {client_name},</p><p>Thanks for your purchase! Here\'s a summary:</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:6px 0;color:#64748b">Item</td><td style="padding:6px 0;text-align:right;font-weight:700">{item}</td></tr><tr><td style="padding:6px 0;color:#64748b">Amount</td><td style="padding:6px 0;text-align:right;font-weight:700">{amount}</td></tr></table><p>{note}</p>',
             ],
@@ -167,6 +191,7 @@ final class NotificationRegistry
                 'audience' => 'client', 'icon' => 'fa-server', 'color' => '#1A8A45', 'email' => true,
                 'title'   => '{service_label} is ready',
                 'message' => 'Your new service has been provisioned.',
+                'sms'     => 'Orbit Cloud: {service_label} is ready. Your login details have been sent to your email.',
                 'email_subject' => 'Your {service_label} account is ready',
                 'email_body'    => '<p>Hi {client_name},</p><p>Your new service <strong>{service_label}</strong> has been provisioned and is ready to use.</p><table style="width:100%;border-collapse:collapse;margin:16px 0">{account_rows}</table><p style="color:#64748b;font-size:13px">Keep these details somewhere safe. You can log in to your hosting control panel directly from the client portal at any time without re-entering these credentials.</p>',
             ],
@@ -174,6 +199,7 @@ final class NotificationRegistry
                 'audience' => 'client', 'icon' => 'fa-ban', 'color' => '#dc2626', 'email' => true,
                 'title'   => '{service_label} suspended',
                 'message' => '{reason}',
+                'sms'     => 'Orbit Cloud: {service_label} has been suspended. {reason} Contact us or pay any due invoice to restore it.',
                 'email_subject' => 'Your service has been suspended — {service_label}',
                 'email_body'    => '<p>Hi {client_name},</p><p>Your service <strong>{service_label}</strong> has been suspended.</p><p style="color:#64748b;font-size:13px">Reason: {reason}</p><p>Please contact support or settle any outstanding invoices to have it restored.</p>',
             ],
@@ -181,6 +207,7 @@ final class NotificationRegistry
                 'audience' => 'client', 'icon' => 'fa-circle-check', 'color' => '#1A8A45', 'email' => true,
                 'title'   => '{service_label} reactivated',
                 'message' => 'Your service is active again.',
+                'sms'     => 'Orbit Cloud: {service_label} is active again. Thank you!',
                 'email_subject' => 'Your service has been reactivated — {service_label}',
                 'email_body'    => '<p>Hi {client_name},</p><p>Good news — your service <strong>{service_label}</strong> has been reactivated and is live again.</p>',
             ],
@@ -193,6 +220,7 @@ final class NotificationRegistry
                 'audience' => 'client', 'icon' => 'fa-clock', 'color' => '#d97706', 'email' => true, 'category' => 'reminder',
                 'title'   => '{item} renews in {days_left} days',
                 'message' => 'Renew before {expiry_date} to avoid interruption.',
+                'sms'     => 'Orbit Cloud: {item} renews in {days_left} days. Renew before {expiry_date} to avoid interruption.',
                 'email_subject' => 'Reminder: {item} renews in {days_left} days',
                 'email_body'    => '<p>Hi {client_name},</p><p><strong>{item}</strong> is due to renew on <strong>{expiry_date}</strong> ({days_left} days from now).</p><p>Log in to the client portal to renew it online in a few clicks, or make sure auto-renew / your invoice is settled to avoid any interruption.</p>',
             ],
@@ -200,13 +228,29 @@ final class NotificationRegistry
                 'audience' => 'client', 'icon' => 'fa-triangle-exclamation', 'color' => '#dc2626', 'email' => true,
                 'title'   => '{item} expires in {days_left} days',
                 'message' => 'Act now — expires {expiry_date}.',
+                'sms'     => 'Orbit Cloud: {item} expires in {days_left} days ({expiry_date}). Renew now to keep it running.',
                 'email_subject' => 'Urgent: {item} expires in {days_left} days',
                 'email_body'    => '<p>Hi {client_name},</p><p><strong>{item}</strong> is about to expire on <strong>{expiry_date}</strong> — only {days_left} day(s) left.</p><p>Please renew as soon as possible from the client portal to avoid losing it.</p>',
+            ],
+            // The password is ONLY in email_body: title/message are stored on
+            // the in-app notification row and shown in the portal bell.
+            'portal_credentials' => [
+                'audience' => 'client', 'icon' => 'fa-key', 'color' => '#1A8A45', 'email' => true,
+                'title'   => 'Your client portal login is ready',
+                'message' => 'We\'ve set up your portal login and emailed the details to you.',
+                'sms'     => 'Orbit Cloud: Your client portal login is ready. We have emailed your sign-in details to you.',
+                'email_subject' => 'Your Orbit Cloud client portal login',
+                'email_body'    => '<p>Hi {client_name},</p><p>We\'ve set up your login for the Orbit Cloud client portal. You can sign in with {login_hint}.</p>'
+                    . '<table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px">{credential_rows}</table>'
+                    . '{change_note}'
+                    . '<p><a href="{login_url}" style="display:inline-block;background:#1A8A45;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:700">Sign in to the portal</a></p>'
+                    . '<p style="color:#64748b;font-size:13px">Keep these details private. If you did not expect this email, contact our support team.</p>',
             ],
             'password_changed' => [
                 'audience' => 'client', 'icon' => 'fa-key', 'color' => '#2563eb', 'email' => true,
                 'title'   => 'Your password was changed',
                 'message' => 'If this wasn\'t you, contact support immediately.',
+                'sms'     => 'Orbit Cloud: Your client portal password was just changed. If this was not you, contact support immediately.',
                 'email_subject' => 'Security alert: your Orbit Cloud password was changed',
                 'email_body'    => '<p>Hi {client_name},</p><p>This is a confirmation that the password for your Orbit Cloud client portal account was just changed.</p><p style="color:#64748b;font-size:13px">If you did not make this change, please contact support immediately.</p>',
             ],
@@ -222,6 +266,7 @@ final class NotificationRegistry
                 'audience' => 'client', 'icon' => 'fa-shield-halved', 'color' => '#d97706', 'email' => true,
                 'title'   => 'Two-factor authentication turned off',
                 'message' => 'If this wasn\'t you, contact support immediately.',
+                'sms'     => 'Orbit Cloud: Two-factor sign-in was turned OFF on your account. If this was not you, contact support immediately.',
                 'email_subject' => 'Security alert: two-factor authentication disabled on your account',
                 'email_body'    => '<p>Hi {client_name},</p><p>Two-factor authentication was just turned off for your Orbit Cloud client portal account.</p><p style="color:#64748b;font-size:13px">If you did not make this change, please contact support immediately.</p>',
             ],

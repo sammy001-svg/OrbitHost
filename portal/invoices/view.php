@@ -47,6 +47,16 @@ try {
     $credit_balance = (float) $stmt2->fetchColumn();
 } catch (\Throwable $e) { /* table not migrated yet */ }
 
+// What is actually still owed — less than the total when part of it has
+// already come in (a short payment waiting on its balance). Every way of
+// paying below charges this, never the full total again.
+$paid_so_far = 0.0;
+$amount_due  = (float) $inv['total'];
+if ($inv['status'] !== 'paid') {
+    $amount_due  = Automation::invoiceOutstanding($id);
+    $paid_so_far = round((float) $inv['total'] - $amount_due, 2);
+}
+
 // ── Returning from an online gateway checkout ──
 if (isset($_GET['pay']) && $inv['status'] !== 'paid') {
     $pstmt = db()->prepare('SELECT status FROM payments WHERE id = ? AND client_id = ? AND invoice_id = ?');
@@ -60,6 +70,8 @@ if (isset($_GET['pay']) && $inv['status'] !== 'paid') {
             exit;
         } elseif ($r['status'] === 'failed') {
             $error = 'Payment failed: ' . $r['message'];
+        } elseif ($r['status'] === 'underpaid') {
+            $push_msg = 'We received your payment, but it was less than the amount due. Our billing team has been notified and will be in touch about the balance — nothing you paid is lost.';
         } else {
             $push_msg = $r['message'] ?: 'Waiting for payment confirmation — refresh in a moment.';
         }
@@ -69,14 +81,17 @@ if (isset($_GET['pay']) && $inv['status'] !== 'paid') {
 // ── Pay with account credit ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay_credit' && in_array($inv['status'], ['sent', 'overdue'], true)) {
     portal_csrf_verify();
-    if ($credit_balance >= (float) $inv['total']) {
+    if ($amount_due > 0 && $credit_balance + 0.005 >= $amount_due) {
         db()->prepare('INSERT INTO client_credits (client_id, amount, reason, invoice_id) VALUES (?,?,?,?)')
-            ->execute([$cid, -1 * (float) $inv['total'], 'Applied to invoice ' . $inv['invoice_number'], $id]);
+            ->execute([$cid, -1 * $amount_due, 'Applied to invoice ' . $inv['invoice_number'], $id]);
         db()->prepare("INSERT INTO payments (invoice_id, client_id, gateway, gateway_ref, amount, currency, status) VALUES (?,?,?,?,?,?,'completed')")
-            ->execute([$id, $cid, 'credit', 'CREDIT-' . strtoupper(bin2hex(random_bytes(4))), $inv['total'], $inv_currency]);
-        db()->prepare("UPDATE invoices SET status='paid', paid_date=CURDATE(), payment_method='Account Credit' WHERE id=?")->execute([$id]);
-        Automation::invoicePaid($id);
-        Notifier::sendInvoiceEmail($id, 'invoice_paid', ['gateway' => 'Account Credit']);
+            ->execute([$id, $cid, 'credit', 'CREDIT-' . strtoupper(bin2hex(random_bytes(4))), $amount_due, $inv_currency]);
+        $credit_pay = db()->prepare('SELECT * FROM payments WHERE id = ?');
+        $credit_pay->execute([(int) db()->lastInsertId()]);
+        // Same settle path as every gateway: also fulfils from the original
+        // order if this credit is topping up an earlier short payment.
+        Automation::settleInvoice($id, $credit_pay->fetch());
+        Notifier::sendInvoiceEmail($id, 'invoice_paid', ['gateway' => 'Account Credit', 'amount' => format_money($amount_due, $inv_currency)]);
         portal_flash_set('success', 'Paid with account credit — invoice settled.');
     } else {
         portal_flash_set('error', 'Insufficient account credit to cover this invoice.');
@@ -91,10 +106,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay_g
     $gw = $_POST['gateway'] ?? '';
     if (!isset($gateways[$gw])) {
         $error = 'Please choose a payment method.';
+    } elseif ($amount_due < 0.01) {
+        $error = 'Our records show nothing left to pay on this invoice — please contact support so we can update it.';
     } else {
         $return = PORTAL_URL . '/invoices/view.php?id=' . $id;
         $start  = dp_start_payment(
-            $cid, $id, (float) $inv['total'], $inv_currency, $gw,
+            $cid, $id, $amount_due, $inv_currency, $gw,
             ['name' => trim($inv['first_name'] . ' ' . $inv['last_name']), 'email' => $inv['client_email'],
              'phone' => trim($_POST['mpesa_phone'] ?? '') ?: ($inv['client_phone'] ?? '')],
             $return, $return,
@@ -105,6 +122,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay_g
             $error = $r['message'] ?? 'The payment gateway rejected the request.';
         } elseif (($r['mode'] ?? '') === 'redirect' && !empty($r['redirect_url'])) {
             header('Location: ' . $r['redirect_url']);
+            exit;
+        } elseif (($r['mode'] ?? '') === 'push') {
+            // Redirect so a refresh re-checks instead of re-sending the prompt.
+            header('Location: ' . PORTAL_URL . '/invoices/view.php?id=' . $id . '&pay=' . (int) $start['pay_id']);
             exit;
         } else {
             $push_msg = $r['message'] ?? 'Payment started — complete it, then refresh this page.';
@@ -130,13 +151,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submi
             db()->prepare('UPDATE payments SET gateway_ref = ? WHERE id = ?')->execute([$ref, $existing_id]);
         } else {
             db()->prepare("INSERT INTO payments (invoice_id, client_id, gateway, gateway_ref, amount, currency, status) VALUES (?,?,?,?,?,?,'pending')")
-                ->execute([$id, $cid, $gw, $ref, $inv['total'], $inv_currency]);
+                ->execute([$id, $cid, $gw, $ref, $amount_due, $inv_currency]);
         }
         $gw_def = ProviderRegistry::get($gw);
         Notifier::sendToAllAdmins('payment_reference_submitted', [
             'client_name'    => trim($inv['first_name'] . ' ' . $inv['last_name']),
             'invoice_number' => $inv['invoice_number'],
-            'amount'         => format_money((float) $inv['total'], $inv_currency),
+            'amount'         => format_money($amount_due, $inv_currency),
             'gateway'        => $gw_def['name'] ?? ucfirst(str_replace('_', ' ', $gw)),
             'reference'      => $ref,
             'link'           => APP_URL . '/billing/collect.php?invoice_id=' . $id,
@@ -189,7 +210,14 @@ require_once '../includes/header.php';
   <?php if ($error): ?>
     <div class="p-alert p-alert-error no-print" style="margin-bottom:16px"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?></div>
   <?php endif; ?>
-  <?php if ($push_msg): ?>
+  <?php
+  // An M-Pesa prompt in flight on this invoice gets the live waiting screen.
+  $stk = isset($_GET['pay']) && $inv['status'] !== 'paid' ? dp_payment_row((int) $_GET['pay'], $cid) : null;
+  if ($stk && $stk['gateway'] === 'kopokopo' && $stk['status'] === 'pending' && (int) $stk['invoice_id'] === $id): ?>
+    <div class="p-card no-print" style="margin-bottom:16px;padding:28px">
+      <?php stk_wait_panel($stk, PORTAL_URL . '/invoices/view.php?id=' . $id . '&pay={pay}', PORTAL_URL . '/invoices/view.php?id=' . $id . '#pay'); ?>
+    </div>
+  <?php elseif ($push_msg): ?>
     <div class="p-alert p-alert-info no-print" style="margin-bottom:16px;white-space:pre-line"><i class="fas fa-hourglass-half"></i> <?php echo htmlspecialchars($push_msg); ?></div>
   <?php endif; ?>
 
@@ -259,6 +287,10 @@ require_once '../includes/header.php';
           <tr><td class="k">Discount<?php echo $inv['coupon_code'] ? ' (' . htmlspecialchars($inv['coupon_code']) . ')' : ''; ?></td><td class="v">-<?php echo format_money($inv['discount_amount'], $inv_currency); ?></td></tr>
           <?php endif; ?>
           <tr class="total-row"><td>Total</td><td class="v"><?php echo format_money($inv['total'], $inv_currency); ?></td></tr>
+          <?php if ($paid_so_far > 0.009): ?>
+          <tr><td class="k">Paid so far</td><td class="v">-<?php echo format_money($paid_so_far, $inv_currency); ?></td></tr>
+          <tr class="total-row"><td>Balance due</td><td class="v"><?php echo format_money($amount_due, $inv_currency); ?></td></tr>
+          <?php endif; ?>
         </table>
       </div>
 
@@ -275,14 +307,14 @@ require_once '../includes/header.php';
   <div class="p-card no-print" id="pay" style="margin-top:20px">
     <div class="p-card-header">
       <div class="p-card-title"><i class="fas fa-credit-card" style="color:var(--green);margin-right:8px"></i>Pay This Invoice</div>
-      <div><?php echo format_money((float) $inv['total'], $inv_currency); ?></div>
+      <div><?php echo format_money($amount_due, $inv_currency); ?></div>
     </div>
     <div class="p-card-body">
 
       <?php if ($credit_balance > 0): ?>
         <div class="p-alert p-alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px">
           <span><i class="fas fa-wallet"></i> Account credit available: <strong><?php echo format_money($credit_balance); ?></strong></span>
-          <?php if ($credit_balance >= (float) $inv['total']): ?>
+          <?php if ($credit_balance + 0.005 >= $amount_due): ?>
             <form method="POST" style="margin:0">
               <input type="hidden" name="csrf_token" value="<?php echo portal_csrf(); ?>" />
               <input type="hidden" name="action" value="pay_credit" />
@@ -317,7 +349,7 @@ require_once '../includes/header.php';
             <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">M-Pesa phone number</label>
             <input type="tel" name="mpesa_phone" class="form-control" placeholder="07XX XXX XXX" value="<?php echo htmlspecialchars($inv['client_phone'] ?? ''); ?>" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px" />
           </div>
-          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;font-weight:700"><i class="fas fa-lock"></i> Pay <?php echo format_money((float) $inv['total'], $inv_currency); ?></button>
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;font-weight:700"><i class="fas fa-lock"></i> Pay <?php echo format_money($amount_due, $inv_currency); ?></button>
         </form>
         <?php
         // Kopo Kopo settles in shillings only, so dp_active_gateways() drops
@@ -470,4 +502,5 @@ document.querySelectorAll('.offline-edit-ref').forEach(function (link) {
 });
 </script>
 
+<?php stk_submit_guard(); ?>
 <?php require_once '../includes/footer.php'; ?>

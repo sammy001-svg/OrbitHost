@@ -97,17 +97,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pending = db()->prepare("SELECT id FROM payments WHERE invoice_id = ? AND status = 'pending' AND gateway IN ('bank_transfer','mpesa_manual','cheque') ORDER BY id DESC LIMIT 1");
         $pending->execute([$invoice_id]);
         $pending_id = (int) $pending->fetchColumn();
+        // Only what is still owed — after a short payment that's the balance.
+        $owed = Automation::invoiceOutstanding($invoice_id);
         if ($pending_id) {
-            db()->prepare("UPDATE payments SET status = 'completed' WHERE id = ?")->execute([$pending_id]);
+            db()->prepare("UPDATE payments SET status = 'completed', amount = ? WHERE id = ?")->execute([$owed, $pending_id]);
         } else {
             db()->prepare('INSERT INTO payments (invoice_id, client_id, gateway, gateway_ref, amount, currency, status) VALUES (?,?,?,?,?,?,?)')
-                ->execute([$invoice_id, $inv['client_id'], 'manual', 'MANUAL-' . strtoupper(bin2hex(random_bytes(3))), $inv['total'], $currency, 'completed']);
+                ->execute([$invoice_id, $inv['client_id'], 'manual', 'MANUAL-' . strtoupper(bin2hex(random_bytes(3))), $owed, $currency, 'completed']);
+            $pending_id_new = (int) db()->lastInsertId();
         }
-        db()->prepare("UPDATE invoices SET status='paid', paid_date=CURDATE(), payment_method=? WHERE id=?")
-            ->execute([trim($_POST['method'] ?? 'Manual'), $invoice_id]);
+        $trig = db()->prepare('SELECT * FROM payments WHERE id = ?');
+        $trig->execute([$pending_id ?: $pending_id_new]);
+        // Shared settle path: marks paid, closes any short-payment review,
+        // and fulfils from the original order context.
+        $settled = Automation::settleInvoice($invoice_id, $trig->fetch());
+        db()->prepare('UPDATE invoices SET payment_method = ? WHERE id = ?')->execute([trim($_POST['method'] ?? 'Manual'), $invoice_id]);
         notify_invoice_paid_admin($inv, $invoice_id, trim($_POST['method'] ?? 'Manual'));
         log_activity('payment_manual', 'invoice', $invoice_id, $pending_id ? 'Offline payment confirmed received' : 'Manual payment recorded');
-        $auto = Automation::invoicePaid($invoice_id);
+        $auto = $settled['fulfilment']['invoice'] ?? ['status' => $settled['status'], 'message' => $settled['message']];
         flash_set('success', ($pending_id ? 'Offline payment confirmed — invoice marked as paid.' : 'Payment recorded and invoice marked as paid.')
             . (in_array($auto['status'], ['provisioned', 'reactivated', 'renewed'], true) ? ' ' . $auto['message'] : ''));
         header('Location: ' . APP_URL . '/billing/index.php');
@@ -145,14 +152,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'callback' => $base . '/billing/',
             ];
             try {
+                $owed   = Automation::invoiceOutstanding($invoice_id);
                 $result = Provider::payment($gw)->createCheckout(
-                    (float)$inv['total'], $currency, $inv['invoice_number'],
+                    $owed, $currency, $inv['invoice_number'],
                     ['name' => trim(($inv['first_name'] ?? '') . ' ' . ($inv['last_name'] ?? '')), 'email' => $inv['email'] ?? '', 'phone' => $inv['phone'] ?? ''],
                     $urls
                 );
                 // Record the attempt
                 db()->prepare('INSERT INTO payments (invoice_id, client_id, gateway, gateway_ref, amount, currency, status, raw) VALUES (?,?,?,?,?,?,?,?)')
-                    ->execute([$invoice_id, $inv['client_id'], $gw, $result['ref'] ?? null, $inv['total'], $currency,
+                    ->execute([$invoice_id, $inv['client_id'], $gw, $result['ref'] ?? null, $owed, $currency,
                                !empty($result['success']) ? 'pending' : 'failed', json_encode($result)]);
                 if (empty($result['success'])) {
                     flash_set('error', 'Gateway error: ' . ($result['message'] ?? 'unknown'));

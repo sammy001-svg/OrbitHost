@@ -312,6 +312,27 @@ final class ProviderRegistry
                 ],
             ],
 
+            /* ═══════════ SMS ═══════════ */
+            'shanfix_sms' => [
+                'key'      => 'shanfix_sms',
+                'name'     => 'Shanfix SMS',
+                'category' => 'sms',
+                'icon'     => 'fa-comment-sms',
+                'color'    => '#14874E',
+                'tagline'  => 'Bulk & transactional SMS through the Shanfix Technology SMS platform.',
+                'client'   => 'SmsClient',
+                'docs'     => '',
+                'fields'   => [
+                    ['key'=>'base_url',  'label'=>'Platform URL', 'type'=>'text', 'required'=>true, 'default'=>'https://sms.shanfixtechnology.com',
+                     'hint'=>'The Shanfix SMS address — the API lives at /api/v1/ under it.'],
+                    ['key'=>'client_id', 'label'=>'Client ID', 'type'=>'text', 'required'=>true, 'hint'=>'Shanfix SMS › Developer API. Sent as X-Client-ID.'],
+                    ['key'=>'api_key',   'label'=>'API Key',   'type'=>'secret', 'required'=>true, 'hint'=>'Shown once when generated in Shanfix SMS. Sent as X-Api-Key.'],
+                    ['key'=>'sender_id', 'label'=>'Sender ID', 'type'=>'text', 'placeholder'=>'ORBITCLOUD', 'hint'=>'An approved sender ID on your Shanfix SMS account. Leave blank to use the account default.'],
+                    ['key'=>'notify',    'label'=>'Send SMS for client notifications', 'type'=>'toggle', 'default'=>true,
+                     'hint'=>'Invoices, payment receipts, service ready/suspended, renewal reminders, ticket replies and security alerts also go out by SMS when the client has a phone number.'],
+                ],
+            ],
+
         ];
     }
 
@@ -323,6 +344,7 @@ final class ProviderRegistry
             'registrar' => ['label'=>'Domain Registrars',      'icon'=>'fa-globe',        'hint'=>'Register, renew and manage domains.'],
             'payment'   => ['label'=>'Payment Gateways',       'icon'=>'fa-credit-card',  'hint'=>'Collect payments for invoices online.'],
             'email'     => ['label'=>'Email Delivery',         'icon'=>'fa-envelope',     'hint'=>'Outbound transactional email.'],
+            'sms'       => ['label'=>'SMS',                    'icon'=>'fa-comment-sms',  'hint'=>'Text-message notifications and campaigns to clients.'],
         ];
     }
 
