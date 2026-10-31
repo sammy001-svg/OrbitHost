@@ -34,7 +34,8 @@ $idp_on = (bool) OrderCart::get('id_protection');
 $sum    = OrderCart::summary($currency);
 
 $mode_label = $mode === 'register' ? 'New registration'
-            : ($mode === 'transfer' ? 'Transfer to us' : 'Already owned by you');
+            : ($mode === 'transfer' ? 'Transfer to us'
+            : ($mode === 'cart' ? 'From your cart — term and ID Protection are set there' : 'Already owned by you'));
 
 checkout_head('Configure your domain', 3);
 ?>

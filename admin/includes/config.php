@@ -26,6 +26,19 @@ defined('CURRENCY')         || define('CURRENCY',   'USD');
 defined('PER_PAGE')         || define('PER_PAGE',   20);
 defined('SESSION_TIMEOUT')  || define('SESSION_TIMEOUT', 7200);
 
+// ── Error display ─────────────────────────────────────────────
+// Never print PHP warnings/notices into pages visitors see (they leak file
+// paths and break layouts); log them for us instead. Set APP_DEBUG=true in
+// .env on a development copy to see them on screen.
+if (filter_var(defined('APP_DEBUG') ? APP_DEBUG : false, FILTER_VALIDATE_BOOLEAN)) {
+    ini_set('display_errors', '1');
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+}
+
 // ── Auto-detect APP_URL if not set in .env ────────────────────
 // Using SCRIPT_NAME is far more reliable than DOCUMENT_ROOT math
 // because DOCUMENT_ROOT can differ from the real filesystem path

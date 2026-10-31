@@ -133,10 +133,10 @@ require_once '../../includes/header.php';
               <option value="">— Manual entry —</option>
               <?php foreach ($pending_orders as $ord): ?>
                 <option value="<?php echo $ord['order_id']; ?>"
-                        data-domain="<?php echo htmlspecialchars($ord['domain_name']); ?>"
+                        data-domain="<?php echo htmlspecialchars((string) $ord['domain_name']); ?>"
                         data-email="<?php echo htmlspecialchars($ord['email']); ?>"
                   <?php echo $preselect_order === $ord['order_id'] ? 'selected' : ''; ?>>
-                  #<?php echo $ord['order_id']; ?> — <?php echo htmlspecialchars($ord['first_name'] . ' ' . $ord['last_name']); ?> — <?php echo htmlspecialchars($ord['domain_name']); ?>
+                  #<?php echo $ord['order_id']; ?> — <?php echo htmlspecialchars($ord['first_name'] . ' ' . $ord['last_name']); ?> — <?php echo htmlspecialchars((string) $ord['domain_name']); ?>
                 </option>
               <?php endforeach; ?>
             </select>
@@ -201,8 +201,8 @@ require_once '../../includes/header.php';
         <?php if ($pending_orders): foreach ($pending_orders as $ord): ?>
           <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px">
             <div style="font-weight:600"><?php echo htmlspecialchars($ord['first_name'] . ' ' . $ord['last_name']); ?></div>
-            <div style="color:var(--text-muted);font-size:12px"><?php echo htmlspecialchars($ord['domain_name']); ?></div>
-            <div style="font-size:11px;color:var(--text-muted)"><?php echo htmlspecialchars($ord['service_name']); ?></div>
+            <div style="color:var(--text-muted);font-size:12px"><?php echo htmlspecialchars((string) $ord['domain_name']); ?></div>
+            <div style="font-size:11px;color:var(--text-muted)"><?php echo htmlspecialchars((string) $ord['service_name']); ?></div>
             <a href="?order_id=<?php echo $ord['order_id']; ?>" class="btn btn-ghost btn-sm" style="margin-top:4px;font-size:11px">Pre-fill</a>
           </div>
         <?php endforeach; else: ?>

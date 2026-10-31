@@ -49,10 +49,16 @@ final class OrderCart
         return self::all()[$key] ?? $default;
     }
 
-    /** Empty the whole cart: the hosting order AND the domain items. */
+    /** Empty the whole cart: the hosting order, the domain items, the promo. */
     public static function clear(): void
     {
-        unset($_SESSION[self::KEY], $_SESSION[self::DOMAINS]);
+        unset($_SESSION[self::KEY], $_SESSION[self::DOMAINS], $_SESSION['cart_promo']);
+    }
+
+    /** Drop just the hosting package (starting a different one), keeping domains. */
+    public static function clearHosting(): void
+    {
+        unset($_SESSION[self::KEY]);
     }
 
     // ── Domain items ────────────────────────────────────────────────────
@@ -396,6 +402,15 @@ final class OrderCart
         foreach ($lines as $l) $subtotal += (float) $l['amount'];
         $subtotal = round($subtotal, 2);
 
+        // Promo code — re-validated on every render, so one that expires or
+        // runs out mid-checkout simply drops off with a reason.
+        $promo = self::promo($subtotal, $currency);
+        if ($promo['discount'] > 0) {
+            $lines[] = ['type' => 'discount', 'coupon_id' => (int) $promo['coupon']['id'], 'code' => $promo['coupon']['code'],
+                        'label' => 'Promo code ' . strtoupper($promo['coupon']['code']), 'amount' => -$promo['discount']];
+            $subtotal = round($subtotal - $promo['discount'], 2);
+        }
+
         $billing  = SiteSettings::billing();
         $vat_rate = $billing['vat_enabled'] ? (float) $billing['vat_rate'] : 0.0;
         $vat      = round($subtotal * $vat_rate / 100, 2);
@@ -407,7 +422,34 @@ final class OrderCart
             'vat_rate' => $vat_rate,
             'total'    => round($subtotal + $vat, 2),
             'currency' => $currency,
+            'promo_error' => $promo['error'],
+            'promo_code'  => $promo['coupon']['code'] ?? '',
+            'discount'    => $promo['discount'],
         ];
+    }
+
+    // ── Promo code ──────────────────────────────────────────────────────
+
+    public static function setPromo(string $code): void
+    {
+        $code = strtoupper(preg_replace('/[^A-Za-z0-9_-]/', '', $code));
+        if ($code === '') unset($_SESSION['cart_promo']); else $_SESSION['cart_promo'] = $code;
+    }
+
+    /** @return array{coupon:?array,discount:float,error:string} */
+    public static function promo(float $subtotal, string $currency): array
+    {
+        $code = (string) ($_SESSION['cart_promo'] ?? '');
+        $none = ['coupon' => null, 'discount' => 0.0, 'error' => ''];
+        if ($code === '' || $subtotal <= 0) return $none;
+        require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
+        require_once dirname(__DIR__, 2) . '/admin/includes/Coupon.php';
+        $c = Coupon::find($code);
+        if (!$c) return ['coupon' => null, 'discount' => 0.0, 'error' => 'Promo code "' . $code . '" was not found.'];
+        $plan = self::plan();
+        $check = Coupon::validate($c, $subtotal, $currency, $plan ? (string) $plan['category'] : 'domain');
+        if (!$check['ok']) return ['coupon' => null, 'discount' => 0.0, 'error' => $check['message']];
+        return ['coupon' => $c, 'discount' => Coupon::discountFor($c, $subtotal, $currency), 'error' => ''];
     }
 
     /**

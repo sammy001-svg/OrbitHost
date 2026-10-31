@@ -27,7 +27,7 @@
  * page load — this guard is what prevents that regression.
  *
  *   data-whmcs-action="login"   → portal login        (/portal/login.php)
- *   data-whmcs-product="slug"   → portal signup        (/portal/register.php?plan=slug)
+ *   data-whmcs-product="slug"   → order checkout       (/portal/order/index.php?plan=slug)
  *   data-whmcs-action="ticket"  → portal login (tickets live in the portal)
  *   data-whmcs-action="kb"      → public knowledge base (/kb/index.php)
  *   data-whmcs-action="status"  → contact page
@@ -52,9 +52,9 @@
   /* ── Internal portal URL helpers (same global name for compatibility) ── */
   window.WHMCS = {
     base: PORTAL,
-    // "Get Started" on a plan → registration, carrying the chosen plan slug
+    // "Get Started" on a plan → the checkout, starting with that package
     orderUrl: function (slug) {
-      return PORTAL + '/register.php?plan=' + encodeURIComponent(slug);
+      return PORTAL + '/order/index.php?plan=' + encodeURIComponent(slug);
     },
     // Domain search "Add to Cart" → portal cart
     domainUrl: function (domain) {

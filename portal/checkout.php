@@ -16,6 +16,14 @@ require_once __DIR__ . '/includes/domain_payment.php';
 portal_start();
 Currency::ensureSchema();
 
+// Starting a new domain checkout goes through the unified cart checkout
+// (one invoice with any hosting, account creation for guests). This page
+// stays only to finish payments it started (?pay=).
+if (!isset($_GET['pay']) && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: ' . PORTAL_URL . '/order/review.php');
+    exit;
+}
+
 // ── Sign-in gate: remember where to come back to ──
 if (empty($_SESSION['client_id'])) {
     $_SESSION['post_login_redirect'] = 'checkout.php';

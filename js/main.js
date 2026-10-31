@@ -255,7 +255,7 @@
 //
 // Each grid opts in by naming the admin category it mirrors:
 //   <div class="pricing-grid" data-plans-category="shared"
-//        data-plans-cta="../portal/register.php?plan={slug}"
+//        data-plans-cta="../portal/order/index.php?plan={slug}"
 //        data-plans-cta-label="Get Started">
 // {slug} and {id} are substituted into the href per plan; a CTA with
 // neither is used as-is (index.html points at the category page,

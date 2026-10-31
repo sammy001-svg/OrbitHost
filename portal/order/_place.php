@@ -98,6 +98,22 @@ function record_pending_domain(int $cid, string $domain, string $mode, int $year
     }
 }
 
+/** Stamp the promo code on the invoice and count its use. Never throws. */
+function invoice_apply_promo(int $invoice_id, array $sum): void
+{
+    foreach ($sum['lines'] as $l) {
+        if (($l['type'] ?? '') !== 'discount') continue;
+        try {
+            require_once dirname(__DIR__, 2) . '/admin/includes/Coupon.php';
+            Coupon::ensureInvoiceColumns();
+            // Code only: the discount is already an invoice line, and the
+            // invoice pages print discount_amount as a second "Discount" row.
+            db()->prepare('UPDATE invoices SET coupon_code = ? WHERE id = ?')->execute([$l['code'], $invoice_id]);
+            Coupon::redeem((int) $l['coupon_id']);
+        } catch (\Throwable $e) { /* the discount line is on the invoice regardless */ }
+    }
+}
+
 /** Record every cart domain on an invoice. */
 function place_cart_domains(array $sum, int $cid, int $invoice_id, string $hosting_domain = '', ?int $order_id = null): array
 {
@@ -128,6 +144,7 @@ function place_domain_only_order(array $client, string $currency, array $sum): a
     foreach ($sum['lines'] as $l) {
         $ins->execute([$invoice_id, $l['label'], 1, (float) $l['amount'], (float) $l['amount']]);
     }
+    invoice_apply_promo($invoice_id, $sum);
 
     // Committed — nothing below may throw (see place_hosting_order()).
     $names = [];
@@ -213,6 +230,7 @@ function place_hosting_order(array $client, string $currency): array
     foreach ($sum['lines'] as $l) {
         $ins->execute([$invoice_id, $l['label'], 1, (float) $l['amount'], (float) $l['amount']]);
     }
+    invoice_apply_promo($invoice_id, $sum);
 
     // ── Subscribed add-ons ───────────────────────────────────────────
     // The invoice lines above bill them once. These rows are what makes a

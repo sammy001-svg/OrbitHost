@@ -284,7 +284,7 @@ require_once __DIR__ . '/includes/header.php';
       <div style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px"><?php echo htmlspecialchars($cat_labels[$sel_plan['category']] ?? ucfirst($sel_plan['category'])); ?></div>
       <div style="font-size:18px;font-weight:800;color:var(--text)"><?php echo htmlspecialchars($sel_plan['name']); ?></div>
       <?php if (!empty($sel_plan['description'])): ?>
-        <p style="font-size:13px;color:var(--text-muted);margin-top:8px;line-height:1.6"><?php echo htmlspecialchars($sel_plan['description']); ?></p>
+        <p style="font-size:13px;color:var(--text-muted);margin-top:8px;line-height:1.6"><?php echo htmlspecialchars((string) $sel_plan['description']); ?></p>
       <?php endif; ?>
       <div style="border-top:1px solid var(--border);margin:14px 0;padding-top:14px;display:flex;justify-content:space-between;font-size:13.5px">
         <span><?php echo htmlspecialchars($sel_plan['name']); ?></span>

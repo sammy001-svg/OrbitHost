@@ -194,7 +194,9 @@ function checkout_summary(array $sum, string $currency, string $cta = '', string
           <?php foreach ($sum['lines'] as $l): ?>
             <div class="co-sum-line">
               <span class="l"><?php echo h($l['label']); ?></span>
-              <span class="v"><?php echo $l['amount'] > 0 ? h(checkout_money((float) $l['amount'], $currency)) : 'Free'; ?></span>
+              <span class="v"<?php echo $l['amount'] < 0 ? ' style="color:var(--green)"' : ''; ?>><?php
+                echo $l['amount'] > 0 ? h(checkout_money((float) $l['amount'], $currency))
+                   : ($l['amount'] < 0 ? '−' . h(checkout_money(abs((float) $l['amount']), $currency)) : 'Free'); ?></span>
             </div>
           <?php endforeach; ?>
 

@@ -20,11 +20,14 @@ $currency = Currency::current();
 if (isset($_GET['plan'])) {
     $plan = OrderCart::findPlan((string) $_GET['plan']);
     if (!$plan) {
-        header('Location: ' . checkout_no_plan_url());
+        // A website button for a package that isn't in the online catalogue
+        // (yet): keep the old sales-assisted path rather than a dead end.
+        $slug = preg_replace('/[^a-z0-9-]/', '', strtolower((string) $_GET['plan']));
+        header('Location: ' . ($slug !== '' ? PORTAL_URL . '/register.php?plan=' . $slug : checkout_no_plan_url()));
         exit;
     }
     if ((int) OrderCart::get('plan_id') !== (int) $plan['id']) {
-        OrderCart::clear();
+        OrderCart::clearHosting(); // a different package — domains in the cart stay
         OrderCart::set('plan_id', (int) $plan['id']);
         // Anything the admin marked "ticked by default" starts selected;
         // the client can untick every one of them below.
@@ -77,7 +80,7 @@ try {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     portal_csrf_verify();
 
-    $mode   = in_array($_POST['domain_mode'] ?? '', ['register', 'transfer', 'existing'], true) ? $_POST['domain_mode'] : '';
+    $mode   = in_array($_POST['domain_mode'] ?? '', ['cart', 'register', 'transfer', 'existing'], true) ? $_POST['domain_mode'] : '';
     $name   = strtolower(trim($_POST['domain_' . $mode] ?? ''));
     $name   = preg_replace('/^https?:\/\//', '', $name);
     $name   = preg_replace('/[^a-z0-9.-]/', '', rtrim($name, '/'));
@@ -88,6 +91,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($mode === '') {
         $error = 'Choose how you\'d like to set up your domain.';
+    } elseif ($mode === 'cart') {
+        // A domain already in the cart: it's billed (and registered or
+        // transferred) as its own cart line; the hosting just uses it.
+        if (!isset(OrderCart::domains()[$name])) {
+            $error = 'Choose one of the domains in your cart.';
+        } else {
+            OrderCart::set('domain_mode', 'cart');
+            OrderCart::set('domain_name', $name);
+            OrderCart::set('domain_years', 1);
+            OrderCart::set('epp_code', '');
+            OrderCart::set('id_protection', false);
+            header('Location: ' . checkout_url('configure.php'));
+            exit;
+        }
     } elseif ($name === '' || !preg_match('/^[a-z0-9][a-z0-9-]*\.[a-z0-9.-]{2,}$/', $name)) {
         $error = 'Enter a full domain name, e.g. yourbusiness.co.ke';
     } elseif (in_array($mode, ['register', 'transfer'], true) && $tlds && !in_array(substr($name, strpos($name, '.') + 1), $tlds, true)) {
@@ -112,6 +129,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $sel_mode  = OrderCart::get('domain_mode', '');
 $sel_name  = (string) OrderCart::get('domain_name', '');
+$cart_domains = array_keys(OrderCart::domains());
+// Came here with domains already in the cart: offer the obvious choice first.
+if ($sel_mode === '' && $cart_domains) { $sel_mode = 'cart'; $sel_name = $cart_domains[0]; }
 $sel_years = OrderCart::domainYears();
 $chosen    = OrderCart::addonIds();
 $sum       = OrderCart::summary($currency);
@@ -134,6 +154,23 @@ checkout_head('Choose your domain', 1);
         <p>You're ordering <strong><?php echo h($plan['name']); ?></strong> — <?php echo h(ucfirst($plan['category'])); ?> hosting.</p>
       </div>
       <div class="co-panel-body">
+
+        <?php if ($cart_domains): ?>
+        <label class="co-opt <?php echo $sel_mode === 'cart' ? 'sel' : ''; ?>" data-mode="cart">
+          <input type="radio" name="domain_mode" value="cart" <?php echo $sel_mode === 'cart' ? 'checked' : ''; ?> />
+          <span style="flex:1">
+            <span class="co-opt-t">Use a domain from your cart</span>
+            <span class="co-opt-d">Already in this order — it's registered (or transferred) and your hosting is set up on it.</span>
+            <span class="mode-fields" data-for="cart" style="display:<?php echo $sel_mode === 'cart' ? 'block' : 'none'; ?>;margin-top:11px">
+              <select name="domain_cart" class="form-select" style="max-width:340px">
+                <?php foreach ($cart_domains as $cd): ?>
+                  <option value="<?php echo h($cd); ?>" <?php echo $sel_mode === 'cart' && $sel_name === $cd ? 'selected' : ''; ?>><?php echo h($cd); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </span>
+          </span>
+        </label>
+        <?php endif; ?>
 
         <label class="co-opt <?php echo $sel_mode === 'register' ? 'sel' : ''; ?>" data-mode="register">
           <input type="radio" name="domain_mode" value="register" <?php echo $sel_mode === 'register' ? 'checked' : ''; ?> />

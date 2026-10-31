@@ -166,11 +166,11 @@ require_once __DIR__ . '/includes/header.php';
       <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label">First Name <span class="req">*</span></label>
-          <input type="text" name="first_name" class="form-control" value="<?php echo htmlspecialchars($client['first_name']); ?>" required />
+          <input type="text" name="first_name" class="form-control" value="<?php echo htmlspecialchars((string) $client['first_name']); ?>" required />
         </div>
         <div class="form-group">
           <label class="form-label">Last Name <span class="req">*</span></label>
-          <input type="text" name="last_name" class="form-control" value="<?php echo htmlspecialchars($client['last_name']); ?>" required />
+          <input type="text" name="last_name" class="form-control" value="<?php echo htmlspecialchars((string) $client['last_name']); ?>" required />
         </div>
       </div>
       <div class="form-group">
@@ -181,7 +181,7 @@ require_once __DIR__ . '/includes/header.php';
       <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label">Phone</label>
-          <input type="tel" name="phone" class="form-control" value="<?php echo htmlspecialchars($client['phone']); ?>" />
+          <input type="tel" name="phone" class="form-control" value="<?php echo htmlspecialchars((string) $client['phone']); ?>" />
         </div>
         <div class="form-group">
           <label class="form-label">Country</label>
@@ -194,7 +194,7 @@ require_once __DIR__ . '/includes/header.php';
       </div>
       <div class="form-group">
         <label class="form-label">Company</label>
-        <input type="text" name="company" class="form-control" value="<?php echo htmlspecialchars($client['company']); ?>" />
+        <input type="text" name="company" class="form-control" value="<?php echo htmlspecialchars((string) $client['company']); ?>" />
       </div>
       <div class="form-actions">
         <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
@@ -305,7 +305,7 @@ require_once __DIR__ . '/includes/header.php';
       <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
         <div>
           <div style="font-weight:600;font-size:13.5px">SMS offers</div>
-          <div style="font-size:12px;color:var(--text-muted)">Promotions by text message<?php echo $client['phone'] ? ' to ' . htmlspecialchars($client['phone']) : ''; ?>. Texts about your invoices, payments and services still arrive.</div>
+          <div style="font-size:12px;color:var(--text-muted)">Promotions by text message<?php echo $client['phone'] ? ' to ' . htmlspecialchars((string) $client['phone']) : ''; ?>. Texts about your invoices, payments and services still arrive.</div>
         </div>
         <label class="switch"><input type="checkbox" name="sms_marketing" <?php echo $client['sms_marketing'] ? 'checked' : ''; ?> /><span class="track"></span></label>
       </div>
