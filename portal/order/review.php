@@ -26,9 +26,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_SESSION['checkout_last_inv
     header('Location: ' . checkout_url('complete.php') . '?invoice=' . (int) $_SESSION['checkout_last_invoice']);
     exit;
 }
+// A package finished in the steps joins the rest of the cart.
+OrderCart::commitHosting();
 checkout_require('review');
 
-$plan      = OrderCart::plan();
+$plan      = OrderCart::plan();        // only ever an unfinished one here
+$packages  = OrderCart::allHosting();
 $logged_in = !empty($_SESSION['client_id']);
 $errors    = [];
 $mode      = $logged_in ? 'account' : (($_POST['auth_mode'] ?? ($_GET['auth'] ?? 'new')) === 'existing' ? 'existing' : 'new');
@@ -203,18 +206,18 @@ checkout_head('Checkout', checkout_review_step());
         <a href="<?php echo PORTAL_URL; ?>/cart.php" class="co-back"><i class="fas fa-pen"></i> Edit cart</a>
       </div>
       <div class="co-panel-body" style="padding-top:6px;padding-bottom:6px">
-        <?php if ($plan): ?>
+        <?php foreach ($packages as $uid => $pk): $p = $pk['plan']; ?>
           <div class="rv-item">
             <span class="rv-ico"><i class="fas fa-server"></i></span>
             <div style="flex:1">
-              <div class="rv-t"><?php echo h($plan['name']); ?> — <?php echo h(ucfirst($plan['category'])); ?> hosting</div>
-              <div class="rv-d">Billed <?php echo h(str_replace('_', ' ', $plan['billing_cycle'])); ?> · on
-                <strong style="font-family:ui-monospace,Menlo,monospace"><?php echo h((string) OrderCart::get('domain_name')); ?></strong>
-                (<?php echo h($mode_label[OrderCart::get('domain_mode')] ?? ''); ?><?php echo OrderCart::get('id_protection') ? ', ID Protection' : ''; ?>)</div>
+              <div class="rv-t"><?php echo h($p['name']); ?> — <?php echo h(ucfirst($p['category'])); ?> hosting</div>
+              <div class="rv-d">Billed <?php echo h(str_replace('_', ' ', $p['billing_cycle'])); ?> · on
+                <strong style="font-family:ui-monospace,Menlo,monospace"><?php echo h((string) $pk['domain_name']); ?></strong>
+                (<?php echo h($mode_label[$pk['domain_mode']] ?? ''); ?><?php echo !empty($pk['id_protection']) ? ', ID Protection' : ''; ?>)</div>
             </div>
-            <a href="<?php echo checkout_url('configure.php'); ?>" class="co-back">Change</a>
+            <a href="<?php echo PORTAL_URL; ?>/cart.php?edit_pkg=<?php echo urlencode((string) $uid); ?>" class="co-back">Change</a>
           </div>
-        <?php endif; ?>
+        <?php endforeach; ?>
         <?php foreach (OrderCart::domains() as $d => $it): ?>
           <div class="rv-item">
             <span class="rv-ico"><i class="fas <?php echo $it['mode'] === 'transfer' ? 'fa-right-left' : 'fa-globe'; ?>"></i></span>
@@ -302,7 +305,7 @@ checkout_head('Checkout', checkout_review_step());
         <label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text-2);cursor:pointer">
           <input type="checkbox" name="accept_tos" value="1" <?php echo !empty($_POST['accept_tos']) ? 'checked' : ''; ?> style="margin-top:3px" />
           <span>I have read and agree to the <a href="<?php echo h($site); ?>/legal.html#terms" target="_blank" rel="noopener">Terms of Service</a>
-            and <a href="<?php echo h($site); ?>/legal.html" target="_blank" rel="noopener">Privacy Policy</a><?php echo OrderCart::domains() || in_array(OrderCart::get('domain_mode'), ['register', 'transfer'], true) ? ', and confirm the domain contact details are mine' : ''; ?>.</span>
+            and <a href="<?php echo h($site); ?>/legal.html" target="_blank" rel="noopener">Privacy Policy</a><?php echo OrderCart::domains() || array_filter($packages, fn($pk) => in_array($pk['domain_mode'], ['register', 'transfer'], true)) ? ', and confirm the domain contact details are mine' : ''; ?>.</span>
         </label>
       </div>
     </div>
@@ -312,13 +315,13 @@ checkout_head('Checkout', checkout_review_step());
       <div class="co-panel-body" style="font-size:13px;color:var(--text-2);line-height:1.8">
         <div><i class="fas fa-file-invoice" style="color:var(--green);width:18px"></i> We raise one invoice for everything and email it to you.</div>
         <div><i class="fas fa-credit-card" style="color:var(--green);width:18px"></i> Pay straight away by M-Pesa, card or bank — or later from your client area.</div>
-        <div><i class="fas fa-rocket" style="color:var(--green);width:18px"></i> Once paid, <?php echo $plan ? 'your hosting is set up and ' : ''; ?>your domains are registered automatically.</div>
+        <div><i class="fas fa-rocket" style="color:var(--green);width:18px"></i> Once paid, <?php echo $packages ? 'your hosting is set up and ' : ''; ?>your domains are registered automatically.</div>
         <?php if (!$logged_in): ?><div><i class="fas fa-user-shield" style="color:var(--green);width:18px"></i> You're signed in to your new client area right away.</div><?php endif; ?>
       </div>
     </div>
 
     <div class="co-actions">
-      <a href="<?php echo $plan ? checkout_url('domain-config.php') : PORTAL_URL . '/cart.php'; ?>" class="co-back"><i class="fas fa-arrow-left"></i> Back</a>
+      <a href="<?php echo PORTAL_URL; ?>/cart.php" class="co-back"><i class="fas fa-arrow-left"></i> Back to cart</a>
     </div>
   </div>
 

@@ -26,8 +26,11 @@ if (isset($_GET['plan'])) {
         header('Location: ' . ($slug !== '' ? PORTAL_URL . '/register.php?plan=' . $slug : checkout_no_plan_url()));
         exit;
     }
-    if ((int) OrderCart::get('plan_id') !== (int) $plan['id']) {
-        OrderCart::clearHosting(); // a different package — domains in the cart stay
+    if ((int) OrderCart::get('plan_id') !== (int) $plan['id'] || OrderCart::hostingComplete()) {
+        // Another package: file the one in progress (if it's complete) into
+        // the cart, then start this one fresh. Domains in the cart stay.
+        OrderCart::commitHosting();
+        OrderCart::clearHosting();
         OrderCart::set('plan_id', (int) $plan['id']);
         // Anything the admin marked "ticked by default" starts selected;
         // the client can untick every one of them below.
@@ -89,8 +92,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     OrderCart::setAddons((array) ($_POST['addons'] ?? []), $plan['category']);
 
+    $other = $name !== '' ? OrderCart::domainUsedByPackage($name) : null;
     if ($mode === '') {
         $error = 'Choose how you\'d like to set up your domain.';
+    } elseif ($other) {
+        $op = OrderCart::planById((int) $other['plan_id']);
+        $error = $name . ' already has a hosting package in your cart (' . ($op['name'] ?? 'hosting') . '). Each package needs its own domain — choose another.';
     } elseif ($mode === 'cart') {
         // A domain already in the cart: it's billed (and registered or
         // transferred) as its own cart line; the hosting just uses it.
@@ -129,7 +136,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $sel_mode  = OrderCart::get('domain_mode', '');
 $sel_name  = (string) OrderCart::get('domain_name', '');
-$cart_domains = array_keys(OrderCart::domains());
+// Cart domains not already hosting another package in this order.
+$cart_domains = array_values(array_filter(array_keys(OrderCart::domains()), fn($d) => !OrderCart::domainUsedByPackage($d)));
 // Came here with domains already in the cart: offer the obvious choice first.
 if ($sel_mode === '' && $cart_domains) { $sel_mode = 'cart'; $sel_name = $cart_domains[0]; }
 $sel_years = OrderCart::domainYears();

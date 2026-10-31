@@ -6,6 +6,7 @@ require_once '../includes/functions.php';
 require_once '../includes/providers/Provider.php';
 require_once '../includes/Notifier.php';
 require_once '../includes/Automation.php';
+require_once dirname(__DIR__, 2) . '/portal/includes/stk_wait.php';
 
 auth_check();
 // Whole page moves money — charging a card, pushing an M-Pesa prompt,
@@ -43,6 +44,35 @@ $offline_method_labels = ['mpesa_manual' => 'M-Pesa', 'bank_transfer' => 'Bank T
 
 $result = null;
 $currency = defined('CURRENCY') ? CURRENCY : 'USD';
+
+// ── The live M-Pesa screen finished: say how it went ──
+if (isset($_GET['stk_done'])) {
+    $p = db()->prepare('SELECT status, review, raw FROM payments WHERE id = ? AND invoice_id = ?');
+    $p->execute([(int) $_GET['stk_done'], $invoice_id]);
+    if ($row = $p->fetch()) {
+        $raw = json_decode($row['raw'] ?? '', true) ?: [];
+        if (($row['review'] ?? null) === 'short') {
+            flash_set('warning', 'M-Pesa payment received but short — it is in the short-payment review queue.');
+            header('Location: ' . APP_URL . '/billing/short.php?id=' . (int) $_GET['stk_done']);
+            exit;
+        }
+        if ($row['status'] === 'completed') {
+            flash_set('success', 'M-Pesa payment received' . (!empty($raw['mpesa_ref']) ? ' (' . $raw['mpesa_ref'] . ')' : '') . ' — ' . $inv['invoice_number'] . ' is paid.');
+            header('Location: ' . APP_URL . '/invoices/view.php?id=' . $invoice_id);
+            exit;
+        }
+    }
+    header('Location: ' . APP_URL . '/billing/collect.php?invoice_id=' . $invoice_id);
+    exit;
+}
+
+// An M-Pesa prompt in flight for this invoice (just sent, or a reload).
+$stk = null;
+if (isset($_GET['stk'])) {
+    $p = db()->prepare("SELECT * FROM payments WHERE id = ? AND invoice_id = ? AND gateway = 'kopokopo'");
+    $p->execute([(int) $_GET['stk'], $invoice_id]);
+    $stk = $p->fetch() ?: null;
+}
 
 function notify_invoice_paid_admin(array $inv, int $invoice_id, string $gateway): void
 {
@@ -145,28 +175,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!isset($gateways[$gw])) {
             flash_set('error', 'Choose an active gateway.');
         } else {
-            $base  = rtrim(APP_URL, '/');
-            $urls  = [
+            $base = rtrim(APP_URL, '/');
+            $owed = Automation::invoiceOutstanding($invoice_id);
+            // The invoice's own currency — never the site default, or a KES
+            // invoice would be charged as USD (and vice versa).
+            $inv_currency = $inv['currency'] ?: $currency;
+            $phone = trim((string) ($_POST['mpesa_phone'] ?? '')) ?: (string) ($inv['phone'] ?? '');
+
+            // Record the attempt FIRST: the gateway's callback URL has to
+            // name this payment, or its confirmation can't find its way back.
+            db()->prepare('INSERT INTO payments (invoice_id, client_id, gateway, amount, currency, status, raw) VALUES (?,?,?,?,?,"pending",?)')
+                ->execute([$invoice_id, $inv['client_id'], $gw, $owed, $inv_currency,
+                           json_encode(['context' => ['action' => 'invoice_payment'], 'collected_by' => (int) current_admin()['id']])]);
+            $pay_id = (int) db()->lastInsertId();
+            $urls = [
                 'return'   => $base . '/billing/collect.php?invoice_id=' . $invoice_id . '&paid=1',
                 'cancel'   => $base . '/billing/collect.php?invoice_id=' . $invoice_id,
-                'callback' => $base . '/billing/',
+                'callback' => payment_webhook_url($pay_id, $gw),
             ];
             try {
-                $owed   = Automation::invoiceOutstanding($invoice_id);
                 $result = Provider::payment($gw)->createCheckout(
-                    $owed, $currency, $inv['invoice_number'],
-                    ['name' => trim(($inv['first_name'] ?? '') . ' ' . ($inv['last_name'] ?? '')), 'email' => $inv['email'] ?? '', 'phone' => $inv['phone'] ?? ''],
+                    $owed, $inv_currency, $inv['invoice_number'],
+                    ['name' => trim(($inv['first_name'] ?? '') . ' ' . ($inv['last_name'] ?? '')), 'email' => $inv['email'] ?? '', 'phone' => $phone],
                     $urls
                 );
-                // Record the attempt
-                db()->prepare('INSERT INTO payments (invoice_id, client_id, gateway, gateway_ref, amount, currency, status, raw) VALUES (?,?,?,?,?,?,?,?)')
-                    ->execute([$invoice_id, $inv['client_id'], $gw, $result['ref'] ?? null, $owed, $currency,
-                               !empty($result['success']) ? 'pending' : 'failed', json_encode($result)]);
-                if (empty($result['success'])) {
-                    flash_set('error', 'Gateway error: ' . ($result['message'] ?? 'unknown'));
-                }
             } catch (\Throwable $e) {
                 $result = ['success' => false, 'message' => $e->getMessage()];
+            }
+            $raw = ['context' => ['action' => 'invoice_payment'], 'collected_by' => (int) current_admin()['id'], 'checkout' => $result];
+            if (empty($result['success'])) $raw['failure'] = $result['message'] ?? 'Gateway error';
+            db()->prepare('UPDATE payments SET gateway_ref = ?, status = ?, raw = ? WHERE id = ?')
+                ->execute([$result['ref'] ?? null, !empty($result['success']) ? 'pending' : 'failed', json_encode($raw), $pay_id]);
+
+            if (empty($result['success'])) {
+                flash_set('error', 'Gateway error: ' . ($result['message'] ?? 'unknown'));
+            } else {
+                log_activity('payment_collect', 'invoice', $invoice_id, 'Started ' . $gw . ' collection (payment #' . $pay_id . ')');
+                if (($result['mode'] ?? '') === 'push') {
+                    // Live waiting screen; a refresh re-checks instead of re-pushing.
+                    header('Location: ' . APP_URL . '/billing/collect.php?invoice_id=' . $invoice_id . '&stk=' . $pay_id);
+                    exit;
+                }
             }
         }
     }
@@ -186,6 +235,15 @@ require_once '../includes/header.php';
   <div class="card">
     <div class="card-header"><span class="card-title"><i class="fas fa-hand-holding-dollar"></i> Choose a gateway</span></div>
     <div class="card-body">
+      <?php if ($stk && in_array($stk['status'], ['pending', 'failed'], true) && $inv['status'] !== 'paid'): ?>
+        <div style="padding:6px 0 18px;border-bottom:1px solid var(--border);margin-bottom:18px">
+          <?php stk_wait_panel($stk,
+              APP_URL . '/billing/collect.php?invoice_id=' . $invoice_id . '&stk_done={pay}',
+              APP_URL . '/billing/collect.php?invoice_id=' . $invoice_id,
+              ['status_url' => APP_URL . '/billing/payment-status.php', 'csrf' => csrf_token(), 'audience' => 'admin',
+               'check_tpl' => APP_URL . '/billing/collect.php?invoice_id=' . $invoice_id . '&stk={pay}']); ?>
+        </div>
+      <?php endif; ?>
       <?php if ($result && !empty($result['success'])): ?>
         <?php if (($result['mode'] ?? '') === 'redirect'): ?>
           <div class="alert alert-success"><i class="fas fa-check-circle"></i> Checkout created. Share this secure link with the client to pay:</div>
@@ -216,15 +274,40 @@ require_once '../includes/header.php';
             <?php foreach ($gateways as $key => $def): ?>
               <label class="provider-card" style="cursor:pointer;padding:14px">
                 <div class="flex-gap">
-                  <input type="radio" name="gateway" value="<?php echo h($key); ?>" required>
+                  <input type="radio" name="gateway" value="<?php echo h($key); ?>" required data-gw="<?php echo h($key); ?>">
                   <div class="provider-logo" style="width:34px;height:34px;font-size:15px;background:<?php echo h($def['color']); ?>"><i class="fas <?php echo h($def['icon']); ?>"></i></div>
                   <div class="provider-name" style="font-size:13.5px"><?php echo h($def['name']); ?></div>
                 </div>
               </label>
             <?php endforeach; ?>
           </div>
-          <button type="submit" class="btn btn-primary"><i class="fas fa-bolt"></i> Create checkout</button>
+          <?php if (isset($gateways['kopokopo'])): ?>
+            <div class="form-group" id="collectPhone" style="display:none;max-width:320px">
+              <label class="form-label" for="mpesa_phone">Send the M-Pesa prompt to</label>
+              <input type="tel" id="mpesa_phone" name="mpesa_phone" class="form-control" placeholder="0712 345 678" value="<?php echo h((string) ($inv['phone'] ?? '')); ?>" />
+              <small class="form-hint">Safaricom number. Defaults to the phone on the client's profile.</small>
+            </div>
+          <?php endif; ?>
+          <button type="submit" class="btn btn-primary" id="collectBtn"><i class="fas fa-bolt"></i> Create checkout</button>
         </form>
+        <script>
+        (function () {
+          var box = document.getElementById('collectPhone'), btn = document.getElementById('collectBtn');
+          document.querySelectorAll('input[name="gateway"]').forEach(function (r) {
+            r.addEventListener('change', function () {
+              var mp = r.dataset.gw === 'kopokopo';
+              if (box) box.style.display = mp ? '' : 'none';
+              btn.innerHTML = mp ? '<i class="fas fa-mobile-screen"></i> Send M-Pesa prompt' : '<i class="fas fa-bolt"></i> Create checkout';
+            });
+          });
+          // One push per click.
+          btn.form.addEventListener('submit', function (e) {
+            if (btn.form.dataset.sent) { e.preventDefault(); return; }
+            btn.form.dataset.sent = '1';
+            setTimeout(function () { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…'; }, 0);
+          });
+        })();
+        </script>
 
         <hr style="border:none;border-top:1px solid var(--border);margin:22px 0">
         <p class="form-section-title">Or record a manual payment</p>

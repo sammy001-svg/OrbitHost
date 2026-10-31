@@ -49,16 +49,97 @@ final class OrderCart
         return self::all()[$key] ?? $default;
     }
 
-    /** Empty the whole cart: the hosting order, the domain items, the promo. */
+    /** Empty the whole cart: every hosting package, the domain items, the promo. */
     public static function clear(): void
     {
-        unset($_SESSION[self::KEY], $_SESSION[self::DOMAINS], $_SESSION['cart_promo']);
+        unset($_SESSION[self::KEY], $_SESSION[self::DOMAINS], $_SESSION[self::HOSTING], $_SESSION['cart_promo']);
     }
 
-    /** Drop just the hosting package (starting a different one), keeping domains. */
+    /** Drop the package currently being configured (finished ones stay). */
     public static function clearHosting(): void
     {
         unset($_SESSION[self::KEY]);
+    }
+
+    // ── Several hosting packages ────────────────────────────────────────
+    //
+    // hosting_order (above) is the ONE package the four steps are working
+    // on. Finishing it — or opening the cart — files it into cart_hosting,
+    // a list of finished packages keyed by a short id, and frees the steps
+    // for the next. "Edit" on a filed package moves it back into the steps.
+
+    private const HOSTING = 'cart_hosting';
+
+    /** Finished packages, [uid => item]. */
+    public static function hostingItems(): array
+    {
+        return array_filter((array) ($_SESSION[self::HOSTING] ?? []), 'is_array');
+    }
+
+    /** File the package being configured into the cart, if it's complete. */
+    public static function commitHosting(): ?string
+    {
+        if (!self::hostingComplete()) return null;
+        $item = self::all();
+        $uid  = (string) ($item['uid'] ?? '') ?: bin2hex(random_bytes(4));
+        unset($item['uid']);
+        $_SESSION[self::HOSTING][$uid] = $item;
+        self::clearHosting();
+        return $uid;
+    }
+
+    /** Re-open a filed package in the steps (filing whatever was there first). */
+    public static function editHosting(string $uid): bool
+    {
+        $items = self::hostingItems();
+        if (!isset($items[$uid])) return false;
+        self::commitHosting();
+        $_SESSION[self::KEY] = $items[$uid] + ['uid' => $uid];
+        unset($_SESSION[self::HOSTING][$uid]);
+        return true;
+    }
+
+    public static function removeHosting(string $uid): void
+    {
+        unset($_SESSION[self::HOSTING][$uid]);
+    }
+
+    /**
+     * Every package that will be billed: the filed ones plus the one in the
+     * steps if it's complete. [uid => item + 'plan' row]; packages whose
+     * plan has been withdrawn are left out (and flagged by the cart).
+     */
+    public static function allHosting(): array
+    {
+        $items = self::hostingItems();
+        if (self::hostingComplete()) $items[(string) (self::get('uid') ?: 'current')] = self::all();
+        $out = [];
+        foreach ($items as $uid => $it) {
+            $p = self::planById((int) ($it['plan_id'] ?? 0));
+            if ($p) $out[$uid] = $it + ['plan' => $p];
+        }
+        return $out;
+    }
+
+    public static function planById(int $id): ?array
+    {
+        static $memo = [];
+        if ($id < 1) return null;
+        if (!array_key_exists($id, $memo)) {
+            $s = db()->prepare('SELECT * FROM services WHERE id = ? AND is_active = 1');
+            $s->execute([$id]);
+            $memo[$id] = $s->fetch() ?: null;
+        }
+        return $memo[$id];
+    }
+
+    /** Which package (other than the one being edited) already uses $domain. */
+    public static function domainUsedByPackage(string $domain): ?array
+    {
+        foreach (self::hostingItems() as $uid => $it) {
+            if (($it['domain_name'] ?? '') === $domain) return $it + ['uid' => $uid];
+        }
+        return null;
     }
 
     // ── Domain items ────────────────────────────────────────────────────
@@ -94,14 +175,22 @@ final class OrderCart
         $_SESSION[self::DOMAINS][$domain] = array_merge($cur, $item, ['tld' => explode('.', $domain, 2)[1] ?? '']);
     }
 
-    public static function removeDomain(string $domain): void
+    /** @return string '' when removed, otherwise why it can't be */
+    public static function removeDomain(string $domain): string
     {
+        $pkg = self::domainUsedByPackage($domain);
+        if ($pkg && ($pkg['domain_mode'] ?? '') === 'cart') {
+            $p = self::planById((int) $pkg['plan_id']);
+            return 'Your ' . ($p['name'] ?? 'hosting') . ' package is set up on ' . $domain
+                 . '. Remove that package, or edit it to use a different domain, first.';
+        }
         unset($_SESSION[self::DOMAINS][$domain]);
         // A hosting package set up on this cart domain no longer has one.
         if (self::get('domain_mode') === 'cart' && self::get('domain_name') === $domain) {
             self::set('domain_mode', '');
             self::set('domain_name', '');
         }
+        return '';
     }
 
     /**
@@ -141,7 +230,7 @@ final class OrderCart
     /** Number of things in the cart (hosting counts once), for badges. */
     public static function count(): int
     {
-        return count(self::domains()) + (self::plan() ? 1 : 0);
+        return count(self::domains()) + count(self::hostingItems()) + (self::plan() ? 1 : 0);
     }
 
     /** Pricing row for any TLD we sell, or null. */
@@ -171,7 +260,7 @@ final class OrderCart
         // A started-but-unfinished hosting order blocks checkout: it would
         // otherwise be silently dropped.
         if (self::plan() && !self::hostingComplete()) return false;
-        return self::hostingComplete() || self::domains() !== [];
+        return self::allHosting() !== [] || self::domains() !== [];
     }
 
     // ── Plan ────────────────────────────────────────────────────────────
@@ -307,65 +396,20 @@ final class OrderCart
     public static function summary(string $currency): array
     {
         $lines = [];
-        $plan  = self::plan();
 
-        if ($plan) {
-            $amt   = Currency::planAmount($plan, $currency);
-            $cycle = str_replace('_', ' ', (string) $plan['billing_cycle']);
-            $lines[] = [
-                'type'  => 'plan',
-                'label' => $plan['name'] . ' — ' . ucfirst($plan['category']) . ' hosting (' . $cycle . ')',
-                'amount' => (float) $amt['price'],
-            ];
-            if ((float) $amt['setup_fee'] > 0) {
-                $lines[] = ['type' => 'setup', 'label' => 'One-time setup fee', 'amount' => (float) $amt['setup_fee']];
-            }
+        // Every hosting package — each with its own domain and add-ons.
+        $billed_by_package = [];
+        foreach (self::allHosting() as $uid => $it) {
+            foreach (self::hostingLines((string) $uid, $it, $currency) as $l) $lines[] = $l;
+            if (in_array($it['domain_mode'] ?? '', ['register', 'transfer'], true)) $billed_by_package[$it['domain_name']] = true;
         }
 
-        // Domain
-        $mode  = (string) self::get('domain_mode', '');
-        $name  = (string) self::get('domain_name', '');
-        $years = self::domainYears();
-        $tld   = self::tldRow();
-
-        if ($name !== '' && $mode === 'register' && $tld) {
-            $unit = (float) ($currency === 'KES' ? ($tld['register_price_kes'] ?? 0) : ($tld['register_price_usd'] ?? 0));
-            $lines[] = [
-                'type' => 'domain',
-                'label' => 'Domain registration — ' . $name . ' (' . $years . ' ' . ($years === 1 ? 'year' : 'years') . ')',
-                'amount' => $unit * $years,
-            ];
-        } elseif ($name !== '' && $mode === 'transfer' && $tld) {
-            $unit = (float) ($currency === 'KES' ? ($tld['transfer_price_kes'] ?? 0) : ($tld['transfer_price_usd'] ?? 0));
-            $lines[] = ['type' => 'domain', 'label' => 'Domain transfer — ' . $name . ' (adds 1 year)', 'amount' => $unit];
-        } elseif ($name !== '' && $mode === 'existing') {
-            $lines[] = ['type' => 'domain', 'label' => 'Using your existing domain — ' . $name, 'amount' => 0.0];
-        } elseif ($name !== '' && $mode === 'cart' && $plan) {
-            // Billed by its own domain line below — this just says which
-            // domain the hosting goes on.
-            $lines[] = ['type' => 'domain', 'label' => 'Hosting domain — ' . $name . ' (in this order)', 'amount' => 0.0];
-        }
-
-        // ID Protection
-        if (self::get('id_protection') && self::idProtectionAvailable() && $name !== '') {
-            $billing = SiteSettings::billing();
-            $unit    = (float) ($billing['id_protection'][$currency] ?? 0);
-            $qty     = $mode === 'register' ? $years : 1;
-            if ($unit > 0) {
-                $lines[] = [
-                    'type' => 'id_protection',
-                    'label' => 'ID Protection — ' . $name . ' (' . $qty . ' ' . ($qty === 1 ? 'year' : 'years') . ')',
-                    'amount' => $unit * $qty,
-                ];
-            }
-        }
-
-        // Domain items (bought on their own, or the one the hosting uses
-        // in 'cart' mode). The hosting domain is skipped if it's somehow
-        // also here as register/transfer, so it is never billed twice.
+        // Domain items (bought on their own, or the one a package uses in
+        // 'cart' mode). A domain a package already registers/transfers is
+        // skipped, so it is never billed twice.
         $billing_idp = (float) (SiteSettings::billing()['id_protection'][$currency] ?? 0);
         foreach (self::domains() as $d => $it) {
-            if ($plan && $d === $name && in_array($mode, ['register', 'transfer'], true)) continue;
+            if (isset($billed_by_package[$d])) continue;
             $row = self::tldPricing($it['tld']);
             if (!$row) continue; // TLD withdrawn — cart page flags it
             $col  = $it['mode'] === 'transfer' ? 'transfer' : 'register';
@@ -382,20 +426,6 @@ final class OrderCart
                             'label' => 'ID Protection — ' . $d . ' (' . $yrs . ' ' . ($yrs === 1 ? 'year' : 'years') . ')',
                             'amount' => $billing_idp * $yrs];
             }
-        }
-
-        // Add-ons
-        foreach (ServiceAddon::byIds(self::addonIds()) as $a) {
-            $lines[] = [
-                'type' => 'addon',
-                'addon_id' => (int) $a['id'],
-                // label is for display; name/cycle are the raw values
-                // _place.php snapshots onto the client's subscription.
-                'name'  => (string) $a['name'],
-                'cycle' => (string) $a['billing_cycle'],
-                'label' => $a['name'] . ServiceAddon::cycleSuffix($a['billing_cycle']),
-                'amount' => ServiceAddon::price($a, $currency),
-            ];
         }
 
         $subtotal = 0.0;
@@ -428,6 +458,65 @@ final class OrderCart
         ];
     }
 
+    /**
+     * One package's invoice lines. Each carries 'item' => $uid so
+     * _place.php can turn every package into its own order.
+     */
+    private static function hostingLines(string $uid, array $it, string $currency): array
+    {
+        $plan  = $it['plan'];
+        $out   = [];
+        $amt   = Currency::planAmount($plan, $currency);
+        $cycle = str_replace('_', ' ', (string) $plan['billing_cycle']);
+        $name  = (string) ($it['domain_name'] ?? '');
+        $mode  = (string) ($it['domain_mode'] ?? '');
+        $years = max(1, min(10, (int) ($it['domain_years'] ?? 1)));
+
+        $out[] = ['type' => 'plan', 'item' => $uid, 'plan_id' => (int) $plan['id'],
+                  'label' => $plan['name'] . ' — ' . ucfirst($plan['category']) . ' hosting (' . $cycle . ')' . ($name !== '' ? ' for ' . $name : ''),
+                  'amount' => (float) $amt['price']];
+        if ((float) $amt['setup_fee'] > 0) {
+            $out[] = ['type' => 'setup', 'item' => $uid, 'label' => 'One-time setup fee — ' . $plan['name'], 'amount' => (float) $amt['setup_fee']];
+        }
+
+        $tld = $name !== '' ? self::tldPricing(explode('.', $name, 2)[1] ?? '') : null;
+        if ($name !== '' && $mode === 'register' && $tld) {
+            $unit = (float) ($currency === 'KES' ? ($tld['register_price_kes'] ?? 0) : ($tld['register_price_usd'] ?? 0));
+            $out[] = ['type' => 'domain', 'item' => $uid,
+                      'label' => 'Domain registration — ' . $name . ' (' . $years . ' ' . ($years === 1 ? 'year' : 'years') . ')', 'amount' => $unit * $years];
+        } elseif ($name !== '' && $mode === 'transfer' && $tld) {
+            $unit = (float) ($currency === 'KES' ? ($tld['transfer_price_kes'] ?? 0) : ($tld['transfer_price_usd'] ?? 0));
+            $out[] = ['type' => 'domain', 'item' => $uid, 'label' => 'Domain transfer — ' . $name . ' (adds 1 year)', 'amount' => $unit];
+        } elseif ($name !== '' && $mode === 'existing') {
+            $out[] = ['type' => 'domain', 'item' => $uid, 'label' => 'Using your existing domain — ' . $name, 'amount' => 0.0];
+        } elseif ($name !== '' && $mode === 'cart') {
+            // Billed by its own cart line — this just says where the hosting goes.
+            $out[] = ['type' => 'domain', 'item' => $uid, 'label' => 'Hosting domain — ' . $name . ' (in this order)', 'amount' => 0.0];
+        }
+
+        if (!empty($it['id_protection']) && in_array($mode, ['register', 'transfer'], true) && $name !== '') {
+            $unit = (float) (SiteSettings::billing()['id_protection'][$currency] ?? 0);
+            $qty  = $mode === 'register' ? $years : 1;
+            if ($unit > 0) {
+                $out[] = ['type' => 'id_protection', 'item' => $uid,
+                          'label' => 'ID Protection — ' . $name . ' (' . $qty . ' ' . ($qty === 1 ? 'year' : 'years') . ')', 'amount' => $unit * $qty];
+            }
+        }
+
+        $ids = array_values(array_filter(array_map('intval', (array) ($it['addons'] ?? []))));
+        foreach (ServiceAddon::byIds($ids) as $a) {
+            $out[] = [
+                'type' => 'addon', 'item' => $uid, 'addon_id' => (int) $a['id'],
+                // label is for display; name/cycle are the raw values
+                // _place.php snapshots onto the client's subscription.
+                'name'  => (string) $a['name'], 'cycle' => (string) $a['billing_cycle'],
+                'label' => $a['name'] . ServiceAddon::cycleSuffix($a['billing_cycle']) . ' — ' . $plan['name'],
+                'amount' => ServiceAddon::price($a, $currency),
+            ];
+        }
+        return $out;
+    }
+
     // ── Promo code ──────────────────────────────────────────────────────
 
     public static function setPromo(string $code): void
@@ -446,8 +535,8 @@ final class OrderCart
         require_once dirname(__DIR__, 2) . '/admin/includes/Coupon.php';
         $c = Coupon::find($code);
         if (!$c) return ['coupon' => null, 'discount' => 0.0, 'error' => 'Promo code "' . $code . '" was not found.'];
-        $plan = self::plan();
-        $check = Coupon::validate($c, $subtotal, $currency, $plan ? (string) $plan['category'] : 'domain');
+        $first = array_values(self::allHosting())[0]['plan'] ?? null;
+        $check = Coupon::validate($c, $subtotal, $currency, $first ? (string) $first['category'] : 'domain');
         if (!$check['ok']) return ['coupon' => null, 'discount' => 0.0, 'error' => $check['message']];
         return ['coupon' => $c, 'discount' => Coupon::discountFor($c, $subtotal, $currency), 'error' => ''];
     }

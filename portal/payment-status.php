@@ -65,61 +65,12 @@ $pay = $pid ? ps_payment($pid, $cid) : null;
 if (!$pay) ps_out(['status' => 'error', 'message' => 'Payment not found.'], 404);
 
 // ── Resend the prompt ─────────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resend') {
+if ($_SERVER["REQUEST_METHOD"] === "POST" && ($_POST["action"] ?? "") === "resend") {
     portal_csrf_verify();
-    if ($pay['gateway'] !== 'kopokopo') ps_out(['status' => 'error', 'message' => 'Only M-Pesa prompts can be resent.'], 400);
-    if ($pay['status'] === 'completed') ps_out(['status' => 'completed', 'pay' => $pid] + ps_state($pay));
-
-    $inv = null;
-    if ($pay['invoice_id']) {
-        $s = db()->prepare('SELECT id, invoice_number, status FROM invoices WHERE id = ? AND client_id = ?');
-        $s->execute([(int) $pay['invoice_id'], $cid]);
-        $inv = $s->fetch();
-    }
-    if (!$inv) ps_out(['status' => 'error', 'message' => 'The invoice for this payment is missing — please start again.'], 400);
-    if ($inv['status'] === 'paid') ps_out(['status' => 'completed', 'pay' => $pid, 'message' => 'This invoice is already paid.']);
-
-    // One prompt at a time: Safaricom drops a second push to a phone that
-    // still has one open, and a double tap shouldn't send two.
-    $last = (int) ($_SESSION['stk_resend'][$pay['invoice_id']] ?? 0);
-    if (time() - $last < 20) ps_out(['status' => 'error', 'message' => 'Please wait ' . (20 - (time() - $last)) . ' seconds before requesting another prompt.'], 429);
-    $_SESSION['stk_resend'][$pay['invoice_id']] = time();
-
-    $raw   = json_decode($pay['raw'] ?? '', true) ?: [];
-    $phone = trim((string) ($_POST['phone'] ?? '')) ?: (string) ($raw['checkout']['phone'] ?? '');
-    $s = db()->prepare('SELECT first_name, last_name, email, phone FROM clients WHERE id = ?');
-    $s->execute([$cid]);
-    $client = $s->fetch() ?: [];
-    if ($phone === '') $phone = (string) ($client['phone'] ?? '');
-
-    // Charge what is owed NOW — after a part payment that is the balance.
-    $amount = Automation::invoiceOutstanding((int) $inv['id']);
-    if ($amount < 0.01) ps_out(['status' => 'error', 'message' => 'Nothing is left to pay on this invoice.'], 400);
-
-    db()->prepare('INSERT INTO payments (invoice_id, client_id, gateway, amount, currency, status, raw) VALUES (?,?,?,?,?,"pending",?)')
-        ->execute([(int) $inv['id'], $cid, 'kopokopo', $amount, $pay['currency'] ?: 'KES',
-                   json_encode(['context' => $raw['context'] ?? ['action' => 'invoice_payment'], 'resent_from' => $pid])]);
-    $new_id = (int) db()->lastInsertId();
-
-    try {
-        $r = Provider::payment('kopokopo')->createCheckout($amount, $pay['currency'] ?: 'KES', $inv['invoice_number'],
-            ['name' => trim(($client['first_name'] ?? '') . ' ' . ($client['last_name'] ?? '')), 'email' => $client['email'] ?? '', 'phone' => $phone],
-            ['callback' => payment_webhook_url($new_id)]);
-    } catch (\Throwable $e) {
-        $r = ['success' => false, 'message' => $e->getMessage()];
-    }
-
-    $nraw = json_decode((string) db()->query('SELECT raw FROM payments WHERE id = ' . $new_id)->fetchColumn(), true) ?: [];
-    $nraw['checkout'] = $r;
-    if (empty($r['success'])) {
-        $nraw['failure'] = $r['message'] ?? 'Could not send the prompt.';
-        db()->prepare("UPDATE payments SET status = 'failed', raw = ? WHERE id = ?")->execute([json_encode($nraw), $new_id]);
-        ps_out(['status' => 'error', 'message' => $nraw['failure']], 400);
-    }
-    db()->prepare('UPDATE payments SET gateway_ref = ?, raw = ? WHERE id = ?')->execute([$r['ref'] ?? null, json_encode($nraw), $new_id]);
-
-    ps_out(['status' => 'pending', 'pay' => $new_id, 'phone' => PaymentClient::maskPhone((string) $r['phone']),
-            'amount' => 'KES ' . number_format((int) $r['charged']), 'message' => $r['message'], 'age' => 0]);
+    require_once __DIR__ . "/includes/stk_wait.php";
+    $r = stk_resend_payment($pay, (string) ($_POST["phone"] ?? ""));
+    if ($r["status"] === "completed") ps_out($r + ps_state($pay));
+    ps_out($r, $r["status"] === "error" ? (str_contains($r["message"], "wait") ? 429 : 400) : 200);
 }
 
 // ── Status ────────────────────────────────────────────────────

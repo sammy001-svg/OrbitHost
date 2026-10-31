@@ -25,8 +25,13 @@ $idp_available = OrderCart::idProtectionAvailable() && $idp_price > 0;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     portal_csrf_verify();
     OrderCart::set('id_protection', $idp_available && !empty($_POST['id_protection']));
-    $next = ($_POST['action'] ?? '') === 'reprice' ? 'domain-config.php' : 'review.php';
-    header('Location: ' . checkout_url($next));
+    if (($_POST['action'] ?? '') === 'reprice') {
+        header('Location: ' . checkout_url('domain-config.php'));
+        exit;
+    }
+    // Package done: file it in the cart, where they can check out or add more.
+    OrderCart::commitHosting();
+    header('Location: ' . PORTAL_URL . '/cart.php?added_pkg=1');
     exit;
 }
 
@@ -120,7 +125,7 @@ checkout_head('Configure your domain', 3);
     </div>
   </div>
 
-  <?php checkout_summary($sum, $currency, 'step3', 'Continue'); ?>
+  <?php checkout_summary($sum, $currency, 'step3', 'Add to Cart'); ?>
 </div>
 </form>
 

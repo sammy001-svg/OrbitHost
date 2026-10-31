@@ -38,15 +38,30 @@ function cart_add_domain(string $raw, bool $transfer, string $epp = ''): string
     return '';
 }
 
+// A package finished in the steps lands in the cart as soon as they're here.
+OrderCart::commitHosting();
+
 // ── GET actions ──
+if (isset($_GET['edit_pkg'])) {
+    if (OrderCart::editHosting((string) $_GET['edit_pkg'])) { header('Location: ' . checkout_url('configure.php')); exit; }
+    header('Location: ' . $self); exit;
+}
+if (isset($_GET['remove_pkg'])) {
+    OrderCart::removeHosting((string) $_GET['remove_pkg']);
+    header('Location: ' . $self); exit;
+}
+if (isset($_GET['added_pkg'])) {
+    $notice = 'Hosting package added to your cart. Check out now, or keep shopping to add another package or domain.'; $notice_kind = 'success';
+}
 if (isset($_GET['add'])) {
     $err = cart_add_domain((string) $_GET['add'], !empty($_GET['transfer']));
     if ($err === '') { header('Location: ' . $self . '?added=' . urlencode(OrderCart::cleanDomain((string) $_GET['add']))); exit; }
     $notice = $err; $notice_kind = 'error';
 }
 if (isset($_GET['remove'])) {
-    OrderCart::removeDomain(strtolower(trim((string) $_GET['remove'])));
-    header('Location: ' . $self); exit;
+    $why = OrderCart::removeDomain(strtolower(trim((string) $_GET['remove'])));
+    if ($why === '') { header('Location: ' . $self); exit; }
+    $notice = $why; $notice_kind = 'error';
 }
 if (isset($_GET['remove_hosting'])) {
     OrderCart::clearHosting();
@@ -104,13 +119,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'update') { header('Location: ' . $self); exit; }
 }
 
-$plan     = OrderCart::plan();
+$plan     = OrderCart::plan();          // a package still being set up (incomplete)
+$packages = OrderCart::allHosting();     // finished packages
 $domains  = OrderCart::domains();
 $sum      = OrderCart::summary($currency);
 $billing  = SiteSettings::billing();
 $idp_unit = (float) ($billing['id_protection'][$currency] ?? 0);
 $site     = SiteSettings::siteRoot();
-$empty    = !$plan && !$domains;
+$empty    = !$plan && !$domains && !$packages;
 
 // Price per domain line, from the one summary everything is billed from.
 $line_for = [];
@@ -185,21 +201,44 @@ checkout_head('Shopping Cart', ($empty || $plan) ? 0 : 1);
       </div>
       <div class="co-panel-body" style="padding-top:4px;padding-bottom:4px">
 
-        <?php if ($plan):
-          $plan_amt = Currency::planAmount($plan, $currency); ?>
+        <?php
+        // Each package's total (plan + setup + its domain + ID Protection + add-ons).
+        $pkg_total = [];
+        foreach ($sum['lines'] as $l) if (isset($l['item'])) $pkg_total[$l['item']] = ($pkg_total[$l['item']] ?? 0) + (float) $l['amount'];
+        $mode_word = ['register' => 'registering', 'transfer' => 'transferring', 'existing' => 'your existing domain', 'cart' => 'from your cart'];
+        foreach ($packages as $uid => $pk):
+          $p = $pk['plan'];
+          $addon_names = array_map(fn($a) => $a['name'], ServiceAddon::byIds(array_map('intval', (array) ($pk['addons'] ?? [])))); ?>
           <div class="cart-item">
             <span class="cart-ico"><i class="fas fa-server"></i></span>
             <div style="flex:1;min-width:0">
-              <div class="cart-name"><?php echo h($plan['name']); ?> <span class="cart-badge"><?php echo h(ucfirst($plan['category'])); ?> hosting</span></div>
+              <div class="cart-name"><?php echo h($p['name']); ?> <span class="cart-badge"><?php echo h(ucfirst($p['category'])); ?> hosting</span></div>
               <div class="cart-meta">
-                Billed <?php echo h(str_replace('_', ' ', $plan['billing_cycle'])); ?>
-                <?php if (OrderCart::hostingComplete()): ?> · on <strong style="font-family:ui-monospace,Menlo,monospace"><?php echo h((string) OrderCart::get('domain_name')); ?></strong><?php endif; ?>
+                <strong style="font-family:ui-monospace,Menlo,monospace"><?php echo h((string) $pk['domain_name']); ?></strong>
+                (<?php echo h($mode_word[$pk['domain_mode']] ?? ''); ?><?php echo !empty($pk['id_protection']) ? ', ID Protection' : ''; ?>)
+                · billed <?php echo h(str_replace('_', ' ', $p['billing_cycle'])); ?>
+                <?php if ($addon_names): ?><br>Add-ons: <?php echo h(implode(', ', $addon_names)); ?><?php endif; ?>
               </div>
-              <?php if (!OrderCart::hostingComplete()): ?>
-                <div class="p-alert p-alert-info" style="margin:10px 0 0;padding:8px 12px;font-size:12.5px"><i class="fas fa-circle-info"></i> Choose a domain for this package to continue.</div>
-              <?php endif; ?>
               <div class="cart-ctl">
-                <a href="<?php echo checkout_url(OrderCart::hostingComplete() ? 'configure.php' : 'index.php'); ?>" class="btn btn-ghost btn-sm" style="border:1px solid var(--border)"><i class="fas fa-sliders"></i> <?php echo OrderCart::hostingComplete() ? 'Edit package' : 'Finish setting up'; ?></a>
+                <a href="?edit_pkg=<?php echo urlencode((string) $uid); ?>" class="btn btn-ghost btn-sm" style="border:1px solid var(--border)"><i class="fas fa-sliders"></i> Edit</a>
+              </div>
+            </div>
+            <div>
+              <div class="cart-price"><?php echo h(checkout_money($pkg_total[$uid] ?? 0, $currency)); ?></div>
+              <a href="?remove_pkg=<?php echo urlencode((string) $uid); ?>" class="cart-rm"><i class="fas fa-xmark"></i> Remove</a>
+            </div>
+          </div>
+        <?php endforeach; ?>
+
+        <?php if ($plan): // a package started but not finished
+          $plan_amt = Currency::planAmount($plan, $currency); ?>
+          <div class="cart-item">
+            <span class="cart-ico" style="background:#fffbeb;color:#b45309"><i class="fas fa-server"></i></span>
+            <div style="flex:1;min-width:0">
+              <div class="cart-name"><?php echo h($plan['name']); ?> <span class="cart-badge"><?php echo h(ucfirst($plan['category'])); ?> hosting</span> <span class="cart-badge" style="background:#fffbeb;color:#b45309">Not finished</span></div>
+              <div class="p-alert p-alert-info" style="margin:10px 0 0;padding:8px 12px;font-size:12.5px"><i class="fas fa-circle-info"></i> Choose a domain for this package to add it to your order.</div>
+              <div class="cart-ctl">
+                <a href="<?php echo checkout_url('index.php'); ?>" class="btn btn-primary btn-sm"><i class="fas fa-sliders"></i> Finish setting up</a>
               </div>
             </div>
             <div>
@@ -217,7 +256,8 @@ checkout_head('Shopping Cart', ($empty || $plan) ? 0 : 1);
             <div style="flex:1;min-width:0">
               <div class="cart-name mono"><?php echo h($d); ?>
                 <span class="cart-badge"><?php echo $it['mode'] === 'transfer' ? 'Transfer' : 'Registration'; ?></span>
-                <?php if ($plan && OrderCart::get('domain_mode') === 'cart' && OrderCart::get('domain_name') === $d): ?><span class="cart-badge" style="background:var(--green-light);color:var(--green)">Hosting domain</span><?php endif; ?>
+                <?php $host_pkg = OrderCart::domainUsedByPackage($d);
+                if ($host_pkg && $host_pkg['domain_mode'] === 'cart'): ?><span class="cart-badge" style="background:var(--green-light);color:var(--green)">Hosting domain</span><?php endif; ?>
               </div>
               <?php if (!$priced): ?>
                 <div class="cart-meta" style="color:var(--danger)">This extension is no longer sold online — remove it to continue.</div>
@@ -249,7 +289,11 @@ checkout_head('Shopping Cart', ($empty || $plan) ? 0 : 1);
       </div>
     </div>
 
-    <?php if (!$plan && $domains): $first = array_key_first($domains); ?>
+    <?php
+    // Suggest hosting for the first cart domain that has none yet.
+    $first = null;
+    foreach (array_keys($domains) as $cd) { if (!OrderCart::domainUsedByPackage($cd)) { $first = $cd; break; } }
+    if (!$plan && $first): ?>
       <div class="upsell" style="margin-top:16px">
         <i class="fas fa-rocket" style="font-size:24px;color:var(--green)"></i>
         <div style="flex:1;min-width:200px">

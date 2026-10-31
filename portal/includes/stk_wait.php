@@ -52,8 +52,75 @@ document.addEventListener('submit', function (e) {
     <?php
 }
 
-function stk_wait_panel(array $pay, string $return_tpl, string $back_url): void
+/**
+ * Send a fresh STK prompt for the invoice behind $pay, as a NEW payment row
+ * (so a late approval of the old prompt still settles cleanly — the second
+ * would be logged as a duplicate, never double-fulfilled). Shared by the
+ * client's waiting screen and the admin collect screen.
+ *
+ * Charges what is owed now (after a part payment, the balance).
+ * @return array{status:string, message:string, pay?:int, phone?:string}
+ */
+function stk_resend_payment(array $pay, string $phone = ''): array
 {
+    require_once dirname(__DIR__, 2) . '/admin/includes/Automation.php';
+    if ($pay['gateway'] !== 'kopokopo') return ['status' => 'error', 'message' => 'Only M-Pesa prompts can be resent.'];
+    if ($pay['status'] === 'completed') return ['status' => 'completed', 'pay' => (int) $pay['id'], 'message' => 'This payment has already been received.'];
+
+    $s = db()->prepare('SELECT i.id, i.invoice_number, i.status, i.currency, c.first_name, c.last_name, c.email, c.phone
+                        FROM invoices i LEFT JOIN clients c ON c.id = i.client_id WHERE i.id = ?');
+    $s->execute([(int) $pay['invoice_id']]);
+    $inv = $s->fetch();
+    if (!$inv) return ['status' => 'error', 'message' => 'The invoice for this payment is missing.'];
+    if ($inv['status'] === 'paid') return ['status' => 'completed', 'pay' => (int) $pay['id'], 'message' => 'This invoice is already paid.'];
+
+    // One prompt at a time per invoice: Safaricom drops a second push to a
+    // phone that still has one open, and a double tap shouldn't send two.
+    // A failed/cancelled prompt is already closed on the phone, so only a
+    // still-pending one blocks an immediate retry.
+    $recent = db()->prepare("SELECT COUNT(*) FROM payments WHERE invoice_id = ? AND gateway = 'kopokopo' AND status = 'pending' AND created_at > DATE_SUB(NOW(), INTERVAL 20 SECOND)");
+    $recent->execute([(int) $inv['id']]);
+    if ((int) $recent->fetchColumn() > 0) return ['status' => 'error', 'message' => 'A prompt was sent a moment ago — please wait 20 seconds before sending another.'];
+
+    $amount = Automation::invoiceOutstanding((int) $inv['id']);
+    if ($amount < 0.01) return ['status' => 'error', 'message' => 'Nothing is left to pay on this invoice.'];
+
+    $raw = json_decode($pay['raw'] ?? '', true) ?: [];
+    $phone = trim($phone) ?: (string) ($raw['checkout']['phone'] ?? '') ?: (string) ($inv['phone'] ?? '');
+    $currency = $inv['currency'] ?: ($pay['currency'] ?: 'KES');
+
+    db()->prepare('INSERT INTO payments (invoice_id, client_id, gateway, amount, currency, status, raw) VALUES (?,?,?,?,?,"pending",?)')
+        ->execute([(int) $inv['id'], $pay['client_id'], 'kopokopo', $amount, $currency,
+                   json_encode(['context' => $raw['context'] ?? ['action' => 'invoice_payment'], 'resent_from' => (int) $pay['id']])]);
+    $new_id = (int) db()->lastInsertId();
+
+    try {
+        $r = Provider::payment('kopokopo')->createCheckout($amount, $currency, $inv['invoice_number'],
+            ['name' => trim(($inv['first_name'] ?? '') . ' ' . ($inv['last_name'] ?? '')), 'email' => $inv['email'] ?? '', 'phone' => $phone],
+            ['callback' => payment_webhook_url($new_id)]);
+    } catch (\Throwable $e) {
+        $r = ['success' => false, 'message' => $e->getMessage()];
+    }
+
+    $nraw = ['context' => $raw['context'] ?? ['action' => 'invoice_payment'], 'resent_from' => (int) $pay['id'], 'checkout' => $r];
+    if (empty($r['success'])) {
+        $nraw['failure'] = $r['message'] ?? 'Could not send the prompt.';
+        db()->prepare("UPDATE payments SET status = 'failed', raw = ? WHERE id = ?")->execute([json_encode($nraw), $new_id]);
+        return ['status' => 'error', 'message' => $nraw['failure']];
+    }
+    db()->prepare('UPDATE payments SET gateway_ref = ?, raw = ? WHERE id = ?')->execute([$r['ref'] ?? null, json_encode($nraw), $new_id]);
+    return ['status' => 'pending', 'pay' => $new_id, 'phone' => PaymentClient::maskPhone((string) $r['phone']),
+            'amount' => 'KES ' . number_format((int) $r['charged']), 'message' => $r['message'], 'age' => 0];
+}
+
+/**
+ * @param array $opts  status_url / csrf override the portal defaults (the
+ *                     admin screen polls its own endpoint); audience
+ *                     'admin' words the screen for staff watching a client pay.
+ */
+function stk_wait_panel(array $pay, string $return_tpl, string $back_url, array $opts = []): void
+{
+    $admin = ($opts['audience'] ?? 'client') === 'admin';
     $raw   = json_decode($pay['raw'] ?? '', true) ?: [];
     $phone = (string) ($raw['checkout']['phone'] ?? '');
     if ($phone === '' && !empty($pay['client_id'])) {
@@ -66,12 +133,14 @@ function stk_wait_panel(array $pay, string $return_tpl, string $back_url): void
     $age     = max(0, time() - strtotime((string) $pay['created_at']));
     $cfg = [
         'pay'      => (int) $pay['id'],
-        'status'   => PORTAL_URL . '/payment-status.php',
+        'status'   => $opts['status_url'] ?? PORTAL_URL . '/payment-status.php',
         'ret'      => $return_tpl,
-        'csrf'     => portal_csrf(),
+        'check'    => $opts['check_tpl'] ?? $return_tpl,
+        'csrf'     => $opts['csrf'] ?? portal_csrf(),
         'age'      => $age,
+        'admin'    => $admin,
     ];
-    $now_url = str_replace('{pay}', (string) (int) $pay['id'], $return_tpl);
+    $now_url = str_replace('{pay}', (string) (int) $pay['id'], $opts['check_tpl'] ?? $return_tpl);
     ?>
 <div class="stk" id="stkPanel" data-cfg="<?php echo htmlspecialchars(json_encode($cfg), ENT_QUOTES); ?>">
   <style>
@@ -101,17 +170,23 @@ function stk_wait_panel(array $pay, string $return_tpl, string $back_url): void
   </style>
 
   <div class="stk-icon" aria-hidden="true"><i class="fas fa-mobile-screen-button" id="stkIco"></i></div>
-  <h2 id="stkTitle">Check your phone</h2>
+  <h2 id="stkTitle"><?php echo $admin ? 'Waiting for the client' : 'Check your phone'; ?></h2>
   <p class="stk-lead" id="stkLead">We've sent an M-Pesa prompt for <strong><?php echo htmlspecialchars($amount); ?></strong> to <strong id="stkPhone"><?php echo htmlspecialchars($masked); ?></strong>.</p>
 
   <ol class="stk-steps" id="stkSteps">
+    <?php if ($admin): ?>
+    <li>Ask the client to unlock their phone — the M-Pesa prompt appears on screen.</li>
+    <li>They check the amount and enter their M-Pesa PIN.</li>
+    <li>This page confirms automatically and marks the invoice paid.</li>
+    <?php else: ?>
     <li>Unlock your phone — the M-Pesa prompt appears on screen.</li>
     <li>Check the amount and enter your M-Pesa PIN.</li>
     <li>Stay on this page — it confirms automatically.</li>
+    <?php endif; ?>
   </ol>
 
   <div id="stkMsg" class="stk-msg" hidden role="status"></div>
-  <div class="stk-status" id="stkStatus" aria-live="polite">Waiting for your approval…</div>
+  <div class="stk-status" id="stkStatus" aria-live="polite"><?php echo $admin ? 'Waiting for the client to approve…' : 'Waiting for your approval…'; ?></div>
 
   <div class="stk-actions">
     <div id="stkResendBox" hidden>
@@ -121,13 +196,24 @@ function stk_wait_panel(array $pay, string $return_tpl, string $back_url): void
       </div>
     </div>
     <a href="<?php echo htmlspecialchars($now_url); ?>" class="btn btn-ghost" id="stkCheck"><i class="fas fa-rotate"></i> I've paid — check now</a>
-    <a href="<?php echo htmlspecialchars($back_url); ?>" class="stk-link" id="stkBack">Pay another way</a>
+    <a href="<?php echo htmlspecialchars($back_url); ?>" class="stk-link" id="stkBack"><?php echo $admin ? 'Back to collection options' : 'Pay another way'; ?></a>
   </div>
 </div>
 <script>
 (function () {
   var el = document.getElementById('stkPanel'); if (!el || !window.fetch) return;
   var cfg = JSON.parse(el.getAttribute('data-cfg'));
+  var T = cfg.admin ? {
+      title: 'Waiting for the client', wait: 'Waiting for the client to approve… ',
+      slow: 'Still waiting — once the PIN is entered, confirmation can take a minute.',
+      stale: 'No confirmation yet. If the client got no prompt, resend it below.',
+      nocharge: 'The client hasn\'t been charged. You can send the prompt again below.', phone: 'the client\'s phone'
+    } : {
+      title: 'Check your phone', wait: 'Waiting for your approval… ',
+      slow: 'Still waiting — if you\'ve entered your PIN, confirmation can take a minute.',
+      stale: 'No confirmation yet. If no prompt appeared, resend it below.',
+      nocharge: 'You haven\'t been charged. You can try again below.', phone: 'your phone'
+    };
   var pay = cfg.pay, started = Date.now() - cfg.age * 1000, timer = null, busy = false, done = false;
   var $ = function (id) { return document.getElementById(id); };
   el.setAttribute('data-state', 'pending');
@@ -154,16 +240,16 @@ function stk_wait_panel(array $pay, string $return_tpl, string $back_url): void
       $('stkTitle').textContent = 'Payment not completed';
       $('stkSteps').hidden = true;
       msg(d.message || 'The M-Pesa payment was not completed.', 'err');
-      $('stkStatus').textContent = 'You haven\'t been charged. You can try again below.';
+      $('stkStatus').textContent = T.nocharge;
       $('stkResend').innerHTML = '<i class="fas fa-rotate-right"></i> Try again';
       $('stkResendBox').hidden = false;
       return;
     }
     // pending
     var s = secs();
-    if (s < 60)       $('stkStatus').textContent = 'Waiting for your approval… ' + (60 - s) + 's';
-    else if (s < 180) $('stkStatus').textContent = 'Still waiting — if you\'ve entered your PIN, confirmation can take a minute.';
-    else              $('stkStatus').textContent = 'No confirmation yet. If no prompt appeared, resend it below.';
+    if (s < 60)       $('stkStatus').textContent = T.wait + (60 - s) + 's';
+    else if (s < 180) $('stkStatus').textContent = T.slow;
+    else              $('stkStatus').textContent = T.stale;
     if (s >= 25) $('stkResendBox').hidden = false;
   }
 
@@ -193,12 +279,12 @@ function stk_wait_panel(array $pay, string $return_tpl, string $back_url): void
         pay = d.pay; started = Date.now();
         el.setAttribute('data-state', 'pending');
         $('stkIco').className = 'fas fa-mobile-screen-button';
-        $('stkTitle').textContent = 'Check your phone';
+        $('stkTitle').textContent = T.title;
         $('stkSteps').hidden = false; $('stkResendBox').hidden = true;
         if (d.phone) $('stkPhone').textContent = d.phone;
-        $('stkCheck').href = cfg.ret.replace('{pay}', pay);
-        msg('New prompt sent to ' + (d.phone || 'your phone') + '.', 'info');
-        try { history.replaceState(null, '', cfg.ret.replace('{pay}', pay)); } catch (e) {}
+        $('stkCheck').href = cfg.check.replace('{pay}', pay);
+        msg('New prompt sent to ' + (d.phone || T.phone) + '.', 'info');
+        try { history.replaceState(null, '', cfg.check.replace('{pay}', pay)); } catch (e) {}
         clearTimeout(timer); poll();
       })
       .catch(function () { msg('Could not reach the server — check your connection and try again.', 'err'); })

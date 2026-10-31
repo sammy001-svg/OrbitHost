@@ -29,7 +29,7 @@ function checkout_steps(): array
         1 => ['label' => 'Domain',          'file' => 'index.php'],
         2 => ['label' => 'Configure',       'file' => 'configure.php'],
         3 => ['label' => 'Domain Setup',    'file' => 'domain-config.php'],
-        4 => ['label' => 'Checkout',        'file' => 'review.php'],
+        4 => ['label' => 'Cart & Checkout', 'file' => '../cart.php'],
     ];
 }
 
