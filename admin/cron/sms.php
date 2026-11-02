@@ -27,6 +27,8 @@ if (!$is_cli) {
     header('Content-Type: text/plain');
 }
 
+Sms::heartbeat(); // the SMS page shows when this last ran
+
 if (!Sms::provider()) {
     echo "Shanfix SMS is not enabled — nothing to do.\n";
     exit(0);

@@ -26,6 +26,12 @@ defined('CURRENCY')         || define('CURRENCY',   'USD');
 defined('PER_PAGE')         || define('PER_PAGE',   20);
 defined('SESSION_TIMEOUT')  || define('SESSION_TIMEOUT', 7200);
 
+// ── Time zone ─────────────────────────────────────────────────
+// The business runs on Kenyan time. PHP's own default is often UTC on
+// hosts that never set date.timezone; db() makes MySQL follow whatever is
+// set here, so both clocks agree. Override with APP_TIMEZONE in .env.
+date_default_timezone_set(defined('APP_TIMEZONE') && @timezone_open((string) APP_TIMEZONE) ? (string) APP_TIMEZONE : 'Africa/Nairobi');
+
 // ── Error display ─────────────────────────────────────────────
 // Never print PHP warnings/notices into pages visitors see (they leak file
 // paths and break layouts); log them for us instead. Set APP_DEBUG=true in

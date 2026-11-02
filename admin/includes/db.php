@@ -22,6 +22,15 @@ function db(): PDO
                 htmlspecialchars($e->getMessage()) . '</p>' .
                 '<p>Check DB_HOST / DB_NAME / DB_USER / DB_PASS in <code>includes/config.php</code>.</p>');
         }
+        // One clock for the whole app. PHP and MySQL are often configured in
+        // different time zones on shared hosting (PHP Africa/Nairobi, MySQL
+        // UTC, or the reverse). Code that writes a time from PHP and compares
+        // it with MySQL's NOW() was then hours off — e.g. queued SMS stayed
+        // "not due yet" for three hours. Make MySQL use PHP's zone (set in
+        // config.php from APP_TIMEZONE) for this connection.
+        try {
+            $pdo->exec("SET time_zone = '" . date('P') . "'");
+        } catch (\Throwable $e) { /* keep going on the server's default */ }
     }
     return $pdo;
 }

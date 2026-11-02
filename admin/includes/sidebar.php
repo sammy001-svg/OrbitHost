@@ -8,9 +8,13 @@ $_sidebar_logo = SiteSettings::logoImgTag(40, 168);
 function _nav(string $href, string $icon, string $label, string $dir = '', string $file = '', string $dir2 = '', string $tag = '', string $tagClass = ''): void
 {
     global $_cur_page, $_cur_dir, $_cur_dir2;
-    $active = ($dir && $_cur_dir === $dir)
-           || ($file && $_cur_page === $file)
-           || ($dir2 && $_cur_dir2 === $dir2)
+    // An item that names a folder is active only inside that folder (and,
+    // with $dir2, only when that folder sits under $dir2 — integrations/whm).
+    // The old OR-logic matched any page called index.php, so "Providers" lit
+    // up on nearly every admin list page alongside the real section.
+    $active = ($dir !== ''
+                ? ($_cur_dir === $dir && ($dir2 === '' || $_cur_dir2 === $dir2))
+                : ($file !== '' && $_cur_page === $file))
         ? ' active' : '';
     $tagHtml = $tag ? sprintf('<span class="nav-tag %s">%s</span>', $tagClass, $tag) : '';
     printf(

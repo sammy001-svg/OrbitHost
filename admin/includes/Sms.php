@@ -325,19 +325,23 @@ final class Sms
 
         $personal = self::isPersonalized($message);
         $pdo = db();
+        // "Now" from the database itself — the queue compares against MySQL's
+        // NOW(), so a PHP timestamp in a different time zone would leave a
+        // send-now campaign "not due yet" for hours.
+        if ($when === '') $when_db = (string) $pdo->query('SELECT NOW()')->fetchColumn();
         $pdo->beginTransaction();
         try {
             $pdo->prepare('INSERT INTO sms_campaigns (name, message, audience, audience_meta, service_notice, personalized, status, scheduled_at, total, created_by)
                            VALUES (?,?,?,?,?,?,?,?,?,?)')
                 ->execute([$name, $message, $aud, json_encode($meta), $notice ? 1 : 0, $personal ? 1 : 0,
-                           $when === '' ? 'sending' : 'scheduled', $when === '' ? date('Y-m-d H:i:s') : $when,
+                           $when === '' ? 'sending' : 'scheduled', $when === '' ? $when_db : $when,
                            count($res['recipients']), $admin_id]);
             $cid = (int) $pdo->lastInsertId();
             $ins = $pdo->prepare("INSERT INTO sms_messages (campaign_id, client_id, phone, message, type, status, segments, next_attempt_at)
                                   VALUES (?,?,?,?, 'campaign', 'queued', ?, ?)");
             foreach ($res['recipients'] as $r) {
                 $text = self::plain(self::personalize($message, $r));
-                $ins->execute([$cid, (int) $r['id'], $r['phone_n'], $text, SmsClient::segments($text), $when === '' ? date('Y-m-d H:i:s') : $when]);
+                $ins->execute([$cid, (int) $r['id'], $r['phone_n'], $text, SmsClient::segments($text), $when === '' ? $when_db : $when]);
             }
             $pdo->commit();
         } catch (\Throwable $e) {
@@ -485,6 +489,26 @@ final class Sms
             if (count($rows) < 200) break;
         }
         return $out;
+    }
+
+    /** Record that the SMS cron ran (shown on the SMS page so a dead cron is obvious). */
+    public static function heartbeat(): void
+    {
+        try {
+            db()->exec('CREATE TABLE IF NOT EXISTS cron_heartbeats (name VARCHAR(40) NOT NULL PRIMARY KEY, ran_at DATETIME NOT NULL)');
+            db()->prepare("REPLACE INTO cron_heartbeats (name, ran_at) VALUES ('sms', NOW())")->execute();
+        } catch (\Throwable $e) {}
+    }
+
+    /** Minutes since the SMS cron last ran, or null if it never has. */
+    public static function cronMinutesAgo(): ?int
+    {
+        try {
+            $v = db()->query("SELECT TIMESTAMPDIFF(MINUTE, ran_at, NOW()) FROM cron_heartbeats WHERE name = 'sms'")->fetchColumn();
+            return $v === false ? null : (int) $v;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /** Counts per status for one campaign. */
