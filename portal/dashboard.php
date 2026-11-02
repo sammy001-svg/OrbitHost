@@ -26,7 +26,8 @@ try {
     $domains_count = (int) $db->query("SELECT COUNT(*) FROM domain_registrations WHERE client_id=$cid AND status IN ('active','pending')")->fetchColumn();
 } catch (\Throwable $e) { /* table missing */ }
 
-$open_tickets    = (int) $db->query("SELECT COUNT(*) FROM tickets WHERE client_id=$cid AND status IN ('open','pending')")->fetchColumn();
+// 'answered' is still open — it's waiting on the client.
+$open_tickets    = (int) $db->query("SELECT COUNT(*) FROM tickets WHERE client_id=$cid AND status IN ('open','pending','answered')")->fetchColumn();
 $unpaid_invoices = (int) $db->query("SELECT COUNT(*) FROM invoices WHERE client_id=$cid AND status IN ('sent','overdue')")->fetchColumn();
 $total_spent     = (float)$db->query("SELECT COALESCE(SUM(total),0) FROM invoices WHERE client_id=$cid AND status='paid'")->fetchColumn();
 $credit_balance  = 0.0;
@@ -54,6 +55,39 @@ $due_soon = $db->query("
     WHERE o.client_id=$cid AND o.status='active' AND o.next_due <= DATE_ADD(NOW(), INTERVAL 7 DAY)
     ORDER BY o.next_due ASC LIMIT 3
 ")->fetchAll();
+
+// ── Needs your attention ─────────────────────────────────────
+// What a client should act on, worked out up front so the dashboard can
+// lead with it instead of leaving it buried in table badges.
+
+// Money owed: each unpaid invoice less anything already paid against it
+// (a part payment), totalled per currency.
+$owed_by_cur = []; $overdue = []; $first_unpaid = null;
+foreach ($db->query("SELECT i.id, i.invoice_number, i.due_date, i.status, COALESCE(NULLIF(i.currency,''),'USD') cur,
+                            i.total - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.invoice_id = i.id AND p.status = 'completed'), 0) owed
+                     FROM invoices i WHERE i.client_id = $cid AND i.status IN ('sent','overdue') ORDER BY i.due_date ASC")->fetchAll() as $r) {
+    if ((float) $r['owed'] < 0.01) continue;
+    $owed_by_cur[$r['cur']] = ($owed_by_cur[$r['cur']] ?? 0) + (float) $r['owed'];
+    $first_unpaid = $first_unpaid ?? $r;
+    if ($r['status'] === 'overdue' || ($r['due_date'] && $r['due_date'] < date('Y-m-d'))) $overdue[] = $r;
+}
+
+// Domains about to lapse. Every one needs the client to renew it: there
+// is no automatic domain renewal billing yet, whatever auto_renew says.
+$expiring_domains = [];
+try {
+    $expiring_domains = $db->query("SELECT id, domain_name, expiry_date FROM domain_registrations
+                                    WHERE client_id = $cid AND status = 'active'
+                                      AND expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+                                    ORDER BY expiry_date")->fetchAll();
+} catch (\Throwable $e) {}
+
+// Tickets where support has replied and is waiting on the client.
+$awaiting_reply = $db->query("SELECT id, ticket_number, subject FROM tickets WHERE client_id = $cid AND status = 'answered' ORDER BY updated_at DESC")->fetchAll();
+
+// Suspended services (usually an unpaid renewal).
+$suspended = (int) $db->query("SELECT COUNT(*) FROM orders WHERE client_id = $cid AND status = 'suspended'")->fetchColumn();
+try { $suspended += (int) $db->query("SELECT COUNT(*) FROM client_services WHERE client_id = $cid AND status = 'suspended'")->fetchColumn(); } catch (\Throwable $e) {}
 
 // Side marketing banners (hero carousel renders via portal_render_banners())
 $side_banners = [];
@@ -102,6 +136,65 @@ require_once __DIR__ . '/includes/header.php';
 
   <?php portal_render_banners(); ?>
 
+  <?php if ($owed_by_cur || $expiring_domains || $awaiting_reply || $suspended): ?>
+  <div class="attn" aria-label="Needs your attention">
+    <?php if ($owed_by_cur): ?>
+      <div class="attn-item <?php echo $overdue ? 'danger' : 'warn'; ?>">
+        <span class="attn-ico"><i class="fas <?php echo $overdue ? 'fa-triangle-exclamation' : 'fa-file-invoice-dollar'; ?>"></i></span>
+        <div class="attn-body">
+          <div class="attn-title">
+            <?php echo implode(' + ', array_map(fn($cur, $amt) => htmlspecialchars(format_money($amt, $cur)), array_keys($owed_by_cur), $owed_by_cur)); ?> due
+          </div>
+          <div class="attn-text">
+            <?php if ($overdue): ?>
+              <?php echo count($overdue); ?> invoice<?php echo count($overdue) > 1 ? 's are' : ' is'; ?> overdue — pay now to avoid your service being suspended.
+            <?php else: ?>
+              <?php echo $unpaid_invoices; ?> invoice<?php echo $unpaid_invoices > 1 ? 's' : ''; ?> awaiting payment<?php echo $first_unpaid['due_date'] ? ', next due ' . format_date($first_unpaid['due_date']) : ''; ?>.
+            <?php endif; ?>
+          </div>
+        </div>
+        <a href="<?php echo PORTAL_URL; ?>/<?php echo count($owed_by_cur) === 1 && $unpaid_invoices === 1 ? 'invoices/view.php?id=' . (int) $first_unpaid['id'] . '#pay' : 'invoices/index.php?filter=unpaid'; ?>" class="btn btn-primary btn-sm attn-cta">
+          <i class="fas fa-lock"></i> Pay now
+        </a>
+      </div>
+    <?php endif; ?>
+
+    <?php if ($suspended): ?>
+      <div class="attn-item danger">
+        <span class="attn-ico"><i class="fas fa-circle-pause"></i></span>
+        <div class="attn-body">
+          <div class="attn-title"><?php echo $suspended; ?> service<?php echo $suspended > 1 ? 's' : ''; ?> suspended</div>
+          <div class="attn-text">Settle the outstanding invoice and it's switched back on automatically.</div>
+        </div>
+        <a href="<?php echo PORTAL_URL; ?>/services.php" class="btn btn-ghost btn-sm attn-cta">View services</a>
+      </div>
+    <?php endif; ?>
+
+    <?php foreach ($expiring_domains as $d):
+      $days = max(0, (int) floor((strtotime($d['expiry_date']) - strtotime(date('Y-m-d'))) / 86400)); ?>
+      <div class="attn-item warn">
+        <span class="attn-ico"><i class="fas fa-globe"></i></span>
+        <div class="attn-body">
+          <div class="attn-title"><?php echo htmlspecialchars($d['domain_name']); ?> expires in <?php echo $days; ?> day<?php echo $days === 1 ? '' : 's'; ?></div>
+          <div class="attn-text">Renew it before <?php echo format_date($d['expiry_date']); ?> so your website and email keep working.</div>
+        </div>
+        <a href="<?php echo PORTAL_URL; ?>/domain-renew.php?id=<?php echo (int) $d['id']; ?>" class="btn btn-primary btn-sm attn-cta"><i class="fas fa-rotate"></i> Renew</a>
+      </div>
+    <?php endforeach; ?>
+
+    <?php if ($awaiting_reply): $t = $awaiting_reply[0]; ?>
+      <div class="attn-item info">
+        <span class="attn-ico"><i class="fas fa-comment-dots"></i></span>
+        <div class="attn-body">
+          <div class="attn-title">Support replied<?php echo count($awaiting_reply) > 1 ? ' on ' . count($awaiting_reply) . ' tickets' : ''; ?></div>
+          <div class="attn-text"><?php echo htmlspecialchars($t['ticket_number'] . ' — ' . $t['subject']); ?></div>
+        </div>
+        <a href="<?php echo PORTAL_URL; ?>/tickets/view.php?id=<?php echo (int) $t['id']; ?>" class="btn btn-ghost btn-sm attn-cta">View reply</a>
+      </div>
+    <?php endif; ?>
+  </div>
+  <?php endif; ?>
+
   <?php if ($due_soon): ?>
   <div class="p-alert p-alert-info" style="margin-bottom:20px">
     <i class="fas fa-calendar-alt"></i>
@@ -140,7 +233,7 @@ require_once __DIR__ . '/includes/header.php';
     </a>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+  <div class="dash-two">
 
     <!-- Services -->
     <div class="p-table-wrap">
@@ -193,7 +286,11 @@ require_once __DIR__ . '/includes/header.php';
             <td><a href="<?php echo PORTAL_URL; ?>/invoices/view.php?id=<?php echo $inv['id']; ?>" style="color:var(--text);font-weight:600"><?php echo htmlspecialchars($inv['invoice_number']); ?></a></td>
             <td><?php echo format_money($inv['total'], $inv['currency'] ?? null); ?></td>
             <td><?php echo format_date($inv['due_date']); ?></td>
-            <td><?php echo badge($inv['status']); ?></td>
+            <td style="white-space:nowrap"><?php echo badge($inv['status']); ?>
+              <?php if (in_array($inv['status'], ['sent', 'overdue'], true)): ?>
+                <a href="<?php echo PORTAL_URL; ?>/invoices/view.php?id=<?php echo (int) $inv['id']; ?>#pay" style="margin-left:6px;font-size:12px;font-weight:700;color:var(--green)">Pay</a>
+              <?php endif; ?>
+            </td>
           </tr>
         <?php endforeach; else: ?>
           <tr><td colspan="4"><div class="empty-state"><i class="fas fa-file-invoice"></i><p>No invoices yet.</p></div></td></tr>

@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $_brand_logo = SiteSettings::logoImgTag(44, 170);
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"<?php $_t = $_COOKIE['orbit_portal_theme'] ?? ''; echo in_array($_t, ['light', 'dark'], true) ? ' data-theme="' . $_t . '"' : ''; ?>>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -44,7 +44,7 @@ $_brand_logo = SiteSettings::logoImgTag(44, 170);
   <link rel="stylesheet" href="<?php echo PORTAL_URL; ?>/css/portal.css" />
   <style>
     html, body { height: 100%; }
-    body { margin: 0; display: flex; min-height: 100vh; background: #fff; }
+    body { margin: 0; display: flex; min-height: 100vh; background: var(--surface); color: var(--text); }
 
     .auth-split { display: flex; width: 100%; min-height: 100vh; }
 

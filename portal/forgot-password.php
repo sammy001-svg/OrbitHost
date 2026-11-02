@@ -52,13 +52,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"<?php $_t = $_COOKIE['orbit_portal_theme'] ?? ''; echo in_array($_t, ['light', 'dark'], true) ? ' data-theme="' . $_t . '"' : ''; ?>>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Forgot Password — Orbit Cloud Portal</title>
   <link rel="stylesheet" href="<?php echo $PORTAL_URL; ?>/css/portal.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" />
+  <style>
+    /* Standalone account pages (forgot / reset password): a centred card on
+       the brand navy, coloured from the theme so text reads in light AND dark. */
+    body { background: var(--navy); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 16px; color: var(--text); }
+    .auth-wrap { width: 100%; max-width: 420px; }
+    .auth-card { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 16px; padding: 34px 32px; box-shadow: 0 24px 64px rgba(0,0,0,.3); }
+    .auth-card h2 { color: var(--text); font-size: 19px; font-weight: 700; }
+    .auth-logo { display: block; text-align: center; font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 22px; text-decoration: none; }
+    .auth-logo span { color: var(--green); }
+    .auth-icon-wrap { text-align: center; margin-bottom: 12px; }
+    .auth-card .form-group { margin-bottom: 16px; }
+    .auth-card a:not(.btn):not(.auth-logo) { color: var(--green); }
+  </style>
 </head>
 <body>
 <div class="auth-wrap">

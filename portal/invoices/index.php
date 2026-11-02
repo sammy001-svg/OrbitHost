@@ -6,15 +6,39 @@ require_once dirname(__DIR__, 2) . '/admin/includes/functions.php';
 portal_check();
 $page_title = 'My Invoices';
 $cid    = current_client()['id'];
-$status = trim($_GET['status'] ?? '');
+$cid    = (int) $cid;
+// "Unpaid" means everything still owed — sent AND overdue. (It used to
+// be 'sent' only, which hid exactly the invoices that mattered most.)
+$filters = [
+    ''        => ['All',     "1"],
+    'unpaid'  => ['Unpaid',  "status IN ('sent','overdue')"],
+    'overdue' => ['Overdue', "(status = 'overdue' OR (status = 'sent' AND due_date < CURDATE()))"],
+    'paid'    => ['Paid',    "status = 'paid'"],
+];
+$status = (string) ($_GET['status'] ?? $_GET['filter'] ?? '');
+if (!isset($filters[$status])) $status = '';
 $page   = max(1, (int)($_GET['page'] ?? 1));
 $offset = ($page - 1) * PER_PAGE;
 
-$where  = "client_id = $cid";
-if ($status) $where .= " AND status = " . db()->quote($status);
+$where  = "client_id = $cid AND " . $filters[$status][1];
 
 $total    = (int) db()->query("SELECT COUNT(*) FROM invoices WHERE $where")->fetchColumn();
 $invoices = db()->query("SELECT * FROM invoices WHERE $where ORDER BY created_at DESC LIMIT $offset," . PER_PAGE)->fetchAll();
+
+$counts = [];
+foreach ($filters as $k => [$lbl, $cond]) {
+    $counts[$k] = (int) db()->query("SELECT COUNT(*) FROM invoices WHERE client_id = $cid AND $cond")->fetchColumn();
+}
+
+// Outstanding: unpaid totals less any part payments, per currency.
+$owed = []; $owed_count = 0; $only_id = 0;
+foreach (db()->query("SELECT i.id, COALESCE(NULLIF(i.currency,''),'USD') cur,
+                             i.total - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.invoice_id = i.id AND p.status = 'completed'), 0) owed
+                      FROM invoices i WHERE i.client_id = $cid AND i.status IN ('sent','overdue')")->fetchAll() as $r) {
+    if ((float) $r['owed'] < 0.01) continue;
+    $owed[$r['cur']] = ($owed[$r['cur']] ?? 0) + (float) $r['owed'];
+    $owed_count++; $only_id = (int) $r['id'];
+}
 
 require_once '../includes/header.php';
 ?>
@@ -22,6 +46,17 @@ require_once '../includes/header.php';
 <div class="page-hero">
   <div class="container">
     <div><h1>Invoices</h1><p>All your billing history and payment records</p></div>
+    <?php if ($owed): ?>
+      <div class="hero-figure">
+        <div class="lbl">Outstanding</div>
+        <div class="val">
+          <?php echo implode(' + ', array_map(fn($c, $a) => htmlspecialchars(format_money($a, $c)), array_keys($owed), $owed)); ?>
+        </div>
+        <a href="<?php echo PORTAL_URL; ?>/invoices/<?php echo $owed_count === 1 ? 'view.php?id=' . $only_id . '#pay' : 'index.php?status=unpaid'; ?>" class="btn btn-white btn-sm">
+          <i class="fas fa-lock"></i> <?php echo $owed_count === 1 ? 'Pay now' : 'Pay ' . $owed_count . ' invoices'; ?>
+        </a>
+      </div>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -32,12 +67,10 @@ require_once '../includes/header.php';
 
   <!-- Status filter tabs -->
   <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-    <?php
-    $tabs = ['' => 'All', 'sent' => 'Unpaid', 'paid' => 'Paid', 'overdue' => 'Overdue', 'draft' => 'Draft'];
-    foreach ($tabs as $val => $lbl):
-    ?>
-      <a href="?status=<?php echo $val; ?>" class="btn btn-sm <?php echo $status===$val?'btn-outline':'btn-ghost'; ?>">
+    <?php foreach ($filters as $val => [$lbl]): ?>
+      <a href="?status=<?php echo $val; ?>" class="btn btn-sm <?php echo $status === $val ? 'btn-outline' : 'btn-ghost'; ?>">
         <?php echo $lbl; ?>
+        <span style="margin-left:4px;font-size:11px;opacity:.75">(<?php echo $counts[$val]; ?>)</span>
       </a>
     <?php endforeach; ?>
   </div>

@@ -24,7 +24,10 @@ if ($_c['id']) {
 
 function pnav(string $href, string $label, string $file = '', string $dir = ''): void {
     global $_cur, $_cdir;
-    $active = ($file && $_cur === $file) || ($dir && $_cdir === $dir) ? ' active' : '';
+    // A section living in its own folder (invoices/, tickets/) is matched by
+    // folder ONLY — both are index.php, so matching the file too lit up
+    // Invoices and Support together.
+    $active = ($dir !== '' ? $_cdir === $dir : ($file && $_cur === $file)) ? ' active' : '';
     echo "<a href=\"$href\" class=\"nav-link$active\">$label</a>";
 }
 

@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $_brand_logo = SiteSettings::logoImgTag(44, 170);
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"<?php echo ($_COOKIE['orbit_admin_theme'] ?? '') === 'light' ? ' data-theme="light"' : ''; ?>>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -50,7 +50,7 @@ $_brand_logo = SiteSettings::logoImgTag(44, 170);
   <link rel="stylesheet" href="<?php echo APP_URL; ?>/css/admin.css" />
   <style>
     html, body { height: 100%; }
-    body { margin: 0; display: flex; min-height: 100vh; background: #fff; }
+    body { margin: 0; display: flex; min-height: 100vh; background: var(--surface); color: var(--text); }
 
     .auth-split { display: flex; width: 100%; min-height: 100vh; }
 
@@ -99,8 +99,8 @@ $_brand_logo = SiteSettings::logoImgTag(44, 170);
     .login-card h2 { font-size: 18px; font-weight: 700; margin-bottom: 3px; }
     .login-sub     { font-size: 13px; color: var(--text-muted); margin-bottom: 22px; }
 
-    .login-error   { background: var(--danger-bg); color: #991b1b; padding: 11px 14px; border-radius: 7px; font-size: 13px; margin-bottom: 16px; border-left: 3px solid var(--danger); }
-    .login-timeout { background: var(--warning-bg); color: #92400e; padding: 11px 14px; border-radius: 7px; font-size: 13px; margin-bottom: 16px; border-left: 3px solid var(--warning); }
+    .login-error   { background: var(--danger-bg); color: var(--danger-fg); padding: 11px 14px; border-radius: 7px; font-size: 13px; margin-bottom: 16px; border-left: 3px solid var(--danger); }
+    .login-timeout { background: var(--warning-bg); color: var(--warning-fg); padding: 11px 14px; border-radius: 7px; font-size: 13px; margin-bottom: 16px; border-left: 3px solid var(--warning); }
 
     .login-card .form-label { font-size: 13px; }
     .login-card .form-control { font-size: 14px; padding: 10px 12px; }

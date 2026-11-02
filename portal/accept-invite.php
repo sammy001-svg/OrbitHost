@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $invite) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"<?php $_t = $_COOKIE['orbit_portal_theme'] ?? ''; echo in_array($_t, ['light', 'dark'], true) ? ' data-theme="' . $_t . '"' : ''; ?>>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $invite) {
       display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; color: #fff;
       margin: 0 auto 12px;
     }
-    .auth-card { background: #fff; border-radius: 16px; padding: 34px 32px; box-shadow: 0 24px 64px rgba(0,0,0,.3); }
+    .auth-card { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 16px; padding: 34px 32px; box-shadow: 0 24px 64px rgba(0,0,0,.3); }
     .auth-card h2 { font-size: 18px; font-weight: 700; margin-bottom: 3px; text-align: center; }
   </style>
 </head>

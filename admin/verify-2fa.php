@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"<?php echo ($_COOKIE['orbit_admin_theme'] ?? '') === 'light' ? ' data-theme="light"' : ''; ?>>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -44,14 +44,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .login-brand { text-align: center; margin-bottom: 28px; }
     .login-orb { width: 58px; height: 58px; background: var(--green); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #fff; margin: 0 auto 14px; }
     .login-brand h1 { color: #fff; font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-    .login-brand p  { color: rgba(255,255,255,.45); font-size: 13px; }
-    .login-card { background: #fff; border-radius: 16px; padding: 34px 32px; box-shadow: 0 24px 64px rgba(0,0,0,.35); }
+    .login-brand p  { color: rgba(255,255,255,.78); font-size: 13px; }
+    .login-card { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 16px; padding: 34px 32px; box-shadow: 0 24px 64px rgba(0,0,0,.35); }
     .login-card h2 { font-size: 18px; font-weight: 700; margin-bottom: 3px; }
     .login-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 22px; }
-    .login-error { background: var(--danger-bg); color: #991b1b; padding: 11px 14px; border-radius: 7px; font-size: 13px; margin-bottom: 16px; border-left: 3px solid var(--danger); }
+    .login-error { background: var(--danger-bg); color: var(--danger-fg); padding: 11px 14px; border-radius: 7px; font-size: 13px; margin-bottom: 16px; border-left: 3px solid var(--danger); }
     .code-input { text-align: center; font-size: 26px; letter-spacing: 8px; font-family: ui-monospace, Menlo, monospace; }
     .btn-login { width: 100%; justify-content: center; padding: 11px; font-size: 14px; font-weight: 600; margin-top: 6px; }
-    .back-link { display: block; text-align: center; margin-top: 16px; font-size: 12.5px; color: rgba(255,255,255,.4); text-decoration: none; }
+    .back-link { display: block; text-align: center; margin-top: 16px; font-size: 12.5px; color: rgba(255,255,255,.78); text-decoration: none; }
   </style>
 </head>
 <body>

@@ -30,7 +30,7 @@ if ($token !== '') {
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"<?php $_t = $_COOKIE['orbit_portal_theme'] ?? ''; echo in_array($_t, ['light', 'dark'], true) ? ' data-theme="' . $_t . '"' : ''; ?>>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -40,7 +40,7 @@ if ($token !== '') {
   <style>
     body { background: var(--navy); min-height: 100vh; padding: 32px 16px; display: flex; align-items: center; justify-content: center; }
     .vc-wrap { max-width: 440px; width: 100%; }
-    .vc-card { background: #fff; border-radius: 16px; padding: 36px 32px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+    .vc-card { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 16px; padding: 36px 32px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
     .vc-icon { font-size: 46px; margin-bottom: 14px; }
   </style>
 </head>

@@ -131,7 +131,7 @@ if ($renewable && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? 
 $days_left = $dom['expiry_date'] ? (int) ceil((strtotime($dom['expiry_date']) - time()) / 86400) : null;
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"<?php $_t = $_COOKIE['orbit_portal_theme'] ?? ''; echo in_array($_t, ['light', 'dark'], true) ? ' data-theme="' . $_t . '"' : ''; ?>>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -144,7 +144,7 @@ $days_left = $dom['expiry_date'] ? (int) ceil((strtotime($dom['expiry_date']) - 
     .co-brand { text-align: center; margin-bottom: 24px; }
     .co-orb { width: 50px; height: 50px; background: var(--green); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #fff; margin: 0 auto 12px; }
     .co-brand h1 { color: #fff; font-size: 20px; font-weight: 700; }
-    .co-card { background: #fff; border-radius: 16px; padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+    .co-card { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 16px; padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
     .co-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
     .co-row:last-of-type { border-bottom: none; }
     .co-domain { font-family: ui-monospace, Menlo, monospace; font-weight: 600; color: var(--text); }
@@ -156,7 +156,7 @@ $days_left = $dom['expiry_date'] ? (int) ceil((strtotime($dom['expiry_date']) - 
     .co-error { background: #fee2e2; color: #991b1b; padding: 11px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
     .co-info  { background: #eff6ff; color: #1e40af; padding: 11px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
     .btn-pay { width: 100%; justify-content: center; padding: 13px; font-size: 15px; font-weight: 700; }
-    .back-link { display: block; text-align: center; margin-top: 16px; font-size: 12.5px; color: rgba(255,255,255,.45); }
+    .back-link { display: block; text-align: center; margin-top: 16px; font-size: 12.5px; color: rgba(255,255,255,.78); }
     .years-select { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13.5px; }
     .mpesa-phone { display: none; margin-bottom: 14px; }
   </style>
