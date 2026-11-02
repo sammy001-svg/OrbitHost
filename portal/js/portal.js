@@ -67,8 +67,11 @@ document.addEventListener('DOMContentLoaded', function () {
     setInterval(refresh, 25000);
   })();
 
-  // Auto-dismiss alerts
-  document.querySelectorAll('.p-alert').forEach(function (el) {
+  // Auto-dismiss SUCCESS confirmations only ("Saved", "Password changed").
+  // Every other alert — errors, payment instructions, overdue / renewal /
+  // verify-email notices — has to stay until the client has read it; this
+  // used to fade all of them out after 5 seconds.
+  document.querySelectorAll('.p-flash.p-alert-success').forEach(function (el) {
     setTimeout(function () {
       el.style.transition = 'opacity .5s';
       el.style.opacity = '0';

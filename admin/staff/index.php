@@ -6,6 +6,8 @@ require_once '../includes/functions.php';
 
 auth_check();
 require_role('super_admin');
+require_once '../includes/LoginOtp.php';
+LoginOtp::ensureSchema(); // admin_users.phone — where sign-in codes are texted
 $page_title = 'Staff Accounts';
 
 $roles = ['support' => 'Support', 'admin' => 'Admin', 'super_admin' => 'Super Admin'];
@@ -49,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email    = trim($_POST['email'] ?? '');
     $role     = array_key_exists($_POST['role'] ?? '', $roles) ? $_POST['role'] : 'support';
     $password = (string) ($_POST['password'] ?? '');
+    $phone    = trim($_POST['phone'] ?? '') ?: null;
 
     if ($name === '' || $email === '') {
         flash_set('error', 'Name and email are required.');
@@ -68,17 +71,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             if ($id) {
                 if ($password !== '') {
-                    db()->prepare('UPDATE admin_users SET name=?, email=?, role=?, password=? WHERE id=?')
-                        ->execute([$name, $email, $role, password_hash($password, PASSWORD_BCRYPT), $id]);
+                    db()->prepare('UPDATE admin_users SET name=?, email=?, role=?, phone=?, password=? WHERE id=?')
+                        ->execute([$name, $email, $role, $phone, password_hash($password, PASSWORD_BCRYPT), $id]);
                 } else {
-                    db()->prepare('UPDATE admin_users SET name=?, email=?, role=? WHERE id=?')
-                        ->execute([$name, $email, $role, $id]);
+                    db()->prepare('UPDATE admin_users SET name=?, email=?, role=?, phone=? WHERE id=?')
+                        ->execute([$name, $email, $role, $phone, $id]);
                 }
                 log_activity('staff_save', 'admin_user', $id, "Updated staff account {$name}");
                 flash_set('success', "Staff account \"{$name}\" updated.");
             } else {
-                db()->prepare('INSERT INTO admin_users (name, email, password, role) VALUES (?,?,?,?)')
-                    ->execute([$name, $email, password_hash($password, PASSWORD_BCRYPT), $role]);
+                db()->prepare('INSERT INTO admin_users (name, email, phone, password, role) VALUES (?,?,?,?,?)')
+                    ->execute([$name, $email, $phone, password_hash($password, PASSWORD_BCRYPT), $role]);
                 $id = (int) db()->lastInsertId();
                 log_activity('staff_create', 'admin_user', $id, "Created staff account {$name} ({$role})");
                 flash_set('success', "Staff account \"{$name}\" created.");
@@ -91,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // ── Load staff ──
-$staff = db()->query('SELECT id, name, email, role, last_login, created_at FROM admin_users ORDER BY FIELD(role,"super_admin","admin","support"), name')->fetchAll();
+$staff = db()->query('SELECT id, name, email, phone, role, last_login, created_at FROM admin_users ORDER BY FIELD(role,"super_admin","admin","support"), name')->fetchAll();
 
 require_once '../includes/header.php';
 ?>
@@ -157,7 +160,7 @@ require_once '../includes/header.php';
             default       => 'badge-secondary',
         };
         $json = htmlspecialchars(json_encode([
-            'id' => (int) $s['id'], 'name' => $s['name'], 'email' => $s['email'], 'role' => $s['role'],
+            'id' => (int) $s['id'], 'name' => $s['name'], 'email' => $s['email'], 'phone' => (string) ($s['phone'] ?? ''), 'role' => $s['role'],
         ], JSON_UNESCAPED_SLASHES), ENT_QUOTES);
         $isMe = (int) $s['id'] === (int) $me['id'];
       ?>
@@ -210,6 +213,11 @@ require_once '../includes/header.php';
         <input type="email" name="email" id="staffEmail" class="form-control" required />
       </div>
       <div class="form-group">
+        <label class="form-label">Mobile number</label>
+        <input type="tel" name="phone" id="staffPhone" class="form-control" placeholder="0712 345 678" />
+        <small class="form-hint">Sign-in codes are texted here as well as emailed.</small>
+      </div>
+      <div class="form-group">
         <label class="form-label">Role</label>
         <select name="role" id="staffRole" class="form-select">
           <?php foreach ($roles as $v => $l): ?><option value="<?php echo $v; ?>"><?php echo $l; ?></option><?php endforeach; ?>
@@ -239,6 +247,7 @@ document.addEventListener('click', function (e) {
   document.getElementById('staffId').value    = d.id || 0;
   document.getElementById('staffName').value  = d.name || '';
   document.getElementById('staffEmail').value = d.email || '';
+  document.getElementById('staffPhone').value = d.phone || '';
   document.getElementById('staffRole').value  = d.role || 'support';
 
   var pw = document.getElementById('staffPassword');

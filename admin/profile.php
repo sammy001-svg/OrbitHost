@@ -6,6 +6,8 @@ require_once __DIR__ . '/includes/functions.php';
 
 auth_check();
 ensure_admin_2fa_columns();
+require_once __DIR__ . '/includes/LoginOtp.php';
+LoginOtp::ensureSchema(); // admin_users.phone
 $page_title = 'My Account';
 $admin_id = current_admin()['id'];
 
@@ -37,6 +39,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ' . APP_URL . '/profile.php');
                 exit;
             }
+        }
+
+    } elseif ($action === 'update_phone') {
+        // Sign-in codes are texted here, so changing it needs the password
+        // — a hijacked session mustn't be able to quietly redirect them.
+        $phone = trim($_POST['phone'] ?? '');
+        if (!password_verify($_POST['confirm_password'] ?? '', $me['password'])) {
+            $errors[] = 'Incorrect password — phone number not changed.';
+        } elseif ($phone !== '' && strlen(preg_replace('/\D/', '', $phone)) < 9) {
+            $errors[] = 'Enter a full mobile number, e.g. 0712 345 678.';
+        } else {
+            db()->prepare('UPDATE admin_users SET phone = ? WHERE id = ?')->execute([$phone !== '' ? $phone : null, $admin_id]);
+            log_activity('admin_phone_change', 'admin_user', $admin_id, $phone !== '' ? 'Set sign-in phone' : 'Removed sign-in phone');
+            flash_set('success', $phone !== '' ? 'Phone number saved — sign-in codes will be texted to it.' : 'Phone number removed.');
+            header('Location: ' . APP_URL . '/profile.php');
+            exit;
         }
 
     } elseif ($action === '2fa_start_setup') {
@@ -99,6 +117,28 @@ require_once __DIR__ . '/includes/header.php';
 <?php endif; ?>
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;max-width:900px">
+
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="fas fa-mobile-screen"></i> Sign-in Phone Number</span></div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">
+        Sign-in codes are sent to your email<?php echo !empty($me['phone']) ? ' and to <strong>' . h(LoginOtp::maskPhone((string) $me['phone'])) . '</strong>' : ' — add your mobile number to get them by SMS too'; ?>.
+      </p>
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
+        <input type="hidden" name="action" value="update_phone" />
+        <div class="form-group">
+          <label class="form-label">Mobile number</label>
+          <input type="tel" name="phone" class="form-control" value="<?php echo h((string) ($me['phone'] ?? '')); ?>" placeholder="0712 345 678" autocomplete="tel" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Current password</label>
+          <input type="password" name="confirm_password" class="form-control" required autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save phone</button>
+      </form>
+    </div>
+  </div>
 
   <div class="card">
     <div class="card-header"><span class="card-title"><i class="fas fa-key"></i> Change Password</span></div>

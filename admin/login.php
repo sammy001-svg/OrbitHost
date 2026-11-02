@@ -14,6 +14,13 @@ if (!empty($_SESSION['admin_2fa_pending_id'])) {
     header('Location: ' . APP_URL . '/verify-2fa.php');
     exit;
 }
+if (!empty($_SESSION['admin_otp_pending_id']) && !isset($_GET['restart'])) {
+    header('Location: ' . APP_URL . '/verify-otp.php');
+    exit;
+}
+if (isset($_GET['restart'])) {
+    unset($_SESSION['admin_otp_pending_id'], $_SESSION['admin_otp_notice']);
+}
 
 $error   = '';
 $timeout = isset($_GET['timeout']);
@@ -28,6 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $r = auth_login($email, $password);
         if (!empty($r['needs_2fa'])) {
             header('Location: ' . APP_URL . '/verify-2fa.php');
+            exit;
+        } elseif (!empty($r['needs_otp'])) {
+            header('Location: ' . APP_URL . '/verify-otp.php');
             exit;
         } elseif (!empty($r['ok'])) {
             header('Location: ' . APP_URL . '/dashboard.php');

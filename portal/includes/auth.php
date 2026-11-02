@@ -111,15 +111,68 @@ function portal_login(string $email, string $password): array
         return ['ok' => true, 'needs_2fa' => true];
     }
 
+    // One-time code by email + SMS (Site Settings › Security).
+    require_once dirname(__DIR__, 2) . '/admin/includes/LoginOtp.php';
+    if (LoginOtp::enabled('client')) {
+        session_regenerate_id(true);
+        $_SESSION['client_otp_pending_id'] = $client['id'];
+        $sent = LoginOtp::issue('client', ['id' => $client['id'], 'email' => $client['email'], 'phone' => $client['phone'] ?? '',
+                                           'name' => trim($client['first_name'] . ' ' . $client['last_name'])]);
+        if (empty($sent['ok'])) $_SESSION['client_otp_notice'] = $sent['message']; // success is already said on the page
+        return ['ok' => true, 'needs_otp' => true];
+    }
+
     portal_complete_login($client);
     return ['ok' => true];
+}
+
+/**
+ * Complete a sign-in pending on its emailed/texted code.
+ * @return array{ok:bool, message?:string}
+ */
+function portal_verify_otp(string $code): array
+{
+    portal_start();
+    $pendingId = (int) ($_SESSION['client_otp_pending_id'] ?? 0);
+    if (!$pendingId) return ['ok' => false, 'message' => 'No sign-in in progress — please sign in again.'];
+
+    $blocked = LoginGuard::checkBlocked('portal_otp', (string) $pendingId);
+    if ($blocked) return ['ok' => false, 'message' => $blocked];
+
+    require_once dirname(__DIR__, 2) . '/admin/includes/LoginOtp.php';
+    $r = LoginOtp::verify('client', $pendingId, $code);
+    LoginGuard::record('portal_otp', (string) $pendingId, $r['ok']);
+    if (!$r['ok']) return $r;
+
+    $stmt = db()->prepare('SELECT * FROM clients WHERE id = ? LIMIT 1');
+    $stmt->execute([$pendingId]);
+    $client = $stmt->fetch();
+    if (!$client || $client['status'] !== 'active') return ['ok' => false, 'message' => 'This account is not active — please contact support.'];
+
+    portal_complete_login($client);
+    return ['ok' => true];
+}
+
+/** Send a fresh code for the sign-in in progress. */
+function portal_resend_otp(): array
+{
+    portal_start();
+    $pendingId = (int) ($_SESSION['client_otp_pending_id'] ?? 0);
+    if (!$pendingId) return ['ok' => false, 'message' => 'No sign-in in progress — please sign in again.'];
+    $stmt = db()->prepare('SELECT * FROM clients WHERE id = ? LIMIT 1');
+    $stmt->execute([$pendingId]);
+    $client = $stmt->fetch();
+    if (!$client) return ['ok' => false, 'message' => 'Account not found — please sign in again.'];
+    require_once dirname(__DIR__, 2) . '/admin/includes/LoginOtp.php';
+    return LoginOtp::issue('client', ['id' => $client['id'], 'email' => $client['email'], 'phone' => $client['phone'] ?? '',
+                                      'name' => trim($client['first_name'] . ' ' . $client['last_name'])]);
 }
 
 /** Finish granting a session once password (and, if applicable, 2FA) both succeeded. */
 function portal_complete_login(array $client): void
 {
     session_regenerate_id(true);
-    unset($_SESSION['client_2fa_pending_id']);
+    unset($_SESSION['client_2fa_pending_id'], $_SESSION['client_otp_pending_id'], $_SESSION['client_otp_notice']);
     $_SESSION['client_id']    = $client['id'];
     $_SESSION['client_name']  = trim($client['first_name'] . ' ' . $client['last_name']);
     $_SESSION['client_email'] = $client['email'];

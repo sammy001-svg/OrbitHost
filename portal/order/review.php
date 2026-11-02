@@ -63,10 +63,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $r = portal_login(trim($_POST['login_email'] ?? ''), (string) ($_POST['login_password'] ?? ''));
         if (empty($r['ok'])) {
             $errors[] = $r['message'] ?? 'Those details don\'t match an account.';
-        } elseif (!empty($r['needs_2fa'])) {
+        } elseif (!empty($r['needs_2fa']) || !empty($r['needs_otp'])) {
             // The cart survives in the session — we come straight back here.
             $_SESSION['post_login_redirect'] = 'order/review.php';
-            header('Location: ' . PORTAL_URL . '/verify-2fa.php');
+            header('Location: ' . PORTAL_URL . '/' . (!empty($r['needs_otp']) ? 'verify-otp.php' : 'verify-2fa.php'));
             exit;
         } else {
             $stmt = db()->prepare('SELECT * FROM clients WHERE id = ?');

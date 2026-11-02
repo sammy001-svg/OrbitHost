@@ -984,3 +984,54 @@ tbody tr:hover { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--g
   }
   .kpi:hover, .stat-card:hover, .attn:hover, .btn:hover { transform: none; }
 }
+
+/* ══════════════ SMS: phone preview ══════════════
+   What the client will actually see — built only from theme tokens so it
+   reads correctly in both light and dark (the old preview used an
+   undefined variable, falling back to a light grey under light text). */
+.sms-phone {
+  background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 22px;
+  padding: 0 0 14px; overflow: hidden; max-width: 340px; margin: 0 auto;
+  box-shadow: inset 0 0 0 6px var(--surface-3);
+}
+.sms-phone-top {
+  display: flex; align-items: center; gap: 10px; padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+}
+.sms-avatar {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--green); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; flex: 0 0 34px;
+}
+.sms-sender { font-weight: 800; color: var(--text); font-size: 13.5px; letter-spacing: .3px; }
+.sms-sub    { font-size: 11.5px; color: var(--text-muted); }
+.sms-thread { padding: 14px 16px 0; min-height: 150px; }
+.sms-day    { text-align: center; font-size: 11px; color: var(--text-muted); margin-bottom: 10px; font-weight: 600; }
+.sms-bubble {
+  background: var(--surface-3); color: var(--text); border: 1px solid var(--border);
+  border-radius: 18px 18px 18px 6px; padding: 10px 13px; max-width: 88%;
+  font-size: 14px; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;
+}
+.sms-bubble.empty { color: var(--text-muted); font-style: italic; }
+.sms-time { font-size: 10.5px; color: var(--text-muted); margin: 5px 0 0 6px; }
+
+.sms-meter { margin-top: 14px; }
+.sms-meter-bar { height: 6px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.sms-meter-bar span { display: block; height: 100%; width: 0; background: var(--green); transition: width .15s, background .15s; }
+.sms-meter.warn .sms-meter-bar span { background: var(--warning); }
+.sms-meter.over .sms-meter-bar span { background: var(--danger); }
+.sms-stats { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 7px; font-size: 12px; color: var(--text-muted); }
+.sms-stats strong { color: var(--text); }
+.sms-note { font-size: 12px; color: var(--text-muted); margin-top: 10px; line-height: 1.5; }
+.sms-note.warn { color: var(--warning-fg); background: var(--warning-bg); border-radius: 8px; padding: 8px 10px; }
+.sms-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; font-size: 12px; color: var(--text-muted); }
+.sms-chip {
+  border: 1px solid var(--border-2); background: var(--surface-2); color: var(--text);
+  border-radius: 20px; padding: 3px 10px; font-size: 12px; font-family: var(--mono, ui-monospace, Menlo, monospace); cursor: pointer;
+}
+.sms-chip:hover { border-color: var(--green); color: var(--green); }
+.sms-compose-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 18px; align-items: start; }
+.sms-compose-grid .sms-side { position: sticky; top: 18px; display: grid; gap: 18px; }
+@media (max-width: 1100px) {
+  .sms-compose-grid { grid-template-columns: 1fr; }
+  .sms-compose-grid .sms-side { position: static; }
+}

@@ -72,6 +72,15 @@ final class SiteSettings
                     ['key'=>'id_protection_kes', 'label'=>'ID Protection — price per year (KES)', 'type'=>'text', 'default'=>'650'],
                 ],
             ],
+            'security' => [
+                'label' => 'Security', 'icon' => 'fa-shield-halved',
+                'hint'  => 'One-time sign-in codes. After the password, a 6-digit code is sent to the account\'s email AND phone (SMS needs Shanfix SMS enabled under Providers); the code must be entered to get in. Accounts using an authenticator app keep that instead. Emergency off-switch: LOGIN_OTP_DISABLE=true in .env.',
+                'fields' => [
+                    ['key'=>'otp_clients', 'label'=>'Require a sign-in code for clients (client portal)', 'type'=>'toggle', 'default'=>true],
+                    ['key'=>'otp_admins',  'label'=>'Require a sign-in code for staff (admin panel)', 'type'=>'toggle', 'default'=>true,
+                     'hint'=>'Make sure your email is working (Providers › SMTP) and your own phone number is on your admin profile before relying on this.'],
+                ],
+            ],
             'footer' => [
                 'label' => 'Footer', 'icon' => 'fa-shoe-prints',
                 'hint'  => 'The about text, copyright line and social links shown in the site footer.',

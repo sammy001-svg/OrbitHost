@@ -17,8 +17,13 @@ $page_title = 'New SMS Campaign';
 if (($_GET['preview'] ?? '') === '1') {
     header('Content-Type: application/json');
     $res = Sms::resolveAudience((string) ($_GET['audience'] ?? ''), ['client_ids' => explode(',', (string) ($_GET['ids'] ?? ''))], !empty($_GET['notice']));
+    $first = $res['recipients'][0] ?? null;
     echo json_encode(['count' => count($res['recipients']), 'no_phone' => $res['no_phone'], 'opted_out' => $res['opted_out'],
-                      'sample' => array_map(fn($r) => trim($r['first_name'] . ' ' . $r['last_name']), array_slice($res['recipients'], 0, 5))]);
+                      'sample' => array_map(fn($r) => trim($r['first_name'] . ' ' . $r['last_name']), array_slice($res['recipients'], 0, 5)),
+                      // The first real recipient, so the phone preview shows
+                      // exactly what one client will receive.
+                      'first' => $first ? ['first_name' => trim((string) $first['first_name']), 'last_name' => trim((string) $first['last_name']),
+                                           'company' => trim((string) ($first['company'] ?? ''))] : null]);
     exit;
 }
 
@@ -77,6 +82,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $clients = db()->query("SELECT id, first_name, last_name, email, phone, status FROM clients ORDER BY first_name, last_name")->fetchAll();
 $balance = null;
 if ($sc = Sms::client()) { $b = $sc->balance(); $balance = $b['success'] ? $b['units'] : null; }
+// Shown at the top of the phone preview — what the client's phone shows as the sender.
+$sender_id = '';
+if ($pk = Sms::provider()) $sender_id = trim((string) (Provider::config($pk)['sender_id'] ?? ''));
+$sender_id = $sender_id !== '' ? $sender_id : 'Your sender ID';
 
 require_once '../includes/header.php';
 ?>
@@ -97,37 +106,40 @@ require_once '../includes/header.php';
 
 <form method="POST" id="smsForm">
 <input type="hidden" name="csrf_token" value="<?php echo csrf_token(); ?>" />
-<div class="grid-2" style="align-items:start">
-  <div class="card">
-    <div class="card-header"><div class="card-title"><i class="fas fa-pen"></i> Message</div></div>
-    <div class="card-body">
-      <div class="form-group">
-        <label class="form-label" for="name">Campaign name <span class="text-muted">(internal)</span></label>
-        <input type="text" id="name" name="name" class="form-control" maxlength="150" required value="<?php echo h($form['name']); ?>" placeholder="e.g. December hosting promo" />
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="message">Message</label>
-        <textarea id="message" name="message" class="form-control" rows="6" maxlength="918" required
-                  placeholder="Hi {first_name}, ..."><?php echo h($form['message']); ?></textarea>
-        <div style="display:flex;justify-content:space-between;gap:10px;margin-top:6px;font-size:12px" class="text-muted">
-          <span>Insert:
-            <?php foreach (Sms::PLACEHOLDERS as $p): ?>
-              <button type="button" class="code-chip" data-insert="<?php echo h($p); ?>" style="border:0;cursor:pointer"><?php echo h($p); ?></button>
-            <?php endforeach; ?>
-          </span>
-          <span id="msgCount">0 chars · 0 SMS</span>
+<div class="sms-compose-grid">
+  <div style="display:grid;gap:18px;min-width:0">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="fas fa-pen"></i> Message</div></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label" for="name">Campaign name <span class="text-muted">(internal — clients never see it)</span></label>
+          <input type="text" id="name" name="name" class="form-control" maxlength="150" required value="<?php echo h($form['name']); ?>" placeholder="e.g. December hosting promo" />
         </div>
-        <div class="text-muted" style="font-size:12px;margin-top:6px" id="personalNote"></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Preview</label>
-        <div id="msgPreview" style="background:var(--bg-subtle, #f1f5f9);border-radius:14px;padding:12px 14px;white-space:pre-wrap;font-size:14px;min-height:48px;color:var(--text)"></div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label" for="message">Message</label>
+          <textarea id="message" name="message" class="form-control" rows="7" maxlength="918" required
+                    placeholder="Hi {first_name}, …"><?php echo h($form['message']); ?></textarea>
+          <div class="sms-chips">
+            <span>Personalise:</span>
+            <?php foreach (Sms::PLACEHOLDERS as $p): ?>
+              <button type="button" class="sms-chip" data-insert="<?php echo h($p); ?>" title="Insert <?php echo h($p); ?>"><?php echo h($p); ?></button>
+            <?php endforeach; ?>
+          </div>
+          <div class="sms-meter" id="smsMeter">
+            <div class="sms-meter-bar"><span id="segBar"></span></div>
+            <div class="sms-stats">
+              <span><strong id="msgChars">0</strong> / <span id="msgCap">160</span> characters</span>
+              <span><strong id="msgParts">0</strong> SMS per recipient</span>
+              <span id="msgEnc">Standard text</span>
+            </div>
+          </div>
+          <div class="sms-note" id="encNote" hidden></div>
+          <div class="sms-note" id="personalNote"></div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div>
-    <div class="card" style="margin-bottom:18px">
+    <div class="card">
       <div class="card-header"><div class="card-title"><i class="fas fa-users"></i> Recipients</div></div>
       <div class="card-body">
         <div class="form-group">
@@ -156,24 +168,53 @@ require_once '../includes/header.php';
         <div id="audienceSummary" class="alert alert-info" style="margin-top:14px;margin-bottom:0"><i class="fas fa-circle-info"></i> <span>Counting…</span></div>
       </div>
     </div>
+  </div>
+
+  <div class="sms-side">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="fas fa-mobile-screen"></i> Preview</div></div>
+      <div class="card-body">
+        <div class="sms-phone" aria-label="Message preview">
+          <div class="sms-phone-top">
+            <span class="sms-avatar"><i class="fas fa-comment-sms"></i></span>
+            <div style="min-width:0">
+              <div class="sms-sender"><?php echo h($sender_id); ?></div>
+              <div class="sms-sub">Text message</div>
+            </div>
+          </div>
+          <div class="sms-thread">
+            <div class="sms-day">Today</div>
+            <div class="sms-bubble empty" id="msgPreview">Your message will appear here.</div>
+            <div class="sms-time" id="msgTime"></div>
+          </div>
+        </div>
+        <div class="sms-note" id="previewFor" style="text-align:center"></div>
+      </div>
+    </div>
 
     <div class="card">
-      <div class="card-header"><div class="card-title"><i class="fas fa-clock"></i> Send</div></div>
+      <div class="card-header"><div class="card-title"><i class="fas fa-paper-plane"></i> Send</div></div>
       <div class="card-body">
-        <label style="display:flex;gap:8px;align-items:center;margin-bottom:6px;font-weight:400">
+        <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-weight:400">
           <input type="radio" name="when" value="now" <?php echo $form['when'] === 'now' ? 'checked' : ''; ?> /> Send now
         </label>
-        <label style="display:flex;gap:8px;align-items:center;font-weight:400">
+        <label style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-weight:400">
           <input type="radio" name="when" value="later" <?php echo $form['when'] === 'later' ? 'checked' : ''; ?> /> Schedule for
           <input type="datetime-local" name="scheduled_at" class="form-control" style="max-width:220px" value="<?php echo h($form['scheduled_at']); ?>" />
         </label>
-        <p class="text-muted" style="font-size:12px;margin:12px 0">
-          <?php if ($balance !== null): ?>Account balance: <strong><?php echo number_format($balance, 2); ?> units</strong>. <?php endif; ?>
-          Estimated cost: <strong id="unitEstimate">—</strong> (1 unit per SMS segment; your Shanfix rate applies).
-        </p>
-        <button type="submit" class="btn btn-primary" id="sendBtn" data-confirm="Send this SMS campaign? Texts cannot be recalled once sent.">
+        <div class="data-list" style="margin:14px 0">
+          <div class="row"><span class="k">Recipients</span><span class="v" id="sumRecipients">—</span></div>
+          <div class="row"><span class="k">SMS per recipient</span><span class="v" id="sumParts">—</span></div>
+          <div class="row"><span class="k">Estimated units</span><span class="v" id="unitEstimate">—</span></div>
+          <?php if ($balance !== null): ?>
+            <div class="row"><span class="k">Your balance</span><span class="v" id="sumBalance" data-balance="<?php echo h((string) $balance); ?>"><?php echo number_format($balance, 2); ?> units</span></div>
+          <?php endif; ?>
+        </div>
+        <div class="sms-note warn" id="balanceWarn" hidden></div>
+        <button type="submit" class="btn btn-primary" id="sendBtn" style="width:100%;justify-content:center;margin-top:10px" data-confirm="Send this SMS campaign? Texts cannot be recalled once sent.">
           <i class="fas fa-paper-plane"></i> Create campaign
         </button>
+        <p class="text-muted" style="font-size:11.5px;margin-top:8px;text-align:center">1 unit per SMS part; your Shanfix rate applies.</p>
       </div>
     </div>
   </div>
@@ -183,40 +224,87 @@ require_once '../includes/header.php';
 <script>
 (function () {
   var f = document.getElementById('smsForm'), msg = document.getElementById('message');
+  var $ = function (id) { return document.getElementById(id); };
+  // GSM-7: anything outside this set forces Unicode (70 chars per SMS instead of 160).
   var gsm = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
   var ext = "^{}\\[~]|€";
+  var MAX = 918;
   var recipients = 0, lastQuery = '';
-  function segments(t) {
-    var len = 0, uni = false, chars = Array.from(t);
-    for (var i = 0; i < chars.length; i++) {
-      if (gsm.indexOf(chars[i]) >= 0) len++; else if (ext.indexOf(chars[i]) >= 0) len += 2; else { uni = true; break; }
+  var who = { first_name: 'Jane', last_name: 'Wanjiku', company: 'Acme Ltd', real: false };
+
+  function measure(t) {
+    var len = 0, bad = [], chars = Array.from(t);
+    chars.forEach(function (c) {
+      if (gsm.indexOf(c) >= 0) len++;
+      else if (ext.indexOf(c) >= 0) len += 2;
+      else if (bad.indexOf(c) < 0) bad.push(c);
+    });
+    if (bad.length) {
+      len = chars.length;
+      var seg = len === 0 ? 0 : (len <= 70 ? 1 : Math.ceil(len / 67));
+      return { len: len, seg: seg, cap: seg <= 1 ? 70 : seg * 67, uni: true, bad: bad };
     }
-    if (uni) { len = chars.length; return { len: len, seg: len <= 70 ? 1 : Math.ceil(len / 67), uni: true }; }
-    return { len: len, seg: t === '' ? 0 : (len <= 160 ? 1 : Math.ceil(len / 153)), uni: false };
+    var s = len === 0 ? 0 : (len <= 160 ? 1 : Math.ceil(len / 153));
+    return { len: len, seg: s, cap: s <= 1 ? 160 : s * 153, uni: false, bad: [] };
   }
-  function sample(t) {
-    return t.replace(/\{first_name\}/g, 'Jane').replace(/\{last_name\}/g, 'Wanjiku')
-            .replace(/\{full_name\}/g, 'Jane Wanjiku').replace(/\{company\}/g, 'Acme Ltd');
+  // Same substitution the server does (Sms::personalize): no company → first name.
+  function personalize(t) {
+    var full = (who.first_name + ' ' + who.last_name).trim();
+    return t.replace(/\{first_name\}/g, who.first_name).replace(/\{last_name\}/g, who.last_name)
+            .replace(/\{full_name\}/g, full).replace(/\{company\}/g, who.company || who.first_name);
   }
   function update() {
-    var t = sample(msg.value), s = segments(t);
-    document.getElementById('msgCount').textContent = s.len + ' chars · ' + s.seg + ' SMS' + (s.uni ? ' (unicode)' : '');
-    document.getElementById('msgPreview').textContent = t || ' ';
-    var personal = /\{(first_name|last_name|full_name|company)\}/.test(msg.value);
-    document.getElementById('personalNote').textContent = personal
-      ? 'Personalised: each client gets their own text, sent about 50 a minute.'
-      : 'Same text for everyone: sent in bulk, up to 1,000 at a time. Delivery reports are tracked only for personalised messages.';
-    document.getElementById('unitEstimate').textContent = recipients ? '~' + (recipients * Math.max(s.seg, 1)) + ' units' : '—';
+    var raw = msg.value, t = personalize(raw), m = measure(t);
+    var bubble = $('msgPreview');
+    if (raw.trim() === '') { bubble.textContent = 'Your message will appear here.'; bubble.classList.add('empty'); }
+    else { bubble.textContent = t; bubble.classList.remove('empty'); }
+    var now = new Date();
+    $('msgTime').textContent = raw.trim() ? now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+    $('msgChars').textContent = m.len;
+    $('msgCap').textContent = m.cap;
+    $('msgParts').textContent = m.seg;
+    $('msgEnc').textContent = m.uni ? 'Unicode (70 per SMS)' : 'Standard text';
+    $('segBar').style.width = (m.cap ? Math.min(100, m.len / m.cap * 100) : 0) + '%';
+    var meter = $('smsMeter');
+    meter.classList.toggle('warn', m.seg >= 2 && raw.length <= MAX - 60);
+    meter.classList.toggle('over', raw.length > MAX - 60);
+
+    var enc = $('encNote');
+    if (m.uni) {
+      enc.hidden = false; enc.className = 'sms-note warn';
+      enc.textContent = 'Special characters ' + m.bad.slice(0, 5).map(function (c) { return '“' + c + '”'; }).join(' ')
+        + ' switch this message to Unicode, so each SMS holds 70 characters instead of 160. Replace them (e.g. curly quotes with straight ones) to save units.';
+    } else { enc.hidden = true; }
+
+    var personal = /\{(first_name|last_name|full_name|company)\}/.test(raw);
+    $('personalNote').textContent = personal
+      ? 'Personalised — each client gets their own text (sent about 50 a minute, with delivery reports).'
+      : 'Same text for everyone — sent in bulk, up to 1,000 at a time.';
+    $('previewFor').textContent = personal
+      ? (who.real ? 'Showing what ' + (who.first_name + ' ' + who.last_name).trim() + ' will receive.' : 'Showing example details — pick recipients to preview a real client.')
+      : '';
+
+    var parts = Math.max(m.seg, 1), units = recipients * parts;
+    $('sumRecipients').textContent = recipients ? recipients.toLocaleString() : '—';
+    $('sumParts').textContent = raw.trim() ? m.seg : '—';
+    $('unitEstimate').textContent = recipients && raw.trim() ? '~' + units.toLocaleString() : '—';
+    var bal = $('sumBalance'), warn = $('balanceWarn');
+    if (bal && recipients && raw.trim() && units > parseFloat(bal.dataset.balance)) {
+      warn.hidden = false;
+      warn.textContent = 'This needs about ' + units.toLocaleString() + ' units but your balance is ' + parseFloat(bal.dataset.balance).toLocaleString() + '. Top up Shanfix SMS first, or the rest will fail.';
+    } else if (warn) { warn.hidden = true; }
   }
   function audience() {
     var a = f.querySelector('input[name=audience]:checked');
-    var pick = document.getElementById('pickRow');
-    pick.style.display = a && a.value === 'selected' ? '' : 'none';
-    var ids = Array.from(document.getElementById('clientPick').selectedOptions).map(function (o) { return o.value; }).join(',');
+    $('pickRow').style.display = a && a.value === 'selected' ? '' : 'none';
+    var ids = Array.from($('clientPick').selectedOptions).map(function (o) { return o.value; }).join(',');
     var q = 'preview=1&audience=' + encodeURIComponent(a ? a.value : '') + '&ids=' + ids + '&notice=' + (f.service_notice.checked ? 1 : '');
     if (q === lastQuery) return; lastQuery = q;
     fetch('compose.php?' + q, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
       recipients = d.count;
+      who = d.first ? { first_name: d.first.first_name || '', last_name: d.first.last_name || '', company: d.first.company || '', real: true }
+                    : { first_name: 'Jane', last_name: 'Wanjiku', company: 'Acme Ltd', real: false };
       var parts = ['<strong>' + d.count + '</strong> client' + (d.count === 1 ? '' : 's') + ' will receive this'];
       if (d.no_phone) parts.push(d.no_phone + ' skipped (no valid phone)');
       if (d.opted_out) parts.push(d.opted_out + ' skipped (opted out of SMS offers)');

@@ -91,7 +91,7 @@ $_theme = ($_COOKIE['orbit_admin_theme'] ?? '') === 'light' ? 'light' : 'dark';
 
   <main class="page-content">
     <?php if ($_flash): ?>
-      <div class="alert alert-<?php echo h($_flash['type']); ?>" role="alert">
+      <div class="alert flash alert-<?php echo h($_flash['type']); ?>" role="alert">
         <i class="fas <?php echo $_flash['type'] === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'; ?>"></i>
         <?php echo h($_flash['message']); ?>
       </div>

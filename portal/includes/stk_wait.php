@@ -20,6 +20,18 @@
 require_once dirname(__DIR__, 2) . '/admin/includes/providers/PaymentClient.php';
 
 /**
+ * Seconds since a payment row was created, measured by MySQL. PHP and
+ * MySQL often run in different time zones on shared hosting, so mixing
+ * time() with a DB timestamp can be hours off.
+ */
+function stk_payment_age(int $pay_id): int
+{
+    $s = db()->prepare('SELECT GREATEST(0, TIMESTAMPDIFF(SECOND, created_at, NOW())) FROM payments WHERE id = ?');
+    $s->execute([$pay_id]);
+    return (int) $s->fetchColumn();
+}
+
+/**
  * One payment per click: any form that picks a gateway gets its submit
  * button locked on first submit, so a double tap can't fire two STK
  * prompts (or two card checkouts). Echo once per page.
@@ -130,7 +142,7 @@ function stk_wait_panel(array $pay, string $return_tpl, string $back_url, array 
     }
     $masked  = $phone !== '' ? PaymentClient::maskPhone($phone) : 'your phone';
     $amount  = 'KES ' . number_format((int) ceil(round((float) $pay['amount'], 2)));
-    $age     = max(0, time() - strtotime((string) $pay['created_at']));
+    $age     = stk_payment_age((int) $pay['id']);
     $cfg = [
         'pay'      => (int) $pay['id'],
         'status'   => $opts['status_url'] ?? PORTAL_URL . '/payment-status.php',

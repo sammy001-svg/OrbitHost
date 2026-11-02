@@ -54,8 +54,11 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   })();
 
-  // ── Auto-dismiss alerts after 5 s ───────────────────────
-  document.querySelectorAll('.alert').forEach(function (el) {
+  // ── Auto-dismiss SUCCESS confirmations after 5 s ────────
+  // Only "Saved"-style flashes. Every other alert — warnings, errors,
+  // live counts like the SMS audience summary, payment instructions —
+  // must stay; this used to hide all of them after 5 seconds.
+  document.querySelectorAll('.alert.flash.alert-success').forEach(function (el) {
     setTimeout(function () {
       el.style.transition = 'opacity .5s';
       el.style.opacity = '0';

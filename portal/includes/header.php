@@ -150,7 +150,7 @@ $_theme = in_array($_theme, ['light', 'dark'], true) ? $_theme : '';
 <main class="portal-main">
   <?php if ($_flash): ?>
     <div class="container">
-      <div class="p-alert p-alert-<?php echo $_flash['type']; ?>">
+      <div class="p-alert p-flash p-alert-<?php echo htmlspecialchars($_flash['type']); ?>" role="status">
         <i class="fas <?php echo $_flash['type'] === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'; ?>"></i>
         <?php echo htmlspecialchars($_flash['msg']); ?>
       </div>

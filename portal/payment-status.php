@@ -17,6 +17,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once dirname(__DIR__) . '/admin/includes/functions.php';
 require_once dirname(__DIR__) . '/admin/includes/providers/Provider.php';
 require_once dirname(__DIR__) . '/admin/includes/Automation.php';
+require_once __DIR__ . '/includes/stk_wait.php';
 
 header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-store');
@@ -57,7 +58,7 @@ function ps_state(array $pay): array
         return ['status' => 'failed', 'message' => $raw['failure'] ?? 'This payment was not completed.'];
     }
     return ['status' => 'pending', 'message' => 'Waiting for you to approve the prompt on your phone…',
-            'age' => max(0, time() - strtotime((string) $pay['created_at']))];
+            'age' => stk_payment_age((int) $pay['id'])];
 }
 
 $pid = (int) ($_GET['pay'] ?? $_POST['pay'] ?? 0);

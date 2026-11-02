@@ -87,15 +87,66 @@ function auth_login(string $email, string $password): array
         return ['ok' => true, 'needs_2fa' => true];
     }
 
+    // One-time code by email + SMS (Site Settings › Security).
+    require_once __DIR__ . '/LoginOtp.php';
+    if (LoginOtp::enabled('admin')) {
+        session_regenerate_id(true);
+        $_SESSION['admin_otp_pending_id'] = $user['id'];
+        $sent = LoginOtp::issue('admin', ['id' => $user['id'], 'email' => $user['email'], 'phone' => $user['phone'] ?? '', 'name' => $user['name']]);
+        if (empty($sent['ok'])) $_SESSION['admin_otp_notice'] = $sent['message']; // success is already said on the page
+        return ['ok' => true, 'needs_otp' => true];
+    }
+
     auth_complete_login($user);
     return ['ok' => true];
+}
+
+/**
+ * Complete a sign-in pending on its emailed/texted code.
+ * @return array{ok:bool, message?:string}
+ */
+function auth_verify_otp(string $code): array
+{
+    auth_start();
+    $pendingId = (int) ($_SESSION['admin_otp_pending_id'] ?? 0);
+    if (!$pendingId) return ['ok' => false, 'message' => 'No sign-in in progress — please sign in again.'];
+
+    $blocked = LoginGuard::checkBlocked('admin_otp', (string) $pendingId);
+    if ($blocked) return ['ok' => false, 'message' => $blocked];
+
+    require_once __DIR__ . '/LoginOtp.php';
+    $r = LoginOtp::verify('admin', $pendingId, $code);
+    LoginGuard::record('admin_otp', (string) $pendingId, $r['ok']);
+    if (!$r['ok']) return $r;
+
+    $stmt = db()->prepare('SELECT * FROM admin_users WHERE id = ? LIMIT 1');
+    $stmt->execute([$pendingId]);
+    $user = $stmt->fetch();
+    if (!$user) return ['ok' => false, 'message' => 'Account not found — please sign in again.'];
+
+    auth_complete_login($user);
+    return ['ok' => true];
+}
+
+/** Send a fresh code for the sign-in in progress. */
+function auth_resend_otp(): array
+{
+    auth_start();
+    $pendingId = (int) ($_SESSION['admin_otp_pending_id'] ?? 0);
+    if (!$pendingId) return ['ok' => false, 'message' => 'No sign-in in progress — please sign in again.'];
+    $stmt = db()->prepare('SELECT * FROM admin_users WHERE id = ? LIMIT 1');
+    $stmt->execute([$pendingId]);
+    $user = $stmt->fetch();
+    if (!$user) return ['ok' => false, 'message' => 'Account not found — please sign in again.'];
+    require_once __DIR__ . '/LoginOtp.php';
+    return LoginOtp::issue('admin', ['id' => $user['id'], 'email' => $user['email'], 'phone' => $user['phone'] ?? '', 'name' => $user['name']]);
 }
 
 /** Finish granting a session once password (and, if applicable, 2FA) both succeeded. */
 function auth_complete_login(array $user): void
 {
     session_regenerate_id(true);
-    unset($_SESSION['admin_2fa_pending_id']);
+    unset($_SESSION['admin_2fa_pending_id'], $_SESSION['admin_otp_pending_id'], $_SESSION['admin_otp_notice']);
     $_SESSION['admin_id']    = $user['id'];
     $_SESSION['admin_name']  = $user['name'];
     $_SESSION['admin_role']  = $user['role'];

@@ -68,4 +68,4 @@ if (in_array($pay['status'], ['failed', 'refunded'], true)) {
     aps_out(['pay' => $pid, 'status' => 'failed', 'message' => $raw['failure'] ?? 'The payment was not completed.']);
 }
 aps_out(['pay' => $pid, 'status' => 'pending', 'message' => 'Waiting for the client to approve…',
-         'age' => max(0, time() - strtotime((string) $pay['created_at']))]);
+         'age' => stk_payment_age($pid)]);

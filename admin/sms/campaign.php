@@ -90,7 +90,20 @@ require_once '../includes/header.php';
   <div class="card">
     <div class="card-header"><div class="card-title"><i class="fas fa-message"></i> Message</div></div>
     <div class="card-body">
-      <div style="background:var(--bg-subtle, #f1f5f9);border-radius:14px;padding:12px 14px;white-space:pre-wrap;font-size:14px;color:var(--text)"><?php echo h($cmp['message']); ?></div>
+      <?php $sid = ($pk = Sms::provider()) ? trim((string) (Provider::config($pk)['sender_id'] ?? '')) : ''; ?>
+      <div class="sms-phone" style="max-width:none">
+        <div class="sms-phone-top">
+          <span class="sms-avatar"><i class="fas fa-comment-sms"></i></span>
+          <div style="min-width:0">
+            <div class="sms-sender"><?php echo h($sid !== '' ? $sid : 'Your sender ID'); ?></div>
+            <div class="sms-sub">Text message<?php echo $cmp['personalized'] ? ' · personalised per client' : ''; ?></div>
+          </div>
+        </div>
+        <div class="sms-thread" style="min-height:0">
+          <div class="sms-bubble"><?php echo h($cmp['message']); ?></div>
+          <div class="sms-time"><?php echo format_datetime($cmp['scheduled_at']); ?></div>
+        </div>
+      </div>
       <ul class="profile-meta" style="margin-top:14px">
         <li><span class="key">Audience</span><span class="val"><?php echo h(Sms::audiences()[$cmp['audience']] ?? $cmp['audience']); ?><?php echo $cmp['service_notice'] ? ' · service notice' : ''; ?></span></li>
         <li><span class="key">Sending</span><span class="val"><?php echo $cmp['personalized'] ? 'Personalised, one by one' : 'Bulk'; ?></span></li>

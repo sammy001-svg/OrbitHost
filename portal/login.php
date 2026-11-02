@@ -10,6 +10,8 @@ $next = $_GET['next'] ?? '';
 if ($next === 'checkout') { $_SESSION['post_login_redirect'] = 'checkout.php'; }
 
 if (!empty($_SESSION['client_id'])) { header('Location: ' . PORTAL_URL . '/' . portal_after_auth()); exit; }
+if (isset($_GET['restart'])) { unset($_SESSION['client_otp_pending_id'], $_SESSION['client_otp_notice']); }
+elseif (!empty($_SESSION['client_otp_pending_id'])) { header('Location: ' . PORTAL_URL . '/verify-otp.php'); exit; }
 
 $error   = '';
 $timeout = isset($_GET['timeout']);
@@ -23,6 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $r = portal_login($email, $pass);
         if (!empty($r['needs_2fa'])) {
             header('Location: ' . PORTAL_URL . '/verify-2fa.php');
+            exit;
+        } elseif (!empty($r['needs_otp'])) {
+            header('Location: ' . PORTAL_URL . '/verify-otp.php');
             exit;
         } elseif (!empty($r['ok'])) {
             header('Location: ' . PORTAL_URL . '/' . portal_after_auth());
